@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { Candidate, CandidateActivity, Race, RefreshJob, VoteRecord } from "./src/types";
+import { Candidate, Jurisdiction, Office, Race, RefreshJob } from "./src/types";
 import { DATA_SOURCES, normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from "./src/lib/dataPlatform";
 
 dotenv.config();
@@ -34,6 +34,8 @@ function emptyCounts(): RefreshJob["counts"] {
     votes: 0,
     activities: 0,
     raceStats: 0,
+    offices: 0,
+    jurisdictions: 0,
   };
 }
 
@@ -41,6 +43,132 @@ async function readRaces(): Promise<Race[]> {
   if (!db) return [];
   const snapshot = await db.collection("races").get();
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race));
+}
+
+type CongressMemberItem = {
+  bioguideId: string;
+  name: string;
+  partyName?: string;
+  state?: string;
+  district?: number;
+  terms?: {
+    item?: Array<{
+      chamber?: string;
+      stateCode?: string;
+      district?: number;
+      startYear?: number;
+      endYear?: number;
+    }>;
+  };
+  updateDate?: string;
+  url?: string;
+};
+
+function normalizeParty(partyName?: string): Candidate["party"] {
+  if (partyName === "Democratic") return "Democrat";
+  if (partyName === "Republican") return "Republican";
+  if (partyName === "Independent") return "Independent";
+  return "Other";
+}
+
+async function fetchCongressMembers(): Promise<CongressMemberItem[]> {
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!apiKey) return [];
+
+  const members: CongressMemberItem[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const url = new URL("https://api.congress.gov/v3/member");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("limit", "250");
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("api_key", apiKey);
+
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Congress.gov member request failed: ${response.status}`);
+    const payload = await response.json() as { members?: CongressMemberItem[]; pagination?: { next?: string } };
+    members.push(...(payload.members || []));
+    hasMore = Boolean(payload.pagination?.next);
+    offset += 250;
+  }
+
+  return members;
+}
+
+async function syncFederalRoster(job: RefreshJob) {
+  if (!db) return;
+  const members = await fetchCongressMembers();
+  if (!members.length) {
+    job.failures.push({ source: "congress-gov", message: "CONGRESS_API_KEY missing or no federal members returned" });
+    return;
+  }
+
+  const federalJurisdiction: Jurisdiction = {
+    id: "jurisdiction-us",
+    name: "United States",
+    level: "federal",
+    source: "congress-gov",
+    sourceUrl: "https://api.congress.gov",
+    lastRefreshedAt: new Date().toISOString(),
+    refreshStatus: "fresh",
+    verificationLevel: "official",
+  };
+
+  await db.collection("jurisdictions").doc(federalJurisdiction.id).set(federalJurisdiction, { merge: true });
+  job.counts.jurisdictions += 1;
+
+  const batch = db.batch();
+  let officeCount = 0;
+  let candidateCount = 0;
+
+  for (const member of members) {
+    const latestTerm = member.terms?.item?.find((term) => !term.endYear || term.endYear >= new Date().getFullYear());
+    if (!latestTerm?.chamber) continue;
+
+    const officeId = latestTerm.chamber === "House"
+      ? `office-house-${latestTerm.stateCode || member.state}-${latestTerm.district ?? member.district ?? "at-large"}`
+      : `office-senate-${latestTerm.stateCode || member.state}`;
+
+    const office: Office = {
+      id: officeId,
+      title: latestTerm.chamber === "House" ? "House" : "Senate",
+      jurisdictionId: federalJurisdiction.id,
+      chamber: latestTerm.chamber === "House" ? "lower" : "upper",
+      district: latestTerm.chamber === "House" ? String(latestTerm.district ?? member.district ?? "") : undefined,
+      source: "congress-gov",
+      sourceUrl: member.url,
+      sourceUpdatedAt: member.updateDate,
+      lastRefreshedAt: new Date().toISOString(),
+      refreshStatus: "fresh",
+      verificationLevel: "official",
+    };
+
+    const candidate: Candidate = {
+      id: `candidate-${member.bioguideId}`,
+      externalIds: { bioguideId: member.bioguideId },
+      officeId,
+      name: member.name,
+      party: normalizeParty(member.partyName),
+      source: "congress-gov",
+      sourceUrl: member.url,
+      sourceUpdatedAt: member.updateDate,
+      lastRefreshedAt: new Date().toISOString(),
+      refreshStatus: "fresh",
+      verificationLevel: "official",
+      isCurrentOfficeholder: true,
+    };
+
+    batch.set(db.collection("offices").doc(office.id), office, { merge: true });
+    batch.set(db.collection("candidates").doc(candidate.id), candidate, { merge: true });
+    officeCount += 1;
+    candidateCount += 1;
+  }
+
+  await batch.commit();
+  job.counts.offices += officeCount;
+  job.counts.candidates += candidateCount;
 }
 
 async function runGlobalRefresh(jobId: string) {
@@ -51,6 +179,7 @@ async function runGlobalRefresh(jobId: string) {
   job.startedAt = new Date().toISOString();
 
   try {
+    await syncFederalRoster(job);
     const races = await readRaces();
     job.counts.races = races.length;
 

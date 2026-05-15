@@ -88,6 +88,8 @@ export interface RefreshJob {
     votes: number;
     activities: number;
     raceStats: number;
+    offices: number;
+    jurisdictions: number;
   };
   failures: Array<{ source: string; message: string }>;
 }
@@ -122,6 +124,7 @@ export interface Candidate extends SourceMetadata {
   pollingHistory?: { date: string; value: number }[];
   sentimentData?: { category: string; value: number }[];
   lastSynced?: string;
+  isCurrentOfficeholder?: boolean;
 }
 
 export interface Race extends SourceMetadata {
