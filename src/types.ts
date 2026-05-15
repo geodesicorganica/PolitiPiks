@@ -35,6 +35,9 @@ export interface VoteRecord extends SourceMetadata {
   impact: string;
   url: string;
   date: string;
+  chamber?: 'House' | 'Senate';
+  congress?: number;
+  rollNumber?: number;
 }
 
 export interface CandidateActivity extends SourceMetadata {

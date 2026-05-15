@@ -171,6 +171,104 @@ async function syncFederalRoster(job: RefreshJob) {
   job.counts.candidates += candidateCount;
 }
 
+type RecordedVoteRef = {
+  url: string;
+  chamber: "House" | "Senate";
+  congress: number;
+  rollNumber: number;
+  date: string;
+  billId?: string;
+  billTitle?: string;
+};
+
+function textValue(xml: string, tag: string) {
+  const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i"));
+  return match?.[1]?.trim();
+}
+
+function extractSenateMembers(xml: string) {
+  return [...xml.matchAll(/<member>([\s\S]*?)<\/member>/gi)].map((match) => {
+    const fragment = match[1];
+    return {
+      memberName: textValue(fragment, "member_full"),
+      state: textValue(fragment, "state"),
+      vote: textValue(fragment, "vote_cast"),
+    };
+  });
+}
+
+function extractHouseMembers(xml: string) {
+  return [...xml.matchAll(/<recorded-vote>([\s\S]*?)<\/recorded-vote>/gi)].map((match) => {
+    const fragment = match[1];
+    return {
+      memberName: textValue(fragment, "legislator"),
+      vote: textValue(fragment, "vote"),
+    };
+  });
+}
+
+function normalizeOfficialVote(rawVote?: string): "Yea" | "Nay" | "Present" | null {
+  const vote = rawVote?.toLowerCase();
+  if (!vote) return null;
+  if (vote.includes("yea") || vote === "aye") return "Yea";
+  if (vote.includes("nay") || vote === "no") return "Nay";
+  if (vote.includes("present")) return "Present";
+  return null;
+}
+
+async function getCandidateIndex() {
+  if (!db) return new Map<string, Candidate>();
+  const snapshot = await db.collection("candidates").get();
+  const index = new Map<string, Candidate>();
+  snapshot.docs.forEach((doc) => {
+    const candidate = { id: doc.id, ...doc.data() } as Candidate;
+    index.set(candidate.name.toLowerCase(), candidate);
+  });
+  return index;
+}
+
+async function ingestRecordedVote(ref: RecordedVoteRef) {
+  if (!db) return 0;
+  const response = await fetch(ref.url);
+  if (!response.ok) throw new Error(`Official vote fetch failed: ${response.status}`);
+  const xml = await response.text();
+  const members = ref.chamber === "Senate" ? extractSenateMembers(xml) : extractHouseMembers(xml);
+  const candidateIndex = await getCandidateIndex();
+  let written = 0;
+
+  for (const member of members) {
+    const normalizedVote = normalizeOfficialVote(member.vote);
+    const candidate = member.memberName ? candidateIndex.get(member.memberName.toLowerCase()) : undefined;
+    if (!candidate || !normalizedVote) continue;
+
+    const voteId = `${ref.chamber.toLowerCase()}-${ref.congress}-${ref.rollNumber}-${candidate.id}`;
+    const record = {
+      id: voteId,
+      candidateId: candidate.id,
+      billId: ref.billId,
+      bill: ref.billTitle || ref.billId || `Roll Call ${ref.rollNumber}`,
+      vote: normalizedVote,
+      impact: `Official ${ref.chamber} roll call vote ${ref.rollNumber}.`,
+      url: ref.url,
+      date: ref.date,
+      chamber: ref.chamber,
+      congress: ref.congress,
+      rollNumber: ref.rollNumber,
+      source: ref.chamber === "House" ? "house-clerk" : "senate-roll-call",
+      sourceUrl: ref.url,
+      sourceUpdatedAt: ref.date,
+      lastRefreshedAt: new Date().toISOString(),
+      refreshStatus: "fresh",
+      verificationLevel: "official",
+    };
+
+    await db.collection("votes").doc(voteId).set(record, { merge: true });
+    written += 1;
+  }
+
+  return written;
+}
+
 async function runGlobalRefresh(jobId: string) {
   const job = refreshJobs.get(jobId);
   if (!job) return;
@@ -279,6 +377,19 @@ async function startServer() {
       res.status(404).json({ error: "Candidate not found" });
     } catch {
       res.status(500).json({ error: "Failed to load candidate activities" });
+    }
+  });
+
+  app.post("/api/ingest/recorded-vote", async (req, res) => {
+    try {
+      const ref = req.body as RecordedVoteRef;
+      if (!ref?.url || !ref?.chamber || !ref?.congress || !ref?.rollNumber || !ref?.date) {
+        return res.status(400).json({ error: "url, chamber, congress, rollNumber, and date are required" });
+      }
+      const votesWritten = await ingestRecordedVote(ref);
+      res.json({ votesWritten });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || "Failed to ingest recorded vote" });
     }
   });
 
