@@ -2,9 +2,12 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
+import { GoogleGenAI, Type } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // Initialize Firebase Admin
-// In this environment, it will try to use Default Application Credentials
 if (!admin.apps.length) {
   try {
     admin.initializeApp();
@@ -12,6 +15,16 @@ if (!admin.apps.length) {
     console.warn("Firebase Admin failed to initialize with default credentials. Some backend features may be limited.");
   }
 }
+
+// Initialize Gemini
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 async function startServer() {
   const app = express();
@@ -22,6 +35,79 @@ async function startServer() {
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.post("/api/sync-candidate", async (req, res) => {
+    const { candidateName, currentOffice, state } = req.body;
+    
+    if (!candidateName) {
+      return res.status(400).json({ error: "Candidate name is required" });
+    }
+
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Fetch the 10 most recent (2024-2026) key votes, an updated short biography, and political sentiment analysis for ${candidateName}, who is a candidate for ${currentOffice} in ${state || 'the US'}. 
+        Return the data in the following JSON format:
+        {
+          "biography": "short bio strings",
+          "keyVotes": [
+            { "bill": "Bill Name/Description", "vote": "Yea" | "Nay" | "Present" | "Support" | "Lead" | "Chair" | "Author", "impact": "Short impact description", "url": "Reference URL", "date": "YYYY-MM-DD" }
+          ],
+          "sentimentData": [
+            { "category": "Category name", "value": 0-100 }
+          ]
+        }`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              biography: { type: Type.STRING },
+              keyVotes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    bill: { type: Type.STRING },
+                    vote: { type: Type.STRING, enum: ["Yea", "Nay", "Present", "Support", "Lead", "Chair", "Author"] },
+                    impact: { type: Type.STRING },
+                    url: { type: Type.STRING },
+                    date: { type: Type.STRING }
+                  },
+                  required: ["bill", "vote", "impact", "url", "date"]
+                }
+              },
+              sentimentData: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    category: { type: Type.STRING },
+                    value: { type: Type.NUMBER }
+                  },
+                  required: ["category", "value"]
+                }
+              }
+            },
+            required: ["biography", "keyVotes", "sentimentData"]
+          }
+        }
+      });
+
+      const result = JSON.parse(response.text);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Gemini Sync Error:", error);
+      
+      // Pass through rate limit errors
+      if (error?.status === 429 || error?.code === 429 || (error?.message && error.message.includes('429'))) {
+        return res.status(429).json({ error: "Gemini API rate limit exceeded. Please try again in 60 seconds." });
+      }
+      
+      res.status(500).json({ error: "Failed to sync candidate data" });
+    }
   });
 
   // Example Firebase Admin route

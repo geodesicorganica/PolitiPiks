@@ -34,6 +34,9 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [selectedMeasure, setSelectedMeasure] = useState<BallotMeasure | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [globalSyncing, setGlobalSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     if (!leagueId) return;
@@ -167,6 +170,131 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
     }
   };
 
+  const handleSyncCandidate = async (candidate: Candidate, race: Race) => {
+    setSyncingId(candidate.id);
+    try {
+      const response = await fetch('/api/sync-candidate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          candidateName: candidate.name, 
+          currentOffice: race.office,
+          state: race.state 
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch intelligence');
+      
+      const data = await response.json();
+      
+      // Update the candidate in local races state and Firestore
+      const updatedCandidates = race.candidates.map(c => {
+        if (c.id === candidate.id) {
+          return {
+            ...c,
+            biography: data.biography,
+            keyVotes: data.keyVotes,
+            sentimentData: data.sentimentData,
+            lastSynced: new Date().toISOString()
+          };
+        }
+        return c;
+      });
+
+      await setDoc(doc(db, 'races', race.id), { candidates: updatedCandidates }, { merge: true });
+      
+      // Update selectedRace if it's the one we're viewing
+      if (selectedRace?.id === race.id) {
+        setSelectedRace({ ...race, candidates: updatedCandidates });
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      // We don't use handleFirestoreError here as it's a Gemini API error mostly
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const handleGlobalRefresh = async () => {
+    if (globalSyncing) return;
+    
+    const allRaces = races;
+    const totalCandidates = allRaces.reduce((acc, r) => acc + r.candidates.length, 0);
+    
+    setGlobalSyncing(true);
+    setSyncProgress({ current: 0, total: totalCandidates });
+    
+    let processed = 0;
+    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+    
+    try {
+      for (const race of allRaces) {
+        let raceUpdated = false;
+        const updatedCandidates = [...race.candidates];
+        
+        for (let i = 0; i < updatedCandidates.length; i++) {
+          const candidate = updatedCandidates[i];
+          
+          // Skip if synced in last 24 hours
+          const lastSynced = candidate.lastSynced ? new Date(candidate.lastSynced).getTime() : 0;
+          const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+          
+          if (lastSynced > oneDayAgo) {
+            processed++;
+            setSyncProgress({ current: processed, total: totalCandidates });
+            continue;
+          }
+
+          setSyncingId(candidate.id);
+          
+          try {
+            const response = await fetch('/api/sync-candidate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                candidateName: candidate.name, 
+                currentOffice: race.office,
+                state: race.state 
+              }),
+            });
+
+            if (response.status === 429) {
+              console.error('Gemini Quota Exceeded. Stopping batch sync.');
+              setGlobalSyncing(false);
+              alert('Gemini API Quota Exceeded. Please wait a minute before trying again.');
+              return;
+            }
+
+            if (response.ok) {
+              const data = await response.json();
+              updatedCandidates[i] = {
+                ...candidate,
+                biography: data.biography,
+                keyVotes: data.keyVotes,
+                sentimentData: data.sentimentData
+              };
+              raceUpdated = true;
+            }
+          } catch (err) {
+            console.error(`Failed to sync ${candidate.name}:`, err);
+          }
+          
+          processed++;
+          setSyncProgress({ current: processed, total: totalCandidates });
+          // Increased delay to respect free-tier rate limits (approx 10-15 RPM)
+          await delay(4000);
+        }
+        
+        if (raceUpdated) {
+          await setDoc(doc(db, 'races', race.id), { candidates: updatedCandidates }, { merge: true });
+        }
+      }
+    } finally {
+      setGlobalSyncing(false);
+      setSyncingId(null);
+    }
+  };
+
   const getDataForCategory = () => {
     switch (activeCategory) {
       case 'Senate': return { items: races.filter(r => r.office === 'Senate'), type: 'race' };
@@ -236,21 +364,53 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       <div className="lg:col-span-9 flex flex-col gap-8 min-h-0">
         
         {/* Navigation Bar */}
-        <div className="flex items-center gap-2 p-1 bg-slate-900 border border-slate-800 w-full overflow-x-auto scroll-hide no-scrollbar whitespace-nowrap">
-          {(['Senate', 'Gubernatorial', 'Congress', 'Ballot Initiatives', 'Presidential'] as CategoryType[]).map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 p-1 bg-slate-900 border border-slate-800 flex-1 overflow-x-auto scroll-hide no-scrollbar whitespace-nowrap">
+            {(['Senate', 'Gubernatorial', 'Congress', 'Ballot Initiatives', 'Presidential'] as CategoryType[]).map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={cn(
+                  "px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0",
+                  activeCategory === cat 
+                    ? "bg-brand-red text-white shadow-[4px_4px_0px_0px_#000]" 
+                    : "text-slate-500 hover:text-white"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex flex-col items-end gap-1">
+            <button 
+              onClick={handleGlobalRefresh}
+              disabled={globalSyncing}
               className={cn(
-                "px-5 py-3 text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0",
-                activeCategory === cat 
-                  ? "bg-brand-red text-white shadow-[4px_4px_0px_0px_#000]" 
-                  : "text-slate-500 hover:text-white"
+                "flex items-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                globalSyncing 
+                  ? "bg-slate-800 text-slate-500 border border-slate-700 animate-pulse" 
+                  : "bg-slate-900 border border-slate-700 text-brand-red hover:bg-brand-red hover:text-white hover:border-brand-red shadow-[4px_4px_0px_0px_#000]"
               )}
             >
-              {cat}
+              {globalSyncing ? (
+                <>
+                  <Activity size={14} className="animate-spin" />
+                  Syncing {syncProgress.current}/{syncProgress.total}
+                </>
+              ) : (
+                <>
+                  <TrendingUp size={14} />
+                  Global Refresh
+                </>
+              )}
             </button>
-          ))}
+            {!globalSyncing && (
+              <span className="text-[9px] font-mono text-slate-600 uppercase">
+                Skips records updated in last 24h
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Table View */}
@@ -339,15 +499,17 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       {/* Decision Module Modal */}
       <AnimatePresence>
         {(selectedRace || selectedMeasure) && (
-          <DecisionModule 
-            race={selectedRace} 
-            measure={selectedMeasure} 
-            onClose={() => { setSelectedRace(null); setSelectedMeasure(null); }}
-            prediction={selectedRace ? predictions[selectedRace.id] : predictions[selectedMeasure!.id]}
-            onPick={handlePick}
-            onRemoveCandidate={handleRemoveCandidate}
-            isSubmitting={submitting === (selectedRace?.id || selectedMeasure?.id)}
-          />
+            <DecisionModule 
+              race={selectedRace} 
+              measure={selectedMeasure} 
+              onClose={() => { setSelectedRace(null); setSelectedMeasure(null); }}
+              prediction={selectedRace ? predictions[selectedRace.id] : predictions[selectedMeasure!.id]}
+              onPick={handlePick}
+              onRemoveCandidate={handleRemoveCandidate}
+              onSyncCandidate={handleSyncCandidate}
+              isSubmitting={submitting === (selectedRace?.id || selectedMeasure?.id)}
+              syncingId={syncingId}
+            />
         )}
       </AnimatePresence>
       </div>
@@ -402,7 +564,9 @@ function DecisionModule({
   prediction, 
   onPick,
   onRemoveCandidate,
-  isSubmitting 
+  onSyncCandidate,
+  isSubmitting,
+  syncingId
 }: { 
   race: Race | null, 
   measure: BallotMeasure | null, 
@@ -410,7 +574,9 @@ function DecisionModule({
   prediction?: string,
   onPick: (id: string, pick: string, type: 'race' | 'measure') => void,
   onRemoveCandidate: (raceId: string, candidateId: string) => void,
-  isSubmitting: boolean
+  onSyncCandidate: (candidate: Candidate, race: Race) => void,
+  isSubmitting: boolean,
+  syncingId: string | null
 }) {
   const item = race || measure;
   if (!item) return null;
@@ -428,7 +594,7 @@ function DecisionModule({
         initial={{ y: 50, scale: 0.95 }}
         animate={{ y: 0, scale: 1 }}
         exit={{ y: 50, scale: 0.95 }}
-        className="w-full max-w-7xl h-full bg-slate-900 border-2 border-slate-700 shadow-[20px_20px_0px_0px_#000] flex flex-col overflow-hidden relative"
+        className="w-full max-w-7xl h-full sm:h-[90vh] bg-slate-900 border-2 border-slate-700 shadow-[20px_20px_0px_0px_#000] flex flex-col overflow-hidden relative"
       >
         {/* Close Button */}
         <button 
@@ -484,7 +650,7 @@ function DecisionModule({
 
             {/* Deep Analytics Grid */}
             {race ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 lg:gap-16">
                 {race.candidates.map(candidate => (
                   <div key={candidate.id} className={cn(
                     "brutalist-card bg-slate-900 border-l-8 p-10 space-y-12 flex flex-col h-full",
@@ -525,9 +691,23 @@ function DecisionModule({
                      <div className="flex-1 space-y-12">
                         {/* Core Intelligence */}
                         <div className="space-y-6">
-                           <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
-                              <Users size={14} /> Comprehensive Biography
-                           </p>
+                           <div className="flex items-center justify-between">
+                              <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                                 <Users size={14} /> Comprehensive Biography
+                              </p>
+                              <button 
+                                onClick={() => race && onSyncCandidate(candidate, race)}
+                                disabled={syncingId === candidate.id}
+                                className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 hover:text-brand-red hover:border-brand-red transition-all disabled:opacity-50"
+                              >
+                                {syncingId === candidate.id ? (
+                                  <Activity size={10} className="animate-spin" />
+                                ) : (
+                                  <TrendingUp size={10} />
+                                )}
+                                {syncingId === candidate.id ? 'Syncing Intelligence...' : candidate.lastSynced ? `Sync 2026 Data (Updated ${new Date(candidate.lastSynced).toLocaleTimeString()})` : 'Sync 2026 Data'}
+                              </button>
+                           </div>
                            <div className="text-sm text-slate-400 leading-relaxed uppercase font-medium border-l-2 border-slate-800 pl-6 space-y-4">
                               <p className="line-clamp-[10]">{candidate.biography || candidate.summary}</p>
                            </div>

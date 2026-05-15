@@ -18,6 +18,7 @@ export interface Candidate {
   };
   pollingHistory?: { date: string; value: number }[];
   sentimentData?: { category: string; value: number }[];
+  lastSynced?: string;
 }
 
 export interface Race {
