@@ -6,6 +6,7 @@ import { League, LeagueMember, Race, BallotMeasure, Candidate } from '../types';
 import { SEED_RACES, SEED_MEASURES } from '../constants/electionData';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
+import { normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from '../lib/dataPlatform';
 import { 
   Users, Trophy, Vote, Activity, ArrowLeft, ExternalLink, 
   Info, Check, BarChart2, TrendingUp, BookOpen, Shield, Globe, Target, Trash2
@@ -37,6 +38,8 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [globalSyncing, setGlobalSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
+  const [refreshJobId, setRefreshJobId] = useState<string | null>(null);
+  const [refreshStatus, setRefreshStatus] = useState<'idle' | 'queued' | 'running' | 'partial' | 'complete' | 'failed'>('idle');
 
   useEffect(() => {
     if (!leagueId) return;
@@ -58,19 +61,20 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
           await setDoc(doc(db, 'races', race.id), race);
         }
       } else {
-        const raceData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race));
+        const raceData = snapshot.docs.map(doc => {
+          const race = { id: doc.id, ...doc.data() } as Race;
+          return { ...race, candidates: race.candidates.map(candidate => normalizeCandidateRecords(candidate, race)) };
+        });
         setRaces(raceData);
         
         // Ensure new fields are synced (for demo purposes)
         for (const seedRace of SEED_RACES) {
           const existing = raceData.find(r => r.id === seedRace.id);
-          // Sync if any candidate is missing sentimentData, biography, or has incomplete/insufficient keyVotes
+          // Backfill seed fields only when records are materially incomplete.
           const needsSync = existing && existing.candidates.some(c => 
             !c.sentimentData || 
             !c.biography || 
-            !c.keyVotes || 
-            c.keyVotes.length < 10 || 
-            c.keyVotes.some(v => !v.url || !v.date)
+            ((!c.votes || c.votes.length === 0) && (!c.activities || c.activities.length === 0))
           );
           if (needsSync) {
             await setDoc(doc(db, 'races', seedRace.id), seedRace, { merge: true });
@@ -173,7 +177,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const handleSyncCandidate = async (candidate: Candidate, race: Race) => {
     setSyncingId(candidate.id);
     try {
-      const response = await fetch('/api/sync-candidate', {
+      const response = await fetch('/api/enrich-candidate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -193,7 +197,6 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
           return {
             ...c,
             biography: data.biography,
-            keyVotes: data.keyVotes,
             sentimentData: data.sentimentData,
             lastSynced: new Date().toISOString()
           };
@@ -217,78 +220,27 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
 
   const handleGlobalRefresh = async () => {
     if (globalSyncing) return;
-    
-    const allRaces = races;
-    const totalCandidates = allRaces.reduce((acc, r) => acc + r.candidates.length, 0);
-    
     setGlobalSyncing(true);
-    setSyncProgress({ current: 0, total: totalCandidates });
-    
-    let processed = 0;
-    const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-    
+    setRefreshStatus('queued');
     try {
-      for (const race of allRaces) {
-        let raceUpdated = false;
-        const updatedCandidates = [...race.candidates];
-        
-        for (let i = 0; i < updatedCandidates.length; i++) {
-          const candidate = updatedCandidates[i];
-          
-          // Skip if synced in last 24 hours
-          const lastSynced = candidate.lastSynced ? new Date(candidate.lastSynced).getTime() : 0;
-          const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-          
-          if (lastSynced > oneDayAgo) {
-            processed++;
-            setSyncProgress({ current: processed, total: totalCandidates });
-            continue;
-          }
+      const response = await fetch('/api/refresh/global', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to start global refresh');
+      const job = await response.json();
+      setRefreshJobId(job.id);
 
-          setSyncingId(candidate.id);
-          
-          try {
-            const response = await fetch('/api/sync-candidate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                candidateName: candidate.name, 
-                currentOffice: race.office,
-                state: race.state 
-              }),
-            });
-
-            if (response.status === 429) {
-              console.error('Gemini Quota Exceeded. Stopping batch sync.');
-              setGlobalSyncing(false);
-              alert('Gemini API Quota Exceeded. Please wait a minute before trying again.');
-              return;
-            }
-
-            if (response.ok) {
-              const data = await response.json();
-              updatedCandidates[i] = {
-                ...candidate,
-                biography: data.biography,
-                keyVotes: data.keyVotes,
-                sentimentData: data.sentimentData
-              };
-              raceUpdated = true;
-            }
-          } catch (err) {
-            console.error(`Failed to sync ${candidate.name}:`, err);
-          }
-          
-          processed++;
-          setSyncProgress({ current: processed, total: totalCandidates });
-          // Increased delay to respect free-tier rate limits (approx 10-15 RPM)
-          await delay(4000);
-        }
-        
-        if (raceUpdated) {
-          await setDoc(doc(db, 'races', race.id), { candidates: updatedCandidates }, { merge: true });
-        }
+      let done = false;
+      while (!done) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const statusResponse = await fetch(`/api/refresh/jobs/${job.id}`);
+        if (!statusResponse.ok) throw new Error('Failed to read refresh status');
+        const latestJob = await statusResponse.json();
+        setRefreshStatus(latestJob.status);
+        setSyncProgress({ current: latestJob.counts.candidates, total: latestJob.counts.candidates });
+        done = ['partial', 'complete', 'failed'].includes(latestJob.status);
       }
+    } catch (err) {
+      console.error('Global refresh failed:', err);
+      setRefreshStatus('failed');
     } finally {
       setGlobalSyncing(false);
       setSyncingId(null);
@@ -396,7 +348,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
               {globalSyncing ? (
                 <>
                   <Activity size={14} className="animate-spin" />
-                  Syncing {syncProgress.current}/{syncProgress.total}
+                  {refreshStatus === 'queued' ? 'Queued' : `Refreshing ${syncProgress.current}`}
                 </>
               ) : (
                 <>
@@ -407,7 +359,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
             </button>
             {!globalSyncing && (
               <span className="text-[9px] font-mono text-slate-600 uppercase">
-                Skips records updated in last 24h
+                Server-side refresh across stale data objects
               </span>
             )}
           </div>
@@ -509,6 +461,8 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
               onSyncCandidate={handleSyncCandidate}
               isSubmitting={submitting === (selectedRace?.id || selectedMeasure?.id)}
               syncingId={syncingId}
+              refreshJobId={refreshJobId}
+              refreshStatus={refreshStatus}
             />
         )}
       </AnimatePresence>
@@ -517,13 +471,10 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   );
 }
 
-function VotingRecord({ votes }: { votes: Candidate['keyVotes'] }) {
+function VotingRecord({ votes }: { votes: Candidate['votes'] }) {
   const [showAll, setShowAll] = useState(false);
-  const sortedVotes = [...(votes || [])].sort((a, b) => new Date(b.date || '1970-01-01').getTime() - new Date(a.date || '1970-01-01').getTime());
+  const sortedVotes = sortVotesRecentFirst(votes || []);
   const displayedVotes = showAll ? sortedVotes : sortedVotes.slice(0, 10);
-
-  // Debug log to verify voting record display
-  console.debug('[VotingRecord]', { totalVotes: sortedVotes.length, displayedVotes: displayedVotes.length, titles: displayedVotes.map(v => v.bill) });
 
   return (
     <div className="space-y-4">
@@ -536,7 +487,7 @@ function VotingRecord({ votes }: { votes: Candidate['keyVotes'] }) {
               <a href={vote.url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-white uppercase italic tracking-tighter group-hover:text-brand-red transition-colors">{vote.bill}</a>
               <span className={cn(
                 "text-[9px] font-mono px-2 py-0.5 font-bold uppercase shrink-0",
-                vote.vote === 'Yea' || vote.vote === 'Lead' || vote.vote === 'Support' ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+                vote.vote === 'Yea' ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
               )}>
                 {vote.vote}
               </span>
@@ -557,6 +508,24 @@ function VotingRecord({ votes }: { votes: Candidate['keyVotes'] }) {
   );
 }
 
+function ActivityRecord({ activities }: { activities: Candidate['activities'] }) {
+  const sortedActivities = sortActivitiesRecentFirst(activities || []);
+
+  return (
+    <div className="space-y-3">
+      {sortedActivities.map((activity) => (
+        <div key={activity.id} className="bg-black/40 border border-slate-800 p-4 space-y-2">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs font-black uppercase text-white">{activity.title}</p>
+            {activity.date && <span className="text-[9px] font-mono text-slate-600 uppercase">{activity.date}</span>}
+          </div>
+          <p className="text-[10px] uppercase text-slate-400 leading-relaxed">{activity.impact}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DecisionModule({ 
   race, 
   measure, 
@@ -566,7 +535,9 @@ function DecisionModule({
   onRemoveCandidate,
   onSyncCandidate,
   isSubmitting,
-  syncingId
+  syncingId,
+  refreshJobId,
+  refreshStatus
 }: { 
   race: Race | null, 
   measure: BallotMeasure | null, 
@@ -576,7 +547,9 @@ function DecisionModule({
   onRemoveCandidate: (raceId: string, candidateId: string) => void,
   onSyncCandidate: (candidate: Candidate, race: Race) => void,
   isSubmitting: boolean,
-  syncingId: string | null
+  syncingId: string | null,
+  refreshJobId: string | null,
+  refreshStatus: 'idle' | 'queued' | 'running' | 'partial' | 'complete' | 'failed'
 }) {
   const item = race || measure;
   if (!item) return null;
@@ -620,7 +593,7 @@ function DecisionModule({
                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black uppercase tracking-widest">
                  <Shield size={10} /> Verified Source Data
                </div>
-               <span className="font-mono text-slate-600 uppercase">LAST SYNC: {new Date().toLocaleTimeString()}</span>
+               <span className="font-mono text-slate-600 uppercase">REFRESH JOB: {refreshJobId ? refreshStatus : 'idle'}</span>
             </div>
         </div>
 
@@ -705,7 +678,7 @@ function DecisionModule({
                                 ) : (
                                   <TrendingUp size={10} />
                                 )}
-                                {syncingId === candidate.id ? 'Syncing Intelligence...' : candidate.lastSynced ? `Sync 2026 Data (Updated ${new Date(candidate.lastSynced).toLocaleTimeString()})` : 'Sync 2026 Data'}
+                                {syncingId === candidate.id ? 'Refreshing Enrichment...' : candidate.lastSynced ? `Refresh Enrichment (Updated ${new Date(candidate.lastSynced).toLocaleTimeString()})` : 'Refresh Enrichment'}
                               </button>
                            </div>
                            <div className="text-sm text-slate-400 leading-relaxed uppercase font-medium border-l-2 border-slate-800 pl-6 space-y-4">
@@ -732,14 +705,31 @@ function DecisionModule({
                           </div>
                         )}
 
-                         {candidate.keyVotes && candidate.keyVotes.length > 0 && (
+                         {candidate.votes && candidate.votes.length > 0 && (
                           <div className="space-y-6">
                              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                                 <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
-                                   <Activity size={14} /> Historical Voting Record ({candidate.keyVotes.length})
+                                   <Activity size={14} /> Official Voting Record ({candidate.votes.length})
                                 </p>
                              </div>
-                             <VotingRecord votes={candidate.keyVotes} />
+                             <VotingRecord votes={candidate.votes} />
+                          </div>
+                        )}
+
+                        {candidate.activities && candidate.activities.length > 0 && (
+                          <div className="space-y-6">
+                             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                                <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                                   <Info size={14} /> Candidate Activity ({candidate.activities.length})
+                                </p>
+                             </div>
+                             <ActivityRecord activities={candidate.activities} />
+                          </div>
+                        )}
+
+                        {(!candidate.votes || candidate.votes.length === 0) && (!candidate.activities || candidate.activities.length === 0) && (
+                          <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">
+                            No verified recent record available yet.
                           </div>
                         )}
 
