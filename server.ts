@@ -181,6 +181,24 @@ type RecordedVoteRef = {
   billTitle?: string;
 };
 
+type CongressBillItem = {
+  congress: number;
+  type: string;
+  number: string;
+  title?: string;
+  actions?: { url?: string };
+};
+
+type CongressActionItem = {
+  recordedVotes?: Array<{
+    rollNumber: number;
+    url: string;
+    chamber: "House" | "Senate";
+    congress: number;
+    date: string;
+  }>;
+};
+
 function textValue(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i"));
   return match?.[1]?.trim();
@@ -269,6 +287,59 @@ async function ingestRecordedVote(ref: RecordedVoteRef) {
   return written;
 }
 
+async function fetchRecentBills(limit = 25): Promise<CongressBillItem[]> {
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!apiKey) return [];
+  const url = new URL("https://api.congress.gov/v3/bill");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("api_key", apiKey);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Congress.gov bill request failed: ${response.status}`);
+  const payload = await response.json() as { bills?: CongressBillItem[] };
+  return payload.bills || [];
+}
+
+async function fetchBillActions(actionsUrl?: string): Promise<CongressActionItem[]> {
+  const apiKey = process.env.CONGRESS_API_KEY;
+  if (!actionsUrl || !apiKey) return [];
+  const url = new URL(actionsUrl);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "250");
+  url.searchParams.set("api_key", apiKey);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Congress.gov bill actions request failed: ${response.status}`);
+  const payload = await response.json() as { actions?: CongressActionItem[] };
+  return payload.actions || [];
+}
+
+async function discoverRecentRecordedVotes(job: RefreshJob) {
+  const bills = await fetchRecentBills();
+  let discovered = 0;
+
+  for (const bill of bills) {
+    const billId = `${bill.congress}-${bill.type}-${bill.number}`.toLowerCase();
+    const actions = await fetchBillActions(bill.actions?.url);
+    for (const action of actions) {
+      for (const recordedVote of action.recordedVotes || []) {
+        const written = await ingestRecordedVote({
+          url: recordedVote.url,
+          chamber: recordedVote.chamber,
+          congress: recordedVote.congress,
+          rollNumber: recordedVote.rollNumber,
+          date: recordedVote.date,
+          billId,
+          billTitle: bill.title,
+        });
+        job.counts.votes += written;
+        discovered += 1;
+      }
+    }
+  }
+
+  return discovered;
+}
+
 async function runGlobalRefresh(jobId: string) {
   const job = refreshJobs.get(jobId);
   if (!job) return;
@@ -278,6 +349,11 @@ async function runGlobalRefresh(jobId: string) {
 
   try {
     await syncFederalRoster(job);
+    try {
+      await discoverRecentRecordedVotes(job);
+    } catch (error: any) {
+      job.failures.push({ source: "recorded-vote-discovery", message: error?.message || "Recorded vote discovery failed" });
+    }
     const races = await readRaces();
     job.counts.races = races.length;
 
