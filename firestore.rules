@@ -1,0 +1,127 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // --- Users ---
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 100 &&
+             data.photoURL is string && data.photoURL.size() <= 2000 &&
+             data.totalPoints is number && data.totalPoints >= 0 &&
+             data.predictionsCount is number && data.predictionsCount >= 0 &&
+             data.correctPredictions is number && data.correctPredictions >= 0 &&
+             data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'totalPoints', 'predictionsCount', 'correctPredictions']) &&
+             data.keys().size() == 7;
+    }
+
+    function isValidUserPublic(data) {
+      return data.displayName is string && data.displayName.size() <= 100 &&
+             data.photoURL is string && data.photoURL.size() <= 2000 &&
+             data.totalPoints is number && data.totalPoints >= 0 &&
+             data.predictionsCount is number && data.predictionsCount >= 0 &&
+             data.correctPredictions is number && data.correctPredictions >= 0 &&
+             data.keys().hasAll(['displayName', 'photoURL', 'totalPoints', 'predictionsCount', 'correctPredictions']) &&
+             data.keys().size() == 5;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming());
+    }
+
+    match /users_public/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidUserPublic(incoming());
+    }
+
+    match /users_private/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // --- Leagues ---
+    function isValidLeague(data) {
+      return data.name is string && data.name.size() <= 100 &&
+             data.ownerId == request.auth.uid &&
+             data.inviteCode is string && data.inviteCode.size() <= 10 &&
+             data.createdAt == request.time &&
+             data.keys().hasAll(['name', 'ownerId', 'inviteCode', 'createdAt']) &&
+             data.keys().size() == 4;
+    }
+
+    function isValidMember(data) {
+      return data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.photoURL is string && data.photoURL.size() <= 500 &&
+             data.points is number && data.joinedAt == request.time &&
+             data.keys().hasAll(['userId', 'displayName', 'photoURL', 'points', 'joinedAt']) &&
+             data.keys().size() == 5;
+    }
+
+    match /leagues/{leagueId} {
+      allow get: if isSignedIn() && isValidId(leagueId);
+      allow list: if isSignedIn(); // Broad list needed for joining by invite code
+      allow create: if isSignedIn() && isValidLeague(incoming());
+      allow update: if isSignedIn() && isValidId(leagueId) && (
+        resource.data.ownerId == request.auth.uid || 
+        exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid))
+      );
+      
+      match /members/{memberId} {
+        allow get: if isSignedIn() && isValidId(memberId);
+        allow list: if isSignedIn();
+        allow create: if isOwner(memberId) && isValidMember(incoming());
+        allow update: if isOwner(memberId) && isValidId(memberId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['points'])
+        );
+      }
+    }
+
+    match /races/{raceId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+
+    match /measures/{measureId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+    }
+
+    match /predictions/{predictionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

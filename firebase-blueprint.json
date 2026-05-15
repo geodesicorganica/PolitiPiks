@@ -1,0 +1,148 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and stats",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "predictionsCount": { "type": "number" },
+        "correctPredictions": { "type": "number" }
+      },
+      "required": ["displayName", "email", "totalPoints"]
+    },
+    "UserPublic": {
+      "title": "User Public",
+      "description": "Public user profile info",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "predictionsCount": { "type": "number" },
+        "correctPredictions": { "type": "number" }
+      },
+      "required": ["displayName", "totalPoints"]
+    },
+    "UserPrivate": {
+      "title": "User Private",
+      "description": "Private user information (PII)",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "League": {
+      "title": "League",
+      "description": "A group of users competing together",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "ownerId", "inviteCode"]
+    },
+    "LeagueMember": {
+      "title": "League Member",
+      "description": "Membership entry for a league",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "points": { "type": "number" },
+        "joinedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Race": {
+      "title": "Race",
+      "description": "An election race (Senate, House, Governor)",
+      "type": "object",
+      "properties": {
+        "state": { "type": "string" },
+        "office": { "type": "string" },
+        "district": { "type": "string" },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "party": { "type": "string" }
+            }
+          }
+        },
+        "status": { "type": "string", "enum": ["upcoming", "live", "called"] },
+        "winnerId": { "type": "string" }
+      }
+    },
+    "BallotMeasure": {
+      "title": "Ballot Measure",
+      "description": "A state-level ballot initiative",
+      "type": "object",
+      "properties": {
+        "state": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "live", "called"] },
+        "result": { "type": "string", "enum": ["pass", "fail"] }
+      }
+    },
+    "Prediction": {
+      "title": "Prediction",
+      "description": "A user's pick for a race or measure",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "leagueId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "type": { "type": "string", "enum": ["race", "measure"] },
+        "pick": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "correct", "incorrect"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "targetId", "type", "pick"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Global user profiles"
+    },
+    "users_public": {
+      "schema": "UserPublic",
+      "description": "Public user profile info"
+    },
+    "users_private": {
+      "schema": "UserPrivate",
+      "description": "Private user information (PII)"
+    },
+    "leagues": {
+      "schema": "League",
+      "description": "Competitve leagues"
+    },
+    "leagues/{leagueId}/members": {
+      "schema": "LeagueMember",
+      "description": "Members within a league"
+    },
+    "races": {
+      "schema": "Race",
+      "description": "Data for election races"
+    },
+    "measures": {
+      "schema": "BallotMeasure",
+      "description": "Data for ballot measures"
+    },
+    "predictions": {
+      "schema": "Prediction",
+      "description": "Global log of user predictions"
+    }
+  }
+}

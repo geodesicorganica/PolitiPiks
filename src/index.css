@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-blue: #002D72;
+  --color-brand-red: #E01E3C;
+  --color-brand-slate: #0F172A;
+  --color-brand-dark: #000000;
+}
+
+:root {
+  --bg: #000000;
+  --ink: #F1F5F9;
+  --line: rgba(255,255,255,0.08);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-image: 
+    radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Technical grid helper */
+.grid-paper {
+  background-size: 20px 20px;
+  background-image: 
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+}
+
+.data-row {
+  border-bottom: 1px solid var(--line);
+  transition: all 0.2s ease;
+}
+
+.data-row:hover {
+  background: #0F172A;
+  border-color: var(--color-brand-red);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.brutalist-card {
+  @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800 shadow-[4px_4px_0px_0px_rgba(224,30,60,0.3)] transition-all hover:shadow-[6px_6px_0px_0px_rgba(224,30,60,0.5)];
+}
+
+.scroll-hide::-webkit-scrollbar {
+  display: none;
+}
