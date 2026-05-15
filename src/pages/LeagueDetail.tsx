@@ -526,6 +526,65 @@ function ActivityRecord({ activities }: { activities: Candidate['activities'] })
   );
 }
 
+function CandidateVotingSection({ candidate, onResolved }: { candidate: Candidate; onResolved?: (count: number) => void }) {
+  const [votes, setVotes] = useState(candidate.votes || []);
+  const [loadingVotes, setLoadingVotes] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadVotes = async () => {
+      try {
+        const response = await fetch(`/api/candidates/${candidate.id}/votes`);
+        if (!response.ok) throw new Error('Failed to load canonical votes');
+        const canonicalVotes = await response.json();
+        if (!cancelled) {
+          const nextVotes = canonicalVotes.length > 0 ? canonicalVotes : (candidate.votes || []);
+          setVotes(nextVotes);
+          onResolved?.(nextVotes.length);
+        }
+      } catch (error) {
+        console.error(`Failed to load canonical votes for ${candidate.name}:`, error);
+        if (!cancelled) {
+          const fallbackVotes = candidate.votes || [];
+          setVotes(fallbackVotes);
+          onResolved?.(fallbackVotes.length);
+        }
+      } finally {
+        if (!cancelled) setLoadingVotes(false);
+      }
+    };
+
+    void loadVotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [candidate.id, candidate.name, candidate.votes, onResolved]);
+
+  if (loadingVotes) {
+    return (
+      <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">
+        Loading verified voting record...
+      </div>
+    );
+  }
+
+  if (votes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+        <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+          <Activity size={14} /> Official Voting Record ({votes.length})
+        </p>
+      </div>
+      <VotingRecord votes={votes} />
+    </div>
+  );
+}
+
 function DecisionModule({ 
   race, 
   measure, 
@@ -552,6 +611,7 @@ function DecisionModule({
   refreshStatus: 'idle' | 'queued' | 'running' | 'partial' | 'complete' | 'failed'
 }) {
   const item = race || measure;
+  const [canonicalVoteCounts, setCanonicalVoteCounts] = useState<Record<string, number>>({});
   if (!item) return null;
 
   return (
@@ -705,16 +765,10 @@ function DecisionModule({
                           </div>
                         )}
 
-                         {candidate.votes && candidate.votes.length > 0 && (
-                          <div className="space-y-6">
-                             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                                <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
-                                   <Activity size={14} /> Official Voting Record ({candidate.votes.length})
-                                </p>
-                             </div>
-                             <VotingRecord votes={candidate.votes} />
-                          </div>
-                        )}
+                        <CandidateVotingSection
+                          candidate={candidate}
+                          onResolved={(count) => setCanonicalVoteCounts((current) => ({ ...current, [candidate.id]: count }))}
+                        />
 
                         {candidate.activities && candidate.activities.length > 0 && (
                           <div className="space-y-6">
@@ -727,7 +781,7 @@ function DecisionModule({
                           </div>
                         )}
 
-                        {(!candidate.votes || candidate.votes.length === 0) && (!candidate.activities || candidate.activities.length === 0) && (
+                        {(canonicalVoteCounts[candidate.id] ?? candidate.votes?.length ?? 0) === 0 && (!candidate.activities || candidate.activities.length === 0) && (
                           <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">
                             No verified recent record available yet.
                           </div>
