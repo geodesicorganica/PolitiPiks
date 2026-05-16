@@ -35,6 +35,20 @@ export const DATA_SOURCES: DataSource[] = [
     kind: 'ai',
     supports: ['activities'],
   },
+  {
+    id: 'ballotpedia-data',
+    label: 'Ballotpedia Data',
+    kind: 'aggregator',
+    baseUrl: 'https://api4.ballotpedia.org',
+    supports: ['ballotMeasures'],
+  },
+  {
+    id: 'ncsl-ballot-measures',
+    label: 'NCSL Ballot Measures Database',
+    kind: 'aggregator',
+    baseUrl: 'https://www.ncsl.org',
+    supports: ['ballotMeasures'],
+  },
 ];
 
 const isOfficialVote = (vote: NonNullable<Candidate['keyVotes']>[number]) =>

@@ -202,6 +202,31 @@ type CongressActionItem = {
   }>;
 };
 
+type BallotMeasureInput = {
+  id: string;
+  state: string;
+  title: string;
+  shortTitle?: string;
+  description: string;
+  status?: "upcoming" | "live" | "called";
+  qualificationStatus?: "filed" | "circulating" | "qualified" | "on_ballot" | "withdrawn" | "failed";
+  result?: "pass" | "fail";
+  closeDate: string;
+  electionDate?: string;
+  measureNumber?: string;
+  yesVotes?: number;
+  noVotes?: number;
+  fullTextUrl?: string;
+  ballotpediaUrl?: string;
+  externalIds?: {
+    ballotpediaMeasureId?: string;
+    stateMeasureId?: string;
+  };
+  source: string;
+  sourceUrl?: string;
+  sourceUpdatedAt?: string;
+};
+
 function textValue(xml: string, tag: string) {
   const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, "i"));
   return match?.[1]?.trim();
@@ -430,6 +455,23 @@ async function discoverRecentRecordedVotes(job: RefreshJob) {
   return discovered;
 }
 
+async function upsertBallotMeasures(measures: BallotMeasureInput[]) {
+  if (!db) return 0;
+  const batch = db.batch();
+  for (const measure of measures) {
+    batch.set(db.collection("measures").doc(measure.id), {
+      ...measure,
+      status: measure.status || "upcoming",
+      category: "Statewide",
+      lastRefreshedAt: new Date().toISOString(),
+      refreshStatus: "fresh",
+      verificationLevel: measure.source === "official-state" ? "official" : "derived",
+    }, { merge: true });
+  }
+  await batch.commit();
+  return measures.length;
+}
+
 async function runGlobalRefresh(jobId: string) {
   const job = refreshJobs.get(jobId);
   if (!job) return;
@@ -556,6 +598,19 @@ async function startServer() {
       res.json({ votesWritten: result.written, unmatchedVoteRows: result.unmatched });
     } catch (error: any) {
       res.status(500).json({ error: error?.message || "Failed to ingest recorded vote" });
+    }
+  });
+
+  app.post("/api/ingest/ballot-measures", async (req, res) => {
+    try {
+      const measures = req.body?.measures as BallotMeasureInput[] | undefined;
+      if (!Array.isArray(measures) || measures.length === 0) {
+        return res.status(400).json({ error: "measures array is required" });
+      }
+      const written = await upsertBallotMeasures(measures);
+      res.json({ measuresWritten: written });
+    } catch (error: any) {
+      res.status(500).json({ error: error?.message || "Failed to ingest ballot measures" });
     }
   });
 

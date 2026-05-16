@@ -171,13 +171,24 @@ export interface Race extends SourceMetadata {
 
 export interface BallotMeasure extends SourceMetadata {
   id: string;
+  externalIds?: {
+    ballotpediaMeasureId?: string;
+    stateMeasureId?: string;
+  };
   jurisdictionId?: string;
   state: string;
   title: string;
+  shortTitle?: string;
   description: string;
   status: 'upcoming' | 'live' | 'called';
+  qualificationStatus?: 'filed' | 'circulating' | 'qualified' | 'on_ballot' | 'withdrawn' | 'failed';
   result?: 'pass' | 'fail';
   closeDate: string;
+  electionDate?: string;
+  measureNumber?: string;
+  yesVotes?: number;
+  noVotes?: number;
+  fullTextUrl?: string;
   category?: 'Presidential' | 'Statewide' | 'Local';
   ballotpediaUrl?: string;
   history?: string;
