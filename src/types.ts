@@ -93,8 +93,17 @@ export interface RefreshJob {
     raceStats: number;
     offices: number;
     jurisdictions: number;
+    billsScanned: number;
+    recordedVotesDiscovered: number;
+    unmatchedVoteRows: number;
   };
   failures: Array<{ source: string; message: string }>;
+}
+
+export interface RefreshCursor extends SourceMetadata {
+  id: string;
+  cursorType: 'bill-discovery';
+  lastProcessedAt?: string;
 }
 
 export interface Candidate extends SourceMetadata {

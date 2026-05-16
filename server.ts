@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { Candidate, Jurisdiction, Office, Race, RefreshJob, UnmatchedVoteRow } from "./src/types";
+import { Candidate, Jurisdiction, Office, Race, RefreshCursor, RefreshJob, UnmatchedVoteRow } from "./src/types";
 import { DATA_SOURCES, normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from "./src/lib/dataPlatform";
 
 dotenv.config();
@@ -36,6 +36,9 @@ function emptyCounts(): RefreshJob["counts"] {
     raceStats: 0,
     offices: 0,
     jurisdictions: 0,
+    billsScanned: 0,
+    recordedVotesDiscovered: 0,
+    unmatchedVoteRows: 0,
   };
 }
 
@@ -260,7 +263,7 @@ async function getCandidateIndex() {
 }
 
 async function recordUnmatchedVote(ref: RecordedVoteRef, member: { memberName?: string; state?: string; vote?: string }, reason: UnmatchedVoteRow["reason"]) {
-  if (!db) return;
+  if (!db) return false;
   const normalizedName = normalizePersonName(member.memberName);
   const id = `${ref.chamber.toLowerCase()}-${ref.congress}-${ref.rollNumber}-${normalizedName || "missing-name"}-${reason}`;
   const record: UnmatchedVoteRow = {
@@ -282,32 +285,34 @@ async function recordUnmatchedVote(ref: RecordedVoteRef, member: { memberName?: 
     verificationLevel: "official",
   };
   await db.collection("unmatchedVoteRows").doc(id).set(record, { merge: true });
+  return true;
 }
 
 async function ingestRecordedVote(ref: RecordedVoteRef) {
-  if (!db) return 0;
+  if (!db) return { written: 0, unmatched: 0 };
   const response = await fetch(ref.url);
   if (!response.ok) throw new Error(`Official vote fetch failed: ${response.status}`);
   const xml = await response.text();
   const members = ref.chamber === "Senate" ? extractSenateMembers(xml) : extractHouseMembers(xml);
   const candidateIndex = await getCandidateIndex();
   let written = 0;
+  let unmatched = 0;
 
   for (const member of members) {
     const normalizedVote = normalizeOfficialVote(member.vote);
     if (!member.memberName) {
-      await recordUnmatchedVote(ref, member, "missing_name");
+      if (await recordUnmatchedVote(ref, member, "missing_name")) unmatched += 1;
       continue;
     }
 
     const candidate = candidateIndex.get(normalizePersonName(member.memberName));
     if (!candidate) {
-      await recordUnmatchedVote(ref, member, "unmatched_candidate");
+      if (await recordUnmatchedVote(ref, member, "unmatched_candidate")) unmatched += 1;
       continue;
     }
 
     if (!normalizedVote) {
-      await recordUnmatchedVote(ref, member, "unsupported_vote");
+      if (await recordUnmatchedVote(ref, member, "unsupported_vote")) unmatched += 1;
       continue;
     }
 
@@ -336,7 +341,27 @@ async function ingestRecordedVote(ref: RecordedVoteRef) {
     written += 1;
   }
 
-  return written;
+  return { written, unmatched };
+}
+
+async function getBillDiscoveryCursor(): Promise<RefreshCursor | null> {
+  if (!db) return null;
+  const snapshot = await db.collection("refreshCursors").doc("bill-discovery").get();
+  return snapshot.exists ? ({ id: snapshot.id, ...snapshot.data() } as RefreshCursor) : null;
+}
+
+async function saveBillDiscoveryCursor(lastProcessedAt: string) {
+  if (!db) return;
+  const cursor: RefreshCursor = {
+    id: "bill-discovery",
+    cursorType: "bill-discovery",
+    lastProcessedAt,
+    source: "congress-gov",
+    lastRefreshedAt: new Date().toISOString(),
+    refreshStatus: "fresh",
+    verificationLevel: "official",
+  };
+  await db.collection("refreshCursors").doc(cursor.id).set(cursor, { merge: true });
 }
 
 async function fetchRecentBills(limit = 25): Promise<CongressBillItem[]> {
@@ -367,14 +392,20 @@ async function fetchBillActions(actionsUrl?: string): Promise<CongressActionItem
 
 async function discoverRecentRecordedVotes(job: RefreshJob) {
   const bills = await fetchRecentBills();
+  const cursor = await getBillDiscoveryCursor();
+  const previousCutoff = cursor?.lastProcessedAt ? Date.parse(cursor.lastProcessedAt) : 0;
   let discovered = 0;
+  let newestActionDate = previousCutoff;
 
   for (const bill of bills) {
     const billId = `${bill.congress}-${bill.type}-${bill.number}`.toLowerCase();
     const actions = await fetchBillActions(bill.actions?.url);
+    job.counts.billsScanned += 1;
     for (const action of actions) {
       for (const recordedVote of action.recordedVotes || []) {
-        const written = await ingestRecordedVote({
+        const recordedVoteTime = Date.parse(recordedVote.date);
+        if (!Number.isNaN(recordedVoteTime) && recordedVoteTime <= previousCutoff) continue;
+        const result = await ingestRecordedVote({
           url: recordedVote.url,
           chamber: recordedVote.chamber,
           congress: recordedVote.congress,
@@ -383,10 +414,17 @@ async function discoverRecentRecordedVotes(job: RefreshJob) {
           billId,
           billTitle: bill.title,
         });
-        job.counts.votes += written;
+        job.counts.votes += result.written;
+        job.counts.unmatchedVoteRows += result.unmatched;
+        job.counts.recordedVotesDiscovered += 1;
         discovered += 1;
+        if (!Number.isNaN(recordedVoteTime)) newestActionDate = Math.max(newestActionDate, recordedVoteTime);
       }
     }
+  }
+
+  if (newestActionDate > previousCutoff) {
+    await saveBillDiscoveryCursor(new Date(newestActionDate).toISOString());
   }
 
   return discovered;
@@ -514,8 +552,8 @@ async function startServer() {
       if (!ref?.url || !ref?.chamber || !ref?.congress || !ref?.rollNumber || !ref?.date) {
         return res.status(400).json({ error: "url, chamber, congress, rollNumber, and date are required" });
       }
-      const votesWritten = await ingestRecordedVote(ref);
-      res.json({ votesWritten });
+      const result = await ingestRecordedVote(ref);
+      res.json({ votesWritten: result.written, unmatchedVoteRows: result.unmatched });
     } catch (error: any) {
       res.status(500).json({ error: error?.message || "Failed to ingest recorded vote" });
     }
