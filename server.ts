@@ -5,7 +5,7 @@ import { createServer as createViteServer } from "vite";
 import admin from "firebase-admin";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { Candidate, Jurisdiction, Office, Race, RefreshJob } from "./src/types";
+import { Candidate, Jurisdiction, Office, Race, RefreshJob, UnmatchedVoteRow } from "./src/types";
 import { DATA_SOURCES, normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from "./src/lib/dataPlatform";
 
 dotenv.config();
@@ -234,15 +234,54 @@ function normalizeOfficialVote(rawVote?: string): "Yea" | "Nay" | "Present" | nu
   return null;
 }
 
+function normalizePersonName(value?: string) {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(jr|sr|ii|iii|iv)\b\.?/g, "")
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function getCandidateIndex() {
   if (!db) return new Map<string, Candidate>();
   const snapshot = await db.collection("candidates").get();
   const index = new Map<string, Candidate>();
   snapshot.docs.forEach((doc) => {
     const candidate = { id: doc.id, ...doc.data() } as Candidate;
-    index.set(candidate.name.toLowerCase(), candidate);
+    [candidate.name, ...(candidate.aliases || [])]
+      .map(normalizePersonName)
+      .filter(Boolean)
+      .forEach((key) => index.set(key, candidate));
   });
   return index;
+}
+
+async function recordUnmatchedVote(ref: RecordedVoteRef, member: { memberName?: string; state?: string; vote?: string }, reason: UnmatchedVoteRow["reason"]) {
+  if (!db) return;
+  const normalizedName = normalizePersonName(member.memberName);
+  const id = `${ref.chamber.toLowerCase()}-${ref.congress}-${ref.rollNumber}-${normalizedName || "missing-name"}-${reason}`;
+  const record: UnmatchedVoteRow = {
+    id,
+    chamber: ref.chamber,
+    congress: ref.congress,
+    rollNumber: ref.rollNumber,
+    memberName: member.memberName,
+    state: member.state,
+    rawVote: member.vote,
+    normalizedName,
+    reason,
+    voteUrl: ref.url,
+    source: ref.chamber === "House" ? "house-clerk" : "senate-roll-call",
+    sourceUrl: ref.url,
+    sourceUpdatedAt: ref.date,
+    lastRefreshedAt: new Date().toISOString(),
+    refreshStatus: "partial",
+    verificationLevel: "official",
+  };
+  await db.collection("unmatchedVoteRows").doc(id).set(record, { merge: true });
 }
 
 async function ingestRecordedVote(ref: RecordedVoteRef) {
@@ -256,8 +295,21 @@ async function ingestRecordedVote(ref: RecordedVoteRef) {
 
   for (const member of members) {
     const normalizedVote = normalizeOfficialVote(member.vote);
-    const candidate = member.memberName ? candidateIndex.get(member.memberName.toLowerCase()) : undefined;
-    if (!candidate || !normalizedVote) continue;
+    if (!member.memberName) {
+      await recordUnmatchedVote(ref, member, "missing_name");
+      continue;
+    }
+
+    const candidate = candidateIndex.get(normalizePersonName(member.memberName));
+    if (!candidate) {
+      await recordUnmatchedVote(ref, member, "unmatched_candidate");
+      continue;
+    }
+
+    if (!normalizedVote) {
+      await recordUnmatchedVote(ref, member, "unsupported_vote");
+      continue;
+    }
 
     const voteId = `${ref.chamber.toLowerCase()}-${ref.congress}-${ref.rollNumber}-${candidate.id}`;
     const record = {

@@ -106,6 +106,7 @@ export interface Candidate extends SourceMetadata {
   };
   officeId?: string;
   name: string;
+  aliases?: string[];
   party: Party;
   photoURL?: string;
   summary?: string;
@@ -128,6 +129,19 @@ export interface Candidate extends SourceMetadata {
   sentimentData?: { category: string; value: number }[];
   lastSynced?: string;
   isCurrentOfficeholder?: boolean;
+}
+
+export interface UnmatchedVoteRow extends SourceMetadata {
+  id: string;
+  chamber: 'House' | 'Senate';
+  congress: number;
+  rollNumber: number;
+  memberName?: string;
+  state?: string;
+  rawVote?: string;
+  normalizedName?: string;
+  reason: 'missing_name' | 'unmatched_candidate' | 'unsupported_vote';
+  voteUrl: string;
 }
 
 export interface Race extends SourceMetadata {
