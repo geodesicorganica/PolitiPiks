@@ -1,0 +1,21 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Firebase / local tooling
+.firebase/
+firebase-debug.log
+
+# Service account / admin SDK keys (never commit)
+serviceAccount*.json
+*service-account*.json
+firebase-adminsdk*.json
+*.pem
+
+# Scaffold/metadata (not part of app source)
+.remote-source/

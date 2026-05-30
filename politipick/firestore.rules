@@ -1,0 +1,125 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // --- Users ---
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.displayName is string && 
+             data.email is string && 
+             data.photoURL is string &&
+             data.totalPoints is number &&
+             data.predictionsCount is number &&
+             data.correctPredictions is number &&
+             data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'totalPoints', 'predictionsCount', 'correctPredictions']) &&
+             data.keys().size() == 7;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'email']);
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints', 'predictionsCount', 'correctPredictions']);
+    }
+
+    // --- Admins ---
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // --- Leagues ---
+    function isValidLeague(data) {
+      return data.name is string && data.name.size() <= 100 &&
+             data.ownerId == request.auth.uid &&
+             data.inviteCode is string &&
+             data.createdAt == request.time &&
+             data.keys().hasAll(['name', 'ownerId', 'inviteCode', 'createdAt']) &&
+             data.keys().size() == 4;
+    }
+
+    function isValidMember(data) {
+      return data.userId == request.auth.uid &&
+             data.displayName is string &&
+             data.photoURL is string &&
+             data.points is number &&
+             data.joinedAt == request.time &&
+             data.keys().hasAll(['userId', 'displayName', 'photoURL', 'points', 'joinedAt']) &&
+             data.keys().size() == 5;
+    }
+
+    match /leagues/{leagueId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidLeague(incoming());
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid || 
+        exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid))
+      );
+      
+      match /members/{memberId} {
+        allow read: if isSignedIn();
+        allow create: if isOwner(memberId) && isValidMember(incoming());
+        allow update: if isOwner(memberId) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['points'])
+        );
+      }
+    }
+
+    match /races/{raceId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /ballotMeasures/{measureId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /predictions/{predictionId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['pick', 'updatedAt']);
+      allow update: if isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+    }
+  }
+}
