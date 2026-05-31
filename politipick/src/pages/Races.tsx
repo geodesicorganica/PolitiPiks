@@ -7,6 +7,7 @@ import { SEED_RACES, SEED_MEASURES } from '../constants/electionData';
 import { motion } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { Check, Loader2 } from 'lucide-react';
+import { ALLOW_ADMIN_SEED, USE_MOCK_CONTESTS } from '../lib/config';
 
 const PICK_LOCK_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -49,19 +50,25 @@ export function Races() {
       return;
     }
 
+    if (USE_MOCK_CONTESTS) {
+      setRaces(SEED_RACES);
+      setMeasures(SEED_MEASURES);
+      setLoading(false);
+    }
+
     // 1. Fetch Races & Seed
     const unsubscribeRaces = onSnapshot(collection(db, 'races'), async (snapshot) => {
       if (snapshot.empty) {
-        if (!isAdmin) {
-          setRaces([]);
-          return;
-        }
-        try {
-          for (const race of SEED_RACES) {
-            await setDoc(doc(db, 'races', race.id), race);
+        setRaces([]);
+        // Dev-only: admins may seed mock contests into Firestore if explicitly enabled.
+        if (isAdmin && ALLOW_ADMIN_SEED) {
+          try {
+            for (const race of SEED_RACES) {
+              await setDoc(doc(db, 'races', race.id), race);
+            }
+          } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, 'races(seed)');
           }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, 'races(seed)');
         }
       } else {
         setRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
@@ -73,16 +80,16 @@ export function Races() {
     // 2. Fetch Measures & Seed
     const unsubscribeMeasures = onSnapshot(collection(db, 'ballotMeasures'), async (snapshot) => {
       if (snapshot.empty) {
-        if (!isAdmin) {
-          setMeasures([]);
-          return;
-        }
-        try {
-          for (const measure of SEED_MEASURES) {
-            await setDoc(doc(db, 'ballotMeasures', measure.id), measure);
+        setMeasures([]);
+        // Dev-only: admins may seed mock contests into Firestore if explicitly enabled.
+        if (isAdmin && ALLOW_ADMIN_SEED) {
+          try {
+            for (const measure of SEED_MEASURES) {
+              await setDoc(doc(db, 'ballotMeasures', measure.id), measure);
+            }
+          } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, 'ballotMeasures(seed)');
           }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.WRITE, 'ballotMeasures(seed)');
         }
       } else {
         setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
@@ -179,6 +186,12 @@ export function Races() {
       {notice && (
         <div className="border border-brand-red/40 bg-brand-red/10 text-brand-red p-3 font-mono text-[10px] uppercase">
           {notice}
+        </div>
+      )}
+
+      {!USE_MOCK_CONTESTS && races.length === 0 && measures.length === 0 && (
+        <div className="border border-black/10 bg-white p-4 font-mono text-[10px] uppercase text-black/50">
+          No contests loaded yet. This environment expects an ingest job to populate Firestore.
         </div>
       )}
       {/* Races Section */}

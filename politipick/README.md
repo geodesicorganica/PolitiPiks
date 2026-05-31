@@ -30,3 +30,10 @@ Options:
 - Manual: Create `admins/<your-uid>` in the Firestore console (any fields are fine).
 - Scripted (requires a service account JSON; do not commit it):
   - `npm run grant-admin -- --uid <UID> --service-account <path-to-service-account.json>`
+
+## Real contest data (automated ingest)
+
+For production, contests should be written by a backend ingest job (not by the client).
+
+- Ingest service scaffold: `ingest/README.md`
+- The UI can be developed against mock contests by setting `VITE_USE_MOCK_CONTESTS=true` (see `.env.example`).
