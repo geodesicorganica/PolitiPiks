@@ -16,6 +16,7 @@ serviceAccount*.json
 *service-account*.json
 firebase-adminsdk*.json
 *.pem
+politipiks-firebase-adminsdk-*.json
 
 # Scaffold/metadata (not part of app source)
 .remote-source/

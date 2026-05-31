@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import process from 'node:process';
 import admin from 'firebase-admin';
+import {Firestore} from '@google-cloud/firestore';
 
 function getArg(name: string) {
   const idx = process.argv.indexOf(name);
@@ -23,13 +24,40 @@ if (!serviceAccountPath) {
 const raw = readFileSync(serviceAccountPath, 'utf8');
 const serviceAccount = JSON.parse(raw);
 
+function getDatabaseId() {
+  const cliDb = getArg('--database') ?? getArg('--database-id');
+  if (cliDb) return cliDb;
+  if (process.env.FIRESTORE_DATABASE_ID) return process.env.FIRESTORE_DATABASE_ID;
+
+  try {
+    const firebaseJsonRaw = readFileSync('firebase.json', 'utf8');
+    const firebaseJson = JSON.parse(firebaseJsonRaw);
+    const db = firebaseJson?.firestore?.[0]?.database;
+    if (typeof db === 'string' && db.length > 0) return db;
+  } catch {
+    // ignore
+  }
+
+  return '(default)';
+}
+
 if (admin.apps.length === 0) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
 }
 
-const db = admin.firestore();
+const databaseId = getDatabaseId();
+
+// Use explicit databaseId to match firebase.json and deployed rules.
+const db = new Firestore({
+  projectId: serviceAccount.project_id,
+  credentials: {
+    client_email: serviceAccount.client_email,
+    private_key: serviceAccount.private_key,
+  },
+  databaseId,
+});
 
 await db.doc(`admins/${uid}`).set(
   {
@@ -38,5 +66,4 @@ await db.doc(`admins/${uid}`).set(
   {merge: true},
 );
 
-console.log(`Granted admin to uid=${uid} (created/updated admins/${uid}).`);
-
+console.log(`Granted admin to uid=${uid} (created/updated admins/${uid}) on database=${databaseId}.`);
