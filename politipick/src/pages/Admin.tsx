@@ -16,6 +16,7 @@ export function Admin() {
   const [races, setRaces] = useState<Race[]>([]);
   const [measures, setMeasures] = useState<BallotMeasure[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -75,15 +76,17 @@ export function Admin() {
   async function callRace(race: Race, winnerId: string) {
     if (!isAdmin) return;
     setBusyId(race.id);
+    setNotice(null);
     try {
       await updateDoc(doc(db, 'races', race.id), {
         status: 'called',
         winnerId,
       });
       await scoreTarget(race.id, winnerId);
+      setNotice({ kind: 'success', message: `Called ${race.state} ${race.office} and scored predictions.` });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `races/${race.id}`);
-      alert('Failed to call race / score predictions.');
+      setNotice({ kind: 'error', message: 'Failed to call race / score predictions.' });
     } finally {
       setBusyId(null);
     }
@@ -92,15 +95,17 @@ export function Admin() {
   async function callMeasure(measure: BallotMeasure, result: 'pass' | 'fail') {
     if (!isAdmin) return;
     setBusyId(measure.id);
+    setNotice(null);
     try {
       await updateDoc(doc(db, 'ballotMeasures', measure.id), {
         status: 'called',
         result,
       });
       await scoreTarget(measure.id, result);
+      setNotice({ kind: 'success', message: `Called ${measure.state} measure and scored predictions.` });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `ballotMeasures/${measure.id}`);
-      alert('Failed to call measure / score predictions.');
+      setNotice({ kind: 'error', message: 'Failed to call measure / score predictions.' });
     } finally {
       setBusyId(null);
     }
@@ -122,6 +127,17 @@ export function Admin() {
           Call results and score predictions (+{POINTS_PER_CORRECT} per correct pick).
         </p>
       </div>
+
+      {notice && (
+        <div className={cn(
+          "border p-3 font-mono text-[10px] uppercase",
+          notice.kind === 'error'
+            ? "border-brand-red/40 bg-brand-red/10 text-brand-red"
+            : "border-green-600/30 bg-green-600/10 text-green-700"
+        )}>
+          {notice.message}
+        </div>
+      )}
 
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-black/10 pb-2">
@@ -230,4 +246,3 @@ export function Admin() {
     </div>
   );
 }
-

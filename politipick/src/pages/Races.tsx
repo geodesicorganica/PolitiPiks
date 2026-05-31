@@ -35,12 +35,13 @@ function formatDateTime(date: string) {
 }
 
 export function Races() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [races, setRaces] = useState<Race[]>([]);
   const [measures, setMeasures] = useState<BallotMeasure[]>([]);
   const [predictions, setPredictions] = useState<Record<string, string>>({}); // targetId -> pick
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) {
@@ -51,8 +52,16 @@ export function Races() {
     // 1. Fetch Races & Seed
     const unsubscribeRaces = onSnapshot(collection(db, 'races'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const race of SEED_RACES) {
-          await setDoc(doc(db, 'races', race.id), race);
+        if (!isAdmin) {
+          setRaces([]);
+          return;
+        }
+        try {
+          for (const race of SEED_RACES) {
+            await setDoc(doc(db, 'races', race.id), race);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, 'races(seed)');
         }
       } else {
         setRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
@@ -64,8 +73,16 @@ export function Races() {
     // 2. Fetch Measures & Seed
     const unsubscribeMeasures = onSnapshot(collection(db, 'ballotMeasures'), async (snapshot) => {
       if (snapshot.empty) {
-        for (const measure of SEED_MEASURES) {
-          await setDoc(doc(db, 'ballotMeasures', measure.id), measure);
+        if (!isAdmin) {
+          setMeasures([]);
+          return;
+        }
+        try {
+          for (const measure of SEED_MEASURES) {
+            await setDoc(doc(db, 'ballotMeasures', measure.id), measure);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, 'ballotMeasures(seed)');
         }
       } else {
         setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
@@ -100,14 +117,15 @@ export function Races() {
       unsubscribeRaces();
       unsubscribeMeasures();
     };
-  }, [profile]);
+  }, [profile, isAdmin]);
 
   const handlePick = async (targetId: string, pick: string, type: 'race' | 'measure', closeDate: string) => {
     if (!profile) return;
     if (isPickLocked(closeDate)) {
-      alert(`Picks are locked for this contest.\nLocked 1 hour before close (${formatDateTime(closeDate)}).`);
+      setNotice(`Picks are locked for this contest. Locked 1 hour before close (${formatDateTime(closeDate)}).`);
       return;
     }
+    setNotice(null);
     setSubmitting(targetId);
     try {
       const q = query(
@@ -158,6 +176,11 @@ export function Races() {
 
   return (
     <div className="space-y-12 pb-12">
+      {notice && (
+        <div className="border border-brand-red/40 bg-brand-red/10 text-brand-red p-3 font-mono text-[10px] uppercase">
+          {notice}
+        </div>
+      )}
       {/* Races Section */}
       <section className="space-y-6">
         <div className="border-b-2 border-brand-blue pb-4">
