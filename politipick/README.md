@@ -37,3 +37,4 @@ For production, contests should be written by a backend ingest job (not by the c
 
 - Ingest service scaffold: `ingest/README.md`
 - The UI can be developed against mock contests by setting `VITE_USE_MOCK_CONTESTS=true` (see `.env.example`).
+- Quick start for free post-cert data: set `INGEST_SOURCE_TYPE=medsl2024` in the ingest service (see `ingest/README.md`).

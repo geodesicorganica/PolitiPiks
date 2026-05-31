@@ -1,6 +1,7 @@
 import express from 'express';
 import { SourcePayloadSchema } from './schema.js';
 import { getFirestore, requireEnv, upsertContests } from './firestore.js';
+import { loadMedsl2024StatewideContests } from './sources/medsl2024.js';
 
 const app = express();
 app.use(express.json());
@@ -20,17 +21,21 @@ app.get('/healthz', (_req, res) => res.status(200).send('ok'));
 app.post('/tasks/ingest', async (req, res) => {
   if (!authOr401(req, res)) return;
 
+  const sourceType = (process.env.INGEST_SOURCE_TYPE ?? 'url').toLowerCase();
+  const allowMedsl = sourceType === 'medsl2024';
+
   const url = process.env.INGEST_SOURCE_URL;
-  if (!url) {
+  if (!allowMedsl && !url) {
     return res.status(400).json({ ok: false, error: 'Missing INGEST_SOURCE_URL' });
   }
 
   try {
-    const resp = await fetch(url, { headers: { 'accept': 'application/json' } });
-    if (!resp.ok) {
-      return res.status(502).json({ ok: false, error: `Source fetch failed: ${resp.status}` });
-    }
-    const json = await resp.json();
+    const json = allowMedsl ? await loadMedsl2024StatewideContests() : await (async () => {
+      const resp = await fetch(url!, { headers: { accept: 'application/json' } });
+      if (!resp.ok) throw new Error(`Source fetch failed: ${resp.status}`);
+      return resp.json();
+    })();
+
     const payload = SourcePayloadSchema.parse(json);
 
     const db = getFirestore();
