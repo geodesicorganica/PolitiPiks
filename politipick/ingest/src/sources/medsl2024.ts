@@ -44,7 +44,7 @@ async function fetchCsv(url: string) {
   const text = await resp.text();
   const parsed = Papa.parse<Row>(text, { header: true, skipEmptyLines: true });
   if (parsed.errors.length) throw new Error(`CSV parse error: ${parsed.errors[0]?.message ?? 'unknown'}`);
-  return parsed.data.filter((r) => Object.keys(r).length > 0);
+  return parsed.data.filter((r: Row) => Object.keys(r).length > 0);
 }
 
 function closeDateForElection(electionDateISO: string) {
@@ -131,4 +131,3 @@ export async function loadMedsl2024StatewideContests(): Promise<SourcePayload> {
     ballotMeasures: [],
   };
 }
-

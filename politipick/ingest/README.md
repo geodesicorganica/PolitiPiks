@@ -13,7 +13,7 @@ This is a small Cloud Run service intended to be triggered by Cloud Scheduler to
 
 - `PROJECT_ID` (e.g. `politipiks`)
 - `FIRESTORE_DATABASE_ID` (must match your `firebase.json` database)
-- `INGEST_SOURCE_TYPE` (`url` or `medsl2024`)
+- `INGEST_SOURCE_TYPE` (`url`, `medsl2024`, or `ballotpedia_state`)
 - `INGEST_SOURCE_URL` (HTTPS URL returning contests JSON; required only when `INGEST_SOURCE_TYPE=url`)
 - `INGEST_TOKEN` (shared secret for the scheduler request header)
 
@@ -44,3 +44,17 @@ If you just want to stand up the pipeline quickly with free, post-cert data, set
 - `INGEST_SOURCE_TYPE=medsl2024`
 
 This will fetch statewide President + Senate candidate lists from MEDSL's `2024-elections-official` repository.
+
+## Fastest "pre-election contests" option: Ballotpedia (requires API key)
+
+If you want contests before election day, the quickest path is Ballotpedia's geographic API `/elections_by_state` (candidate lists + ballot measures by state + election date).
+
+Set:
+- `INGEST_SOURCE_TYPE=ballotpedia_state`
+- `BALLOTPEDIA_API_KEY=...`
+- `BALLOTPEDIA_STATE=CA` (state abbreviation)
+- `BALLOTPEDIA_YEAR=2026`
+- `BALLOTPEDIA_OFFICE_LEVEL=State` (or `Federal`)
+
+Notes:
+- The Ballotpedia API requires an API key from Ballotpedia.
