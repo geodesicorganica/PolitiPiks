@@ -45,6 +45,18 @@ If you just want to stand up the pipeline quickly with free, post-cert data, set
 
 This will fetch statewide President + Senate candidate lists from MEDSL's `2024-elections-official` repository.
 
+## One-time local seed command (MEDSL 2024)
+
+If you want to seed Firestore immediately (without running Cloud Run + Scheduler), run:
+
+- PowerShell (from repo root):
+  - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm --prefix ingest run seed:2024`
+
+Optional flags:
+- `--database <id>` (defaults to `FIRESTORE_DATABASE_ID` or `firebase.json`)
+- `--service-account <path>` and `--project-id <id>` are supported when invoking `tsx src/seed-medsl2024.ts` directly
+- omit service account to use Application Default Credentials
+
 ## Fastest "pre-election contests" option: Ballotpedia (requires API key)
 
 If you want contests before election day, the quickest path is Ballotpedia's geographic API `/elections_by_state` (candidate lists + ballot measures by state + election date).

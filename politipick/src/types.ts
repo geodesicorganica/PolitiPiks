@@ -8,7 +8,7 @@ export interface Candidate {
 export interface Race {
   id: string;
   state: string;
-  office: 'Senate' | 'House' | 'Governor';
+  office: 'President' | 'Senate' | 'House' | 'Governor';
   district?: string;
   candidates: Candidate[];
   status: 'upcoming' | 'live' | 'called';

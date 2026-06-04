@@ -37,12 +37,12 @@ export function Leaderboard() {
 
   return (
     <div className="space-y-8 pb-12">
-      <div className="border-b-2 border-brand-red pb-4">
-        <h1 className="text-4xl font-black italic tracking-tighter uppercase italic text-brand-red">Global Rankings</h1>
+      <div className="border-b border-brand-red/20 pb-4">
+        <h1 className="page-title text-4xl font-black italic uppercase text-brand-red">Global Rankings</h1>
         <p className="text-xs font-mono uppercase text-black/40 mt-1">The elite predictors of the 2026 midterms.</p>
       </div>
 
-      <div className="bg-white border border-black/10 shadow-xl overflow-hidden">
+      <div className="section-shell overflow-hidden">
         {loading ? (
           <div className="p-20 flex items-center justify-center">
             <motion.div 
@@ -68,7 +68,7 @@ export function Leaderboard() {
                     {index === 1 && <Medal className="absolute -top-2 -left-2 text-slate-400 rotate-[-15deg]" size={20} />}
                     {index === 2 && <Star className="absolute -top-2 -left-2 text-amber-600 rotate-[-15deg]" size={20} />}
                     <span className={cn(
-                      "text-slate-300 group-hover:text-white transition-colors",
+                      "text-slate-300 group-hover:text-brand-blue transition-colors",
                       index < 3 && "text-brand-red font-black"
                     )}>
                       {String(index + 1).padStart(2, '0')}
@@ -83,7 +83,7 @@ export function Leaderboard() {
                     />
                     <div>
                       <p className="font-black uppercase tracking-tighter text-lg">{u.displayName}</p>
-                      <p className="text-[10px] font-mono text-black/40 group-hover:text-white/60 uppercase">
+                      <p className="text-[10px] font-mono text-black/45 uppercase">
                         {u.correctPredictions} Correct • {u.totalPoints} Global Points
                       </p>
                     </div>
@@ -91,8 +91,8 @@ export function Leaderboard() {
                 </div>
                 
                 <div className="text-right">
-                   <p className="text-[10px] font-mono uppercase text-black/40 group-hover:text-white/60">Points</p>
-                   <p className="text-2xl font-black italic tracking-tighter text-brand-blue group-hover:text-white">{u.totalPoints}</p>
+                   <p className="text-[10px] font-mono uppercase text-black/40">Points</p>
+                   <p className="text-2xl font-black italic tracking-tighter text-brand-blue">{u.totalPoints}</p>
                 </div>
               </motion.div>
             ))}

@@ -120,7 +120,7 @@ export default function App() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
+          className="w-10 h-10 border-2 border-white border-t-transparent rounded-full"
         />
       </div>
     );
@@ -128,32 +128,32 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 grid-paper">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-brand-blue text-white p-6 grid-paper">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full text-center space-y-8"
+          className="max-w-md w-full text-center space-y-8 rounded-2xl border border-white/15 bg-white/8 p-8 backdrop-blur-md shadow-2xl shadow-black/20"
         >
           <div className="space-y-4">
-            <h1 className="text-6xl font-black italic tracking-tighter text-brand-red">POLITIPICK</h1>
-            <p className="text-slate-400 font-mono text-sm uppercase tracking-widest">Midterm Fantasy Leagues 2026</p>
+            <h1 className="text-5xl sm:text-6xl font-black italic tracking-tighter text-brand-red page-title">POLITIPICK</h1>
+            <p className="text-white/65 font-mono text-sm uppercase tracking-widest">Midterm Fantasy Leagues 2026</p>
           </div>
           
           <button
             onClick={signIn}
             disabled={signingIn}
-            className="w-full py-4 bg-white text-black font-bold uppercase tracking-tighter hover:bg-brand-red hover:text-white transition-colors border-2 border-white disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl bg-white text-black font-bold uppercase tracking-tight hover:bg-brand-red hover:text-white transition-colors border border-white disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {signingIn ? 'Signing in…' : 'Sign in with Google'}
           </button>
 
           {signInError && (
-            <div className="border border-brand-red/40 bg-brand-red/10 text-brand-red text-left p-3 font-mono text-[10px] uppercase">
+            <div className="rounded-lg border border-brand-red/40 bg-brand-red/10 text-brand-red text-left p-3 font-mono text-[10px] uppercase">
               {signInError}
             </div>
           )}
           
-          <p className="text-xs text-slate-500 font-mono">
+          <p className="text-xs text-white/55 font-mono">
             Picks are locked 1 hour before polls close in each respective state.
           </p>
         </motion.div>

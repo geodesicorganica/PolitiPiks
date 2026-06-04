@@ -19,12 +19,9 @@ export async function upsertContests(db: Firestore, payload: { races: any[]; bal
     const ref = db.doc(`races/${r.id}`);
     const snap = await ref.get();
     const existing = snap.exists ? snap.data() : null;
-    const preserved = existing
-      ? {
-          status: existing.status,
-          winnerId: existing.winnerId,
-        }
-      : {};
+    const preserved: Record<string, unknown> = {};
+    if (existing && typeof existing.status !== 'undefined') preserved.status = existing.status;
+    if (existing && typeof existing.winnerId !== 'undefined') preserved.winnerId = existing.winnerId;
     batch.set(
       ref,
       {
@@ -40,12 +37,9 @@ export async function upsertContests(db: Firestore, payload: { races: any[]; bal
     const ref = db.doc(`ballotMeasures/${m.id}`);
     const snap = await ref.get();
     const existing = snap.exists ? snap.data() : null;
-    const preserved = existing
-      ? {
-          status: existing.status,
-          result: existing.result,
-        }
-      : {};
+    const preserved: Record<string, unknown> = {};
+    if (existing && typeof existing.status !== 'undefined') preserved.status = existing.status;
+    if (existing && typeof existing.result !== 'undefined') preserved.result = existing.result;
     batch.set(
       ref,
       {

@@ -184,37 +184,37 @@ export function Races() {
   return (
     <div className="space-y-12 pb-12">
       {notice && (
-        <div className="border border-brand-red/40 bg-brand-red/10 text-brand-red p-3 font-mono text-[10px] uppercase">
+        <div className="rounded-xl border border-brand-red/40 bg-brand-red/10 text-brand-red p-3 font-mono text-[10px] uppercase">
           {notice}
         </div>
       )}
 
       {!USE_MOCK_CONTESTS && races.length === 0 && measures.length === 0 && (
-        <div className="border border-black/10 bg-white p-4 font-mono text-[10px] uppercase text-black/50">
+        <div className="card-surface p-4 font-mono text-[10px] uppercase text-black/50">
           No contests loaded yet. This environment expects an ingest job to populate Firestore.
         </div>
       )}
       {/* Races Section */}
-      <section className="space-y-6">
-        <div className="border-b-2 border-brand-blue pb-4">
-          <h1 className="text-4xl font-black italic tracking-tighter uppercase italic">Midterm Races</h1>
+      <section className="space-y-6 section-shell p-5 sm:p-6">
+        <div className="border-b border-brand-blue/10 pb-4">
+          <h1 className="page-title text-4xl font-black italic uppercase">Midterm Races</h1>
           <p className="text-xs font-mono uppercase text-black/40 mt-1">Pick your winners for the key 2026 contests.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {races.map((race) => (
-            <div key={race.id} className="bg-white border border-black/10 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-              <div className="bg-brand-slate text-white p-3 flex justify-between items-center">
-                <div>
-                  <span className="text-[10px] font-mono uppercase bg-brand-red px-1.5 py-0.5 mr-2">{race.state}</span>
-                  <span className="text-xs font-black uppercase tracking-tight">{race.office} {race.district ? `District ${race.district}` : ''}</span>
+            <div key={race.id} className="card-surface overflow-hidden transition-shadow hover:shadow-xl hover:shadow-brand-blue/10">
+              <div className="bg-brand-slate text-white p-4 flex justify-between items-start gap-3">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono uppercase bg-brand-red px-1.5 py-0.5 rounded-sm">{race.state}</span>
+                  <p className="text-xs font-black uppercase tracking-tight">{race.office} {race.district ? `District ${race.district}` : ''}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col items-end gap-2 text-right">
                   <span className="text-[10px] font-mono uppercase opacity-80">
                     Closes {formatDateTime(race.closeDate)}
                   </span>
                   {isPickLocked(race.closeDate) && (
-                    <span className="text-[10px] font-black uppercase bg-brand-red px-2 py-1">
+                    <span className="text-[10px] font-black uppercase bg-brand-red px-2 py-1 rounded-sm">
                       Locked
                     </span>
                   )}
@@ -234,7 +234,7 @@ export function Races() {
                         disabled={isSubmitting || locked}
                         onClick={() => handlePick(race.id, candidate.id, 'race', race.closeDate)}
                         className={cn(
-                          "w-full p-4 flex items-center justify-between border-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed",
+                          "w-full rounded-xl p-4 flex items-center justify-between border-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed",
                           isSelected 
                             ? "border-brand-blue bg-brand-blue/5" 
                             : "border-black/5 hover:border-black/20 bg-slate-50"
@@ -263,20 +263,20 @@ export function Races() {
       </section>
 
       {/* Measures Section */}
-      <section className="space-y-6">
-        <div className="border-b-2 border-brand-red pb-4">
-          <h1 className="text-4xl font-black italic tracking-tighter uppercase italic text-brand-red">Ballot Measures</h1>
+      <section className="space-y-6 section-shell p-5 sm:p-6">
+        <div className="border-b border-brand-red/15 pb-4">
+          <h1 className="page-title text-4xl font-black italic uppercase text-brand-red">Ballot Measures</h1>
           <p className="text-xs font-mono uppercase text-black/40 mt-1">Predict the outcome of state-level initiatives.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {measures.map((measure) => (
-            <div key={measure.id} className="bg-white border border-black/10 overflow-hidden shadow-sm">
-              <div className="bg-brand-red text-white p-3 flex justify-between items-center text-xs font-black uppercase">
+            <div key={measure.id} className="card-surface overflow-hidden">
+              <div className="bg-brand-red text-white p-4 flex justify-between items-center text-xs font-black uppercase gap-3">
                 <div className="flex items-center gap-2">
                   <span>{measure.state} • Initiative</span>
                   {isPickLocked(measure.closeDate) && (
-                    <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-1">
+                    <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-1 rounded-sm">
                       Locked
                     </span>
                   )}
@@ -301,7 +301,7 @@ export function Races() {
                         disabled={locked}
                         onClick={() => handlePick(measure.id, option, 'measure', measure.closeDate)}
                         className={cn(
-                          "p-3 border-2 font-black uppercase text-xs tracking-tighter transition-all disabled:opacity-60 disabled:cursor-not-allowed",
+                          "rounded-xl p-3 border-2 font-black uppercase text-xs tracking-tight transition-all disabled:opacity-60 disabled:cursor-not-allowed",
                           isSelected ? "bg-brand-red text-white border-brand-red" : "bg-slate-50 border-black/5 hover:border-black/20"
                         )}
                       >

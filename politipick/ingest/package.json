@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed:2024": "tsx src/seed-medsl2024.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",

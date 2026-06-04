@@ -2,16 +2,13 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../App';
 import { collection, query, where, onSnapshot, orderBy, limit, getCountFromServer } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Prediction, Race, BallotMeasure } from '../types';
-import { motion } from 'motion/react';
-import { TrendingUp, AlertCircle, Clock } from 'lucide-react';
+import { Prediction } from '../types';
+import { TrendingUp, AlertCircle } from 'lucide-react';
 import { formatDate, cn, handleFirestoreError, OperationType } from '../lib/utils';
 
 export function Dashboard() {
   const { profile } = useAuth();
   const [recentPicks, setRecentPicks] = useState<Prediction[]>([]);
-  const [activeRaces, setActiveRaces] = useState<Race[]>([]);
-  const [upcomingMeasures, setUpcomingMeasures] = useState<BallotMeasure[]>([]);
   const [predictionsCount, setPredictionsCount] = useState(0);
 
   useEffect(() => {
@@ -44,17 +41,8 @@ export function Dashboard() {
       }
     })();
 
-    // Active races
-    const qRaces = query(collection(db, 'races'), limit(3));
-    const unsubscribeRaces = onSnapshot(qRaces, (snapshot) => {
-      setActiveRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'races');
-    });
-
     return () => {
       unsubscribePicks();
-      unsubscribeRaces();
     };
   }, [profile]);
 
@@ -82,20 +70,20 @@ export function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Activity */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-black/10 pb-2">
-            <h2 className="font-black italic text-xl uppercase italic">Recent Picks</h2>
+        <section className="space-y-4 section-shell p-5 sm:p-6">
+          <div className="flex items-center justify-between border-b border-brand-blue/10 pb-3">
+            <h2 className="font-black italic text-xl uppercase page-title">Recent Picks</h2>
             <TrendingUp size={16} className="text-brand-blue" />
           </div>
           
           <div className="space-y-2">
             {recentPicks.length === 0 ? (
-              <div className="p-8 border border-dashed border-black/20 text-center text-black/40 font-mono text-xs uppercase">
+              <div className="rounded-xl p-8 border border-dashed border-brand-blue/20 text-center text-black/40 font-mono text-xs uppercase">
                 No predictions made yet.
               </div>
             ) : (
               recentPicks.map((pick) => (
-                <div key={pick.id} className="data-row p-4 flex items-center justify-between bg-white/50 backdrop-blur-sm">
+                <div key={pick.id} className="data-row card-surface p-4 flex items-center justify-between">
                   <div>
                     <p className="font-bold text-sm uppercase">{pick.pick}</p>
                     <p className="text-[10px] font-mono text-black/40 uppercase">
@@ -116,9 +104,9 @@ export function Dashboard() {
         </section>
 
         {/* Live Tracking / Alerts */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between border-b border-black/10 pb-2">
-            <h2 className="font-black italic text-xl uppercase italic">Election Alerts</h2>
+        <section className="space-y-4 section-shell p-5 sm:p-6">
+          <div className="flex items-center justify-between border-b border-brand-blue/10 pb-3">
+            <h2 className="font-black italic text-xl uppercase page-title">Election Alerts</h2>
             <AlertCircle size={16} className="text-brand-red" />
           </div>
           
@@ -148,8 +136,8 @@ export function Dashboard() {
 function StatCard({ label, value, sub, accent }: { label: string, value: string | number, sub: string, accent?: boolean }) {
   return (
     <div className={cn(
-      "p-6 border-l-4 h-full flex flex-col justify-between",
-      accent ? "bg-brand-red text-white border-brand-blue" : "bg-white text-black border-brand-blue"
+      "h-full flex flex-col justify-between rounded-2xl p-6 border",
+      accent ? "bg-brand-red text-white border-brand-red shadow-xl shadow-brand-red/20" : "card-surface text-black"
     )}>
       <div>
         <p className={cn("text-[10px] font-mono uppercase opacity-60", accent ? "text-white" : "text-black/60")}>{label}</p>
@@ -162,7 +150,7 @@ function StatCard({ label, value, sub, accent }: { label: string, value: string 
 
 function AlertItem({ type, title, desc }: { type: 'info' | 'warning' | 'live', title: string, desc: string }) {
   return (
-    <div className="p-4 bg-white border border-black/5 flex gap-4 items-start group hover:border-brand-blue transition-colors">
+    <div className="card-surface p-4 flex gap-4 items-start group hover:border-brand-blue/40 transition-colors">
       <div className={cn(
         "w-2 h-2 rounded-full mt-1.5 shrink-0",
         type === 'live' ? "bg-brand-red animate-pulse" : 

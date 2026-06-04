@@ -38,3 +38,25 @@ For production, contests should be written by a backend ingest job (not by the c
 - Ingest service scaffold: `ingest/README.md`
 - The UI can be developed against mock contests by setting `VITE_USE_MOCK_CONTESTS=true` (see `.env.example`).
 - Quick start for free post-cert data: set `INGEST_SOURCE_TYPE=medsl2024` in the ingest service (see `ingest/README.md`).
+
+## Seed Firestore with 2024 data (one-time local run)
+
+This writes 2024 statewide President + Senate contests from MEDSL into Firestore.
+
+1. Install ingest deps: `npm --prefix ingest install`
+2. Run seed:
+   - PowerShell:
+     - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run seed-2024`
+
+Notes:
+- Database id is auto-resolved from `FIRESTORE_DATABASE_ID` or `firebase.json` (you can also pass `--database <id>` if running the ingest script directly).
+- If `FIREBASE_SERVICE_ACCOUNT` is omitted, Application Default Credentials are used.
+
+## Remove 2026 mock contests (cleanup)
+
+If you seeded 2024 data and want to remove old 2026 mock contests:
+
+- PowerShell:
+  - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run clear-2026-mock-contests`
+
+This removes the mock contest docs and any predictions tied to those mock target IDs.
