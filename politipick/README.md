@@ -60,3 +60,12 @@ If you seeded 2024 data and want to remove old 2026 mock contests:
   - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run clear-2026-mock-contests`
 
 This removes the mock contest docs and any predictions tied to those mock target IDs.
+
+## Verify contest data
+
+Run this after ingesting or seeding data to check whether the current Firestore contests support the league/state/category views:
+
+- PowerShell:
+  - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run verify-contests`
+
+This is read-only. It reports totals by office, year, and state, plus malformed dates, empty candidate lists, duplicate slots, and state-view coverage gaps.

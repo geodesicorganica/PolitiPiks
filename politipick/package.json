@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "grant-admin": "tsx scripts/grant-admin.ts",
     "seed-2024": "npm --prefix ingest run seed:2024",
-    "clear-2026-mock-contests": "tsx scripts/clear-2026-mock-contests.ts"
+    "clear-2026-mock-contests": "tsx scripts/clear-2026-mock-contests.ts",
+    "verify-contests": "tsx scripts/verify-contests.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
