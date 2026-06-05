@@ -26,6 +26,15 @@ type MeasureDoc = {
   result?: unknown;
 };
 
+type ResearchDoc = {
+  candidateId?: unknown;
+  raceId?: unknown;
+  measureId?: unknown;
+  buckets?: unknown;
+  sources?: unknown;
+  updatedAt?: unknown;
+};
+
 type StateCoverage = {
   President: number;
   Governor: number;
@@ -33,6 +42,18 @@ type StateCoverage = {
   House: number;
   ballotMeasures: number;
   houseDistricts: Set<string>;
+};
+
+type ResearchCoverage = {
+  candidateCount: number;
+  candidateResearchDocs: number;
+  candidateResearchMissing: number;
+  candidateSourceOnlyFallbacks: number;
+  measureResearchDocs: number;
+  measureResearchMissing: number;
+  measureSourceOnlyFallbacks: number;
+  bucketCounts: Map<string, number>;
+  noResearchOrSourceFallback: string[];
 };
 
 const EXPECTED_2024_HOUSE_SEATS: Record<string, number> = {
@@ -159,6 +180,21 @@ function asString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function isNonCandidateChoice(name: string) {
+  const normalized = name.replace(/[^a-z0-9]+/gi, ' ').trim().toUpperCase();
+  return [
+    'OVER VOTES',
+    'OVERVOTES',
+    'UNDER VOTES',
+    'UNDERVOTES',
+    'TOTAL VOTES CAST',
+    'TOTAL VOTES',
+    'WRITE IN',
+    'WRITE INS',
+    'WRITEIN',
+  ].includes(normalized);
+}
+
 function getYearFromCloseDate(closeDate: unknown) {
   const value = asString(closeDate);
   const ms = Date.parse(value);
@@ -212,6 +248,135 @@ function formatCoverage(coverageByState: Map<string, StateCoverage>) {
       return `  ${state}: ${parts.join(', ')}`;
     })
     .join('\n');
+}
+
+function asObject(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function hasSources(data: ResearchDoc) {
+  return Array.isArray(data.sources) && data.sources.length > 0;
+}
+
+function bucketKeys(data: ResearchDoc) {
+  const buckets = asObject(data.buckets);
+  if (!buckets) return [];
+  return Object.keys(buckets).filter((key) => {
+    const value = buckets[key];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
+}
+
+function hasBuckets(data: ResearchDoc) {
+  return bucketKeys(data).length > 0;
+}
+
+function researchDocHasUsefulFallback(data: ResearchDoc) {
+  return hasSources(data) || hasBuckets(data);
+}
+
+function formatResearchCoverage(coverage: ResearchCoverage) {
+  const lines = [
+    `Candidate research docs: ${coverage.candidateResearchDocs}/${coverage.candidateCount}`,
+    `Candidate research missing: ${coverage.candidateResearchMissing}`,
+    `Candidate source-only fallbacks: ${coverage.candidateSourceOnlyFallbacks}`,
+    `Measure research docs: ${coverage.measureResearchDocs}`,
+    `Measure research missing: ${coverage.measureResearchMissing}`,
+    `Measure source-only fallbacks: ${coverage.measureSourceOnlyFallbacks}`,
+    '',
+    'Research buckets present:',
+    formatMap(coverage.bucketCounts) || '  none',
+    '',
+    `Pickable options with no research/source fallback (${coverage.noResearchOrSourceFallback.length}):`,
+    coverage.noResearchOrSourceFallback.slice(0, 80).map((item) => `  ${item}`).join('\n') || '  none',
+    coverage.noResearchOrSourceFallback.length > 80 ? `  ... ${coverage.noResearchOrSourceFallback.length - 80} more` : '',
+  ];
+
+  return lines.filter((line) => line !== '').join('\n');
+}
+
+async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures: MeasureDoc[]): Promise<ResearchCoverage> {
+  const candidateResearchDocs = new Map<string, ResearchDoc>();
+  const measureResearchDocs = new Map<string, ResearchDoc[]>();
+  const bucketCounts = new Map<string, number>();
+  const measureIds = new Set(measures.map((measure) => measure.id));
+
+  const [candidateResearchSnap, measureResearchSnap] = await Promise.all([
+    db.collectionGroup('candidateResearch').get(),
+    db.collectionGroup('research').get(),
+  ]);
+
+  candidateResearchSnap.docs.forEach((researchDoc) => {
+    const raceId = researchDoc.ref.parent.parent?.id;
+    if (!raceId) return;
+    const data = researchDoc.data() as ResearchDoc;
+    const key = `${raceId}|${researchDoc.id}`;
+    candidateResearchDocs.set(key, data);
+    bucketKeys(data).forEach((bucket) => increment(bucketCounts, `candidate.${bucket}`));
+  });
+
+  measureResearchSnap.docs.forEach((researchDoc) => {
+    const measureId = researchDoc.ref.parent.parent?.id;
+    if (!measureId || !measureIds.has(measureId)) return;
+    const data = researchDoc.data() as ResearchDoc;
+    const existing = measureResearchDocs.get(measureId) ?? [];
+    existing.push(data);
+    measureResearchDocs.set(measureId, existing);
+    bucketKeys(data).forEach((bucket) => increment(bucketCounts, `measure.${bucket}`));
+  });
+
+  let candidateCount = 0;
+  let candidateResearchMissing = 0;
+  let candidateSourceOnlyFallbacks = 0;
+  let measureResearchMissing = 0;
+  let measureSourceOnlyFallbacks = 0;
+  const noResearchOrSourceFallback: string[] = [];
+
+  for (const race of races) {
+    const candidates = Array.isArray(race.candidates) ? race.candidates as Candidate[] : [];
+    for (const candidate of candidates) {
+      const candidateId = asString(candidate.id);
+      const candidateName = asString(candidate.name) || candidateId || 'UNKNOWN_CANDIDATE';
+      if (!candidateId) continue;
+      candidateCount += 1;
+
+      const doc = candidateResearchDocs.get(`${race.id}|${candidateId}`);
+      if (!doc) {
+        candidateResearchMissing += 1;
+        noResearchOrSourceFallback.push(`Race ${race.id} candidate ${candidateName}`);
+        continue;
+      }
+      if (hasSources(doc) && !hasBuckets(doc)) candidateSourceOnlyFallbacks += 1;
+      if (!researchDocHasUsefulFallback(doc)) {
+        noResearchOrSourceFallback.push(`Race ${race.id} candidate ${candidateName}`);
+      }
+    }
+  }
+
+  for (const measure of measures) {
+    const docs = measureResearchDocs.get(measure.id) ?? [];
+    if (docs.length === 0) {
+      measureResearchMissing += 1;
+      noResearchOrSourceFallback.push(`Measure ${measure.id}`);
+      continue;
+    }
+    if (docs.some((doc) => hasSources(doc) && !hasBuckets(doc))) measureSourceOnlyFallbacks += 1;
+    if (!docs.some(researchDocHasUsefulFallback)) {
+      noResearchOrSourceFallback.push(`Measure ${measure.id}`);
+    }
+  }
+
+  return {
+    candidateCount,
+    candidateResearchDocs: candidateResearchDocs.size,
+    candidateResearchMissing,
+    candidateSourceOnlyFallbacks,
+    measureResearchDocs: Array.from(measureResearchDocs.values()).reduce((sum, docs) => sum + docs.length, 0),
+    measureResearchMissing,
+    measureSourceOnlyFallbacks,
+    bucketCounts,
+    noResearchOrSourceFallback,
+  };
 }
 
 async function main() {
@@ -268,13 +433,24 @@ async function main() {
     if (candidates.length === 0) issues.push(`Race ${race.id} has no candidates`);
 
     const candidateIds = new Set<string>();
+    const candidateNames = new Set<string>();
     for (const candidate of candidates) {
       const candidateId = asString(candidate.id);
       const candidateName = asString(candidate.name);
       if (!candidateId) issues.push(`Race ${race.id} has candidate with missing id`);
       if (!candidateName) issues.push(`Race ${race.id} has candidate with missing name`);
+      if (candidateName && isNonCandidateChoice(candidateName)) {
+        issues.push(`Race ${race.id} has non-candidate option ${candidateName}`);
+      }
       if (candidateId && candidateIds.has(candidateId)) {
         issues.push(`Race ${race.id} has duplicate candidate id ${candidateId}`);
+      }
+      if (candidateName) {
+        const normalizedName = candidateName.toUpperCase();
+        if (candidateNames.has(normalizedName)) {
+          issues.push(`Race ${race.id} has duplicate candidate name ${candidateName}`);
+        }
+        candidateNames.add(normalizedName);
       }
       if (candidateId) candidateIds.add(candidateId);
     }
@@ -325,6 +501,8 @@ async function main() {
     }
   }
 
+  const researchCoverage = await inspectResearchCoverage(db, races, measures);
+
   const output = [
     `Contest verification for project=${projectId}, database=${databaseId}`,
     '',
@@ -349,6 +527,9 @@ async function main() {
     `Data quality issues (${issues.length}):`,
     issues.slice(0, 80).map((item) => `  ${item}`).join('\n') || '  none',
     issues.length > 80 ? `  ... ${issues.length - 80} more` : '',
+    '',
+    'Research coverage (informational):',
+    formatResearchCoverage(researchCoverage),
   ].filter((line) => line !== '').join('\n');
 
   console.log(output);

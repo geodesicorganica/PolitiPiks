@@ -3,14 +3,15 @@
 ## Current Branch
 
 - Branch: `codex/league-overview-2024-seeding`
-- Previous pushed commit: `0b73ba0 Add league overview and 2024 contest seeding`
+- Latest pushed commit: `0ca0dbf Add league sandbox simulation and 2024 contest coverage`
 - Remote: `origin` -> `https://github.com/geodesicorganica/PolitiPiks.git`
 
 ## Work Preserved In This Session
 
-- Added `docs/league-first-mvp.md` as the product/data contract for the league-first MVP.
-- Added `scripts/verify-contests.ts` and `npm run verify-contests`.
-- Updated `README.md` with read-only contest verification instructions.
+- Updated `docs/league-first-mvp.md` earlier as the product/data contract for the league-first MVP.
+- Added and expanded `scripts/verify-contests.ts` and `npm run verify-contests`.
+- Updated README docs with 2024 sandbox seeding and read-only verification instructions.
+- Current working tree has uncommitted follow-up work for league-first navigation, read-only Browse Contests, research coverage verification, MEDSL candidate cleanup, all-at-large House loading, all-House league state rendering, and lazy research drawer UI.
 
 ## Key Product Decisions
 
@@ -33,27 +34,33 @@
 
 From `npm run verify-contests` against Firestore:
 
-- Races: `84`
-- Ballot measures: `0`
+- Races: `519`
+- Ballot measures: `95`
 - States: `51`
 - President races: `51`
 - Senate races: `33`
+- House races: `435`
+- Actionable 2024 coverage gaps: `0`
 - Data quality issues: `0`
-- State-view coverage gaps: `120`
+- Candidate research docs: `0/1549`
+- Measure research docs: `0/95`
 
-Interpretation: current data is structurally clean, but the 2024 sandbox still needs House races and ballot measures before the requested league/state/category UX feels complete.
+Interpretation: current contest data is structurally clean and complete enough for internal sandbox gameplay. Research subdocuments are modeled, allowed by rules, surfaced in the UI, and reported by the verifier, but still need an ingest/enrichment pass before public readiness.
 
 ## Validation Already Run
 
 - `npm run lint`
+- `npm run build`
+- `npm --prefix ingest run build`
 - `npm run verify-contests`
+- Browser smoke test on `http://localhost:3000`: no console errors in signed-out render; Global nav and dead Statewide tab absent.
 
 ## Next Task
 
 Continue from `docs/league-first-mvp.md`.
 
-Recommended first implementation task:
+Recommended next implementation task:
 
-1. Update TypeScript types and Firestore rules for league sandbox simulation state, contest result fields, missing-pick accounting, and research subdocuments.
-2. Then expand ingest/seed to include 2024 House and ballot measures with actual winner/pass/fail result fields.
-3. Then extend `verify-contests` to report research coverage once research ingest exists.
+1. Commit and push the current completed slice if the diff review looks good.
+2. Start research enrichment ingest/source discovery for candidate and measure subdocuments.
+3. Add authenticated browser coverage for the league pick flow, including House tab/state House rendering and research drawer empty states.

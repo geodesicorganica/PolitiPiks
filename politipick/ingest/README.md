@@ -7,7 +7,7 @@ This is a small Cloud Run service intended to be triggered by Cloud Scheduler to
 - Exposes `POST /tasks/ingest` (protected by `X-Ingest-Token`)
 - Fetches contest JSON from `INGEST_SOURCE_URL`
 - Upserts `races/*` and `ballotMeasures/*` documents
-- Never overwrites called/scoring fields (`status`, `winnerId`, `result`)
+- Preserves called/scoring fields only when the source payload does not provide them
 
 ## Required environment variables
 
@@ -38,12 +38,12 @@ The ingest expects JSON like:
 
 This repo intentionally does not include terraform/gcloud scripts yet.
 
-## Built-in free source option: MEDSL 2024 statewide (post-cert)
+## Built-in free source option: MEDSL 2024 sandbox (post-cert)
 
 If you just want to stand up the pipeline quickly with free, post-cert data, set:
 - `INGEST_SOURCE_TYPE=medsl2024`
 
-This will fetch statewide President + Senate candidate lists from MEDSL's `2024-elections-official` repository.
+This fetches President, Senate, House, and statewide ballot-measure results from MEDSL's `2024-elections-official` repository where available. The loader stores historical winners/results for sandbox league simulation.
 
 ## One-time local seed command (MEDSL 2024)
 

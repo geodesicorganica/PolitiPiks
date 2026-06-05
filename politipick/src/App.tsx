@@ -12,7 +12,6 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Races } from './pages/Races';
 import { Leagues } from './pages/Leagues';
-import { Leaderboard } from './pages/Leaderboard';
 import { Admin } from './pages/Admin';
 import { AnimatePresence, motion } from 'motion/react';
 import { handleFirestoreError, OperationType } from './lib/utils';
@@ -38,7 +37,7 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [currentTab, setCurrentTab] = useState('leagues');
   const [signInError, setSignInError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
 
@@ -176,7 +175,6 @@ export default function App() {
             {currentTab === 'dashboard' && <Dashboard />}
             {currentTab === 'races' && <Races />}
             {currentTab === 'leagues' && <Leagues />}
-            {currentTab === 'leaderboard' && <Leaderboard />}
             {currentTab === 'admin' && isAdmin && <Admin />}
           </motion.div>
         </AnimatePresence>

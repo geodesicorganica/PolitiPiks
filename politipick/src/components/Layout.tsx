@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../App';
-import { LayoutDashboard, Vote, Users, Trophy, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Vote, Users, LogOut, Shield } from 'lucide-react';
 import { logout } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
@@ -14,10 +14,9 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
   const { profile, isAdmin } = useAuth();
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'races', label: 'Races', icon: Vote },
     { id: 'leagues', label: 'Leagues', icon: Users },
-    { id: 'leaderboard', label: 'Global', icon: Trophy },
+    { id: 'races', label: 'Browse', icon: Vote },
+    { id: 'dashboard', label: 'Activity', icon: LayoutDashboard },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []),
   ];
 
@@ -29,14 +28,14 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-red font-black italic shadow-md shadow-brand-red/40">P</div>
             <div>
-              <h1 className="font-black italic tracking-tight text-lg sm:text-xl">POLITIPICK 2026</h1>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-white/55">National Midterm Fantasy</p>
+              <h1 className="font-black italic tracking-tight text-lg sm:text-xl">POLITIPICK</h1>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-white/55">Private league sandbox</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-right hidden sm:block">
-              <p className="text-[10px] uppercase font-mono tracking-wider text-white/60">Your Score</p>
+              <p className="text-[10px] uppercase font-mono tracking-wider text-white/60">Account Score</p>
               <p className="font-black text-brand-red leading-tight">{profile?.totalPoints ?? 0} PTS</p>
             </div>
             <img

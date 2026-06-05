@@ -10,6 +10,7 @@ type MeasureAccumulator = { passAll: number; failAll: number; passTotal: number;
 
 const MEDSL_BASE = 'https://raw.githubusercontent.com/MEDSL/2024-elections-official/main';
 const ELECTION_DATE = '2024-11-05';
+const AT_LARGE_HOUSE_STATES = new Set(['AK', 'DE', 'ND', 'SD', 'VT', 'WY']);
 
 const STATE_ZIPS = [
   'ak24.zip',
@@ -103,6 +104,15 @@ function slugId(input: string) {
     .slice(0, 64) || 'unknown';
 }
 
+function candidateKey(name: string) {
+  return slugId(name);
+}
+
+function betterParty(existing: string, next: string) {
+  if (existing === 'Other' && next !== 'Other') return next;
+  return existing || next;
+}
+
 function stateAbbrev(row: Row) {
   const st = (row['state_po'] || row['state'] || row['state_abbrev'] || '').trim();
   if (!st) throw new Error('Missing state');
@@ -140,6 +150,26 @@ function isWriteIn(row: Row) {
   const writein = (row['writein'] || '').trim().toLowerCase();
   const candidate = candidateName(row).toLowerCase();
   return writein == 'true' || candidate.includes('write-in') || candidate.includes('write in');
+}
+
+function isNonCandidateChoice(name: string) {
+  const normalized = name.replace(/[^a-z0-9]+/gi, ' ').trim().toUpperCase();
+  return [
+    'OVER VOTES',
+    'OVERVOTES',
+    'UNDER VOTES',
+    'UNDERVOTES',
+    'TOTAL VOTES CAST',
+    'TOTAL VOTES',
+    'WRITE IN',
+    'WRITE INS',
+    'WRITEIN',
+  ].includes(normalized);
+}
+
+function isSkippableHouseDistrict(state: string, districtName: string) {
+  const normalizedDistrict = districtName.toUpperCase();
+  return !districtName || (normalizedDistrict === 'STATEWIDE' && !AT_LARGE_HOUSE_STATES.has(state));
 }
 
 async function fetchCsv(url: string) {
@@ -230,16 +260,17 @@ function aggregateCandidateVotes(rows: Row[], includeRow: (row: Row) => boolean)
 
   for (const row of voteRows) {
     const name = candidateName(row);
-    if (!name || isWriteIn(row)) continue;
+    if (!name || isWriteIn(row) || isNonCandidateChoice(name)) continue;
     const party = normParty(candidateParty(row));
-    const id = slugId(`${name}-${party}`);
-    const existing = byCandidate.get(id) ?? { name, party, votes: 0 };
+    const key = candidateKey(name);
+    const existing = byCandidate.get(key) ?? { name, party, votes: 0 };
+    existing.party = betterParty(existing.party, party);
     existing.votes += parseVotes(row['votes'] || '');
-    byCandidate.set(id, existing);
+    byCandidate.set(key, existing);
   }
 
   return Array.from(byCandidate.entries())
-    .map(([id, candidate]) => ({ id, ...candidate }))
+    .map(([, candidate]) => ({ id: slugId(`${candidate.name}-${candidate.party}`), ...candidate }))
     .sort((a, b) => b.votes - a.votes);
 }
 
@@ -314,26 +345,27 @@ async function loadMedsl2024HouseAndMeasures(): Promise<SourcePayload> {
         const st = stateAbbrev(row);
         const dist = district(row);
         const name = candidateName(row);
-        if (!dist || dist.toUpperCase() === 'STATEWIDE') return;
-        if (!name || isWriteIn(row)) return;
+        if (isSkippableHouseDistrict(st, dist)) return;
+        if (!name || isWriteIn(row) || isNonCandidateChoice(name)) return;
         const key = `${st}|${dist}`;
         const party = normParty(candidateParty(row));
-        const candidateId = slugId(`${name}-${party}`);
         const entry = byHouseDistrict.get(key) ?? { hasTotalMode: false, candidates: new Map<string, CandidateAccumulator>() };
-        const candidate = entry.candidates.get(candidateId) ?? {
-          id: candidateId,
+        const keyByCandidate = candidateKey(name);
+        const candidate = entry.candidates.get(keyByCandidate) ?? {
+          id: '',
           name,
           party,
           allVotes: 0,
           totalModeVotes: 0,
         };
+        candidate.party = betterParty(candidate.party, party);
         const votes = parseVotes(row['votes'] || '');
         candidate.allVotes += votes;
         if (mode(row) === 'TOTAL') {
           entry.hasTotalMode = true;
           candidate.totalModeVotes += votes;
         }
-        entry.candidates.set(candidateId, candidate);
+        entry.candidates.set(keyByCandidate, candidate);
         byHouseDistrict.set(key, entry);
       } else if (isPotentialStatewideMeasure(row)) {
         const st = stateAbbrev(row);
@@ -364,7 +396,7 @@ async function loadMedsl2024HouseAndMeasures(): Promise<SourcePayload> {
       const [st, dist] = key.split('|');
       const candidates = Array.from(contest.candidates.values())
         .map((candidate) => ({
-          id: candidate.id,
+          id: slugId(`${candidate.name}-${candidate.party}`),
           name: candidate.name,
           party: candidate.party,
           votes: contest.hasTotalMode ? candidate.totalModeVotes : candidate.allVotes,
@@ -430,7 +462,7 @@ export async function loadMedsl2024StatewideContests(): Promise<SourcePayload> {
     for (const row of pres) {
       const st = stateAbbrev(row);
       const name = candidateName(row);
-      if (!name) continue;
+      if (!name || isWriteIn(row) || isNonCandidateChoice(name)) continue;
       const party = normParty(candidateParty(row));
       const entry = byState.get(st) ?? { candidates: [] };
       if (!entry.candidates.some((c) => c.name === name && c.party === party)) {
@@ -454,11 +486,7 @@ export async function loadMedsl2024StatewideContests(): Promise<SourcePayload> {
         status: 'upcoming',
         winnerId: winnerId(candidates),
         closeDate: closeDateForElection(ELECTION_DATE),
-        candidates: entry.candidates.map((c) => ({
-          id: slugId(`${c.name}-${c.party}`),
-          name: c.name,
-          party: c.party,
-        })),
+        candidates: candidates.map(({ id, name, party }) => ({ id, name, party })),
       });
     }
   }
@@ -469,7 +497,7 @@ export async function loadMedsl2024StatewideContests(): Promise<SourcePayload> {
     for (const row of senate) {
       const st = stateAbbrev(row);
       const name = candidateName(row);
-      if (!name) continue;
+      if (!name || isWriteIn(row) || isNonCandidateChoice(name)) continue;
       const party = normParty(candidateParty(row));
       const entry = byState.get(st) ?? { candidates: [] };
       if (!entry.candidates.some((c) => c.name === name && c.party === party)) {
@@ -493,11 +521,7 @@ export async function loadMedsl2024StatewideContests(): Promise<SourcePayload> {
         status: 'upcoming',
         winnerId: winnerId(candidates),
         closeDate: closeDateForElection(ELECTION_DATE),
-        candidates: entry.candidates.map((c) => ({
-          id: slugId(`${c.name}-${c.party}`),
-          name: c.name,
-          party: c.party,
-        })),
+        candidates: candidates.map(({ id, name, party }) => ({ id, name, party })),
       });
     }
   }

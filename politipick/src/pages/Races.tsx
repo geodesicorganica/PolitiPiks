@@ -1,27 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../App';
-import { collection, onSnapshot, setDoc, doc, query, getDocs, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, setDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Race, Prediction, BallotMeasure } from '../types';
+import { Race, BallotMeasure } from '../types';
 import { SEED_RACES, SEED_MEASURES } from '../constants/electionData';
-import { motion } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
-import { Check, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { ALLOW_ADMIN_SEED, USE_MOCK_CONTESTS } from '../lib/config';
-
-const PICK_LOCK_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-
-function getPickLockMs(closeDate: string) {
-  const closeMs = Date.parse(closeDate);
-  if (!Number.isFinite(closeMs)) return null;
-  return closeMs - PICK_LOCK_WINDOW_MS;
-}
-
-function isPickLocked(closeDate: string) {
-  const lockMs = getPickLockMs(closeDate);
-  if (lockMs === null) return false;
-  return Date.now() >= lockMs;
-}
 
 function formatDateTime(date: string) {
   const ms = Date.parse(date);
@@ -39,10 +24,7 @@ export function Races() {
   const { profile, isAdmin } = useAuth();
   const [races, setRaces] = useState<Race[]>([]);
   const [measures, setMeasures] = useState<BallotMeasure[]>([]);
-  const [predictions, setPredictions] = useState<Record<string, string>>({}); // targetId -> pick
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) {
@@ -98,82 +80,13 @@ export function Races() {
       handleFirestoreError(error, OperationType.LIST, 'ballotMeasures');
     });
 
-    // 3. Fetch User's current predictions
-    if (profile) {
-      const q = query(collection(db, 'predictions'), where('userId', '==', profile.uid));
-      const unsubscribePicks = onSnapshot(q, (snapshot) => {
-        const picks: Record<string, string> = {};
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          picks[data.targetId] = data.pick;
-        });
-        setPredictions(picks);
-        setLoading(false);
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'predictions');
-      });
-      
-      return () => {
-        unsubscribeRaces();
-        unsubscribeMeasures();
-        unsubscribePicks();
-      };
-    }
+    setLoading(false);
 
     return () => {
       unsubscribeRaces();
       unsubscribeMeasures();
     };
   }, [profile, isAdmin]);
-
-  const handlePick = async (targetId: string, pick: string, type: 'race' | 'measure', closeDate: string) => {
-    if (!profile) return;
-    if (isPickLocked(closeDate)) {
-      setNotice(`Picks are locked for this contest. Locked 1 hour before close (${formatDateTime(closeDate)}).`);
-      return;
-    }
-    setNotice(null);
-    setSubmitting(targetId);
-    try {
-      const q = query(
-        collection(db, 'predictions'), 
-        where('userId', '==', profile.uid), 
-        where('targetId', '==', targetId)
-      );
-      
-      let existing;
-      try {
-        existing = await getDocs(q);
-      } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'predictions');
-        return;
-      }
-      
-      try {
-        if (!existing.empty) {
-          await setDoc(existing.docs[0].ref, { 
-            pick,
-            updatedAt: serverTimestamp() 
-          }, { merge: true });
-        } else {
-          await addDoc(collection(db, 'predictions'), {
-            userId: profile.uid,
-            targetId,
-            type,
-            pick,
-            status: 'pending',
-            createdAt: serverTimestamp()
-          });
-        }
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, 'predictions');
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(null);
-    }
-  };
 
   if (loading) return (
     <div className="flex h-64 items-center justify-center">
@@ -183,12 +96,6 @@ export function Races() {
 
   return (
     <div className="space-y-12 pb-12">
-      {notice && (
-        <div className="rounded-xl border border-brand-red/40 bg-brand-red/10 text-brand-red p-3 font-mono text-[10px] uppercase">
-          {notice}
-        </div>
-      )}
-
       {!USE_MOCK_CONTESTS && races.length === 0 && measures.length === 0 && (
         <div className="card-surface p-4 font-mono text-[10px] uppercase text-black/50">
           No contests loaded yet. This environment expects an ingest job to populate Firestore.
@@ -197,8 +104,8 @@ export function Races() {
       {/* Races Section */}
       <section className="space-y-6 section-shell p-5 sm:p-6">
         <div className="border-b border-brand-blue/10 pb-4">
-          <h1 className="page-title text-4xl font-black italic uppercase">Midterm Races</h1>
-          <p className="text-xs font-mono uppercase text-black/40 mt-1">Pick your winners for the key 2026 contests.</p>
+          <h1 className="page-title text-4xl font-black italic uppercase">Browse Contests</h1>
+          <p className="text-xs font-mono uppercase text-black/40 mt-1">View-only 2024 sandbox contests. Make picks inside a league.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -213,32 +120,19 @@ export function Races() {
                   <span className="text-[10px] font-mono uppercase opacity-80">
                     Closes {formatDateTime(race.closeDate)}
                   </span>
-                  {isPickLocked(race.closeDate) && (
-                    <span className="text-[10px] font-black uppercase bg-brand-red px-2 py-1 rounded-sm">
-                      Locked
-                    </span>
-                  )}
+                  <span className="text-[10px] font-black uppercase bg-white/15 px-2 py-1 rounded-sm">
+                    View Only
+                  </span>
                 </div>
               </div>
 
               <div className="p-4 space-y-4">
                 <div className="grid grid-cols-1 gap-2">
                   {race.candidates.map((candidate) => {
-                    const isSelected = predictions[race.id] === candidate.id;
-                    const isSubmitting = submitting === race.id;
-                    const locked = isPickLocked(race.closeDate);
-
                     return (
-                      <button
+                      <div
                         key={candidate.id}
-                        disabled={isSubmitting || locked}
-                        onClick={() => handlePick(race.id, candidate.id, 'race', race.closeDate)}
-                        className={cn(
-                          "w-full rounded-xl p-4 flex items-center justify-between border-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed",
-                          isSelected 
-                            ? "border-brand-blue bg-brand-blue/5" 
-                            : "border-black/5 hover:border-black/20 bg-slate-50"
-                        )}
+                        className="w-full rounded-xl border-2 border-black/5 bg-slate-50 p-4 flex items-center justify-between"
                       >
                         <div className="flex items-center gap-3">
                           <div className={cn(
@@ -251,8 +145,12 @@ export function Races() {
                             <p className="text-[9px] font-mono text-black/40 uppercase mt-1">{candidate.party}</p>
                           </div>
                         </div>
-                        {isSelected && <Check className="text-brand-blue" size={18} />}
-                      </button>
+                        {race.winnerId === candidate.id && (
+                          <span className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase text-emerald-700">
+                            <CheckCircle2 size={12} /> Result
+                          </span>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -266,7 +164,7 @@ export function Races() {
       <section className="space-y-6 section-shell p-5 sm:p-6">
         <div className="border-b border-brand-red/15 pb-4">
           <h1 className="page-title text-4xl font-black italic uppercase text-brand-red">Ballot Measures</h1>
-          <p className="text-xs font-mono uppercase text-black/40 mt-1">Predict the outcome of state-level initiatives.</p>
+          <p className="text-xs font-mono uppercase text-black/40 mt-1">View measure outcomes. League picks live in the Leagues tab.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -275,11 +173,9 @@ export function Races() {
               <div className="bg-brand-red text-white p-4 flex justify-between items-center text-xs font-black uppercase gap-3">
                 <div className="flex items-center gap-2">
                   <span>{measure.state} • Initiative</span>
-                  {isPickLocked(measure.closeDate) && (
-                    <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-1 rounded-sm">
-                      Locked
-                    </span>
-                  )}
+                  <span className="text-[10px] font-black uppercase bg-white/20 px-2 py-1 rounded-sm">
+                    View Only
+                  </span>
                 </div>
                 <span className="text-[10px] font-mono uppercase opacity-80">
                   Closes {formatDateTime(measure.closeDate)}
@@ -293,20 +189,16 @@ export function Races() {
 
                 <div className="grid grid-cols-2 gap-2">
                   {['pass', 'fail'].map((option) => {
-                    const isSelected = predictions[measure.id] === option;
-                    const locked = isPickLocked(measure.closeDate);
                     return (
-                      <button
+                      <div
                         key={option}
-                        disabled={locked}
-                        onClick={() => handlePick(measure.id, option, 'measure', measure.closeDate)}
                         className={cn(
-                          "rounded-xl p-3 border-2 font-black uppercase text-xs tracking-tight transition-all disabled:opacity-60 disabled:cursor-not-allowed",
-                          isSelected ? "bg-brand-red text-white border-brand-red" : "bg-slate-50 border-black/5 hover:border-black/20"
+                          "rounded-xl p-3 border-2 font-black uppercase text-xs tracking-tight text-center",
+                          measure.result === option ? "bg-brand-red text-white border-brand-red" : "bg-slate-50 border-black/5 text-black/45"
                         )}
                       >
                         {option}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

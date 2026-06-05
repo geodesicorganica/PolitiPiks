@@ -41,7 +41,7 @@ For production, contests should be written by a backend ingest job (not by the c
 
 ## Seed Firestore with 2024 data (one-time local run)
 
-This writes 2024 statewide President + Senate contests from MEDSL into Firestore.
+This writes 2024 sandbox contests from MEDSL into Firestore: President, Senate, House, and statewide ballot measures where MEDSL includes them. It also stores historical `winnerId` / `result` fields used by league simulation.
 
 1. Install ingest deps: `npm --prefix ingest install`
 2. Run seed:
@@ -68,4 +68,4 @@ Run this after ingesting or seeding data to check whether the current Firestore 
 - PowerShell:
   - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run verify-contests`
 
-This is read-only. It reports totals by office, year, and state, plus malformed dates, empty candidate lists, duplicate slots, and state-view coverage gaps.
+This is read-only. It reports totals by office, year, and state, plus malformed dates, empty candidate lists, duplicate slots, actionable 2024 coverage gaps, and informational research coverage.

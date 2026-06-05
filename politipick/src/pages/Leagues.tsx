@@ -14,23 +14,45 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { BallotMeasure, League, LeagueMember, Prediction, Race } from '../types';
+import { BallotMeasure, Candidate, CandidateResearch, League, LeagueMember, MeasureResearch, Prediction, Race, ResearchSection, ResearchSource } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
-import { ArrowLeft, ArrowRight, BarChart3, Check, Copy, Landmark, MapPinned, Plus, Trophy, Users, Vote } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Check, Copy, ExternalLink, Info, Landmark, MapPinned, Plus, Trophy, Users, Vote, X } from 'lucide-react';
 
-type LeagueTab = 'state' | 'statewide' | 'senate' | 'measures' | 'president';
+type LeagueTab = 'state' | 'house' | 'senate' | 'measures' | 'president';
 type PredictionLookup = Record<string, Pick<Prediction, 'id' | 'pick' | 'status'>>;
 type ContestSummary = { id: string; state: string; category: string; label: string };
 type LeaguePredictionRecord = Prediction & { id: string };
+type ResearchTarget =
+  | { kind: 'candidate'; race: Race; candidate: Candidate }
+  | { kind: 'measure'; measure: BallotMeasure };
 
 const LEAGUE_TABS: Array<{ id: LeagueTab; label: string; icon: typeof MapPinned }> = [
   { id: 'state', label: 'State View', icon: MapPinned },
-  { id: 'statewide', label: 'Statewide', icon: Landmark },
+  { id: 'house', label: 'House', icon: Landmark },
   { id: 'senate', label: 'Senate', icon: Vote },
   { id: 'measures', label: 'Measures', icon: Check },
   { id: 'president', label: 'President', icon: Trophy },
 ];
+
+const CANDIDATE_BUCKET_LABELS: Record<string, string> = {
+  identity: 'Identity',
+  campaign: 'Campaign',
+  publicRecord: 'Public Record',
+  legislativeActivity: 'Legislative Activity',
+  policyPositions: 'Policy Positions',
+  electionsHistory: 'Election History',
+  provenance: 'Sources',
+};
+
+const MEASURE_BUCKET_LABELS: Record<string, string> = {
+  summary: 'Summary',
+  officialText: 'Official Text',
+  fiscalEffects: 'Fiscal Effects',
+  supportOpposition: 'Support And Opposition',
+  legalHistory: 'Legal History',
+  provenance: 'Sources',
+};
 
 function formatOffice(race: Race) {
   return `${race.office}${race.district ? ` ${race.district}` : ''}`;
@@ -359,6 +381,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
   const [leaguePredictions, setLeaguePredictions] = useState<LeaguePredictionRecord[]>([]);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
+  const [researchTarget, setResearchTarget] = useState<ResearchTarget | null>(null);
   const picksLocked = league.simulationStatus === 'simulated';
 
   useEffect(() => {
@@ -433,7 +456,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
     const byTab = races.filter((race) => {
       if (activeTab === 'president') return race.office === 'President';
       if (activeTab === 'senate') return race.office === 'Senate';
-      if (activeTab === 'statewide') return race.office === 'Governor';
+      if (activeTab === 'house') return race.office === 'House';
       return false;
     });
     return selectedState === 'all' ? byTab : byTab.filter((race) => race.state === selectedState);
@@ -699,6 +722,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
           setSelectedState('all');
           if (category === 'President') setActiveTab('president');
           else if (category === 'Senate') setActiveTab('senate');
+          else if (category === 'House') setActiveTab('house');
           else if (category === 'Measures') setActiveTab('measures');
           else setActiveTab('state');
         }}
@@ -754,6 +778,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                   locked={picksLocked}
                   onRacePick={(targetId, pick) => handlePick(targetId, pick, 'race')}
                   onMeasurePick={(targetId, pick) => handlePick(targetId, pick, 'measure')}
+                  onOpenResearch={setResearchTarget}
                 />
               </div>
             ))
@@ -767,6 +792,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                     submitting={submitting === race.id}
                     locked={picksLocked}
                     onPick={(pick) => handlePick(race.id, pick, 'race')}
+                    onOpenResearch={setResearchTarget}
                   />
                 </div>
               ))}
@@ -778,6 +804,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                     submitting={submitting === measure.id}
                     locked={picksLocked}
                     onPick={(pick) => handlePick(measure.id, pick, 'measure')}
+                    onOpenResearch={setResearchTarget}
                   />
                 </div>
               ))}
@@ -792,6 +819,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
 
         <LeaderboardPanel members={members} currentUserId={profile?.uid ?? null} />
       </div>
+      <ResearchDrawer target={researchTarget} onClose={() => setResearchTarget(null)} />
     </div>
   );
 }
@@ -1044,6 +1072,7 @@ function StateContestGrid({
   locked,
   onRacePick,
   onMeasurePick,
+  onOpenResearch,
 }: {
   state: string;
   races: Race[];
@@ -1053,11 +1082,12 @@ function StateContestGrid({
   locked: boolean;
   onRacePick: (targetId: string, pick: string) => void;
   onMeasurePick: (targetId: string, pick: 'pass' | 'fail') => void;
+  onOpenResearch: (target: ResearchTarget) => void;
 }) {
   const president = races.find((race) => race.office === 'President');
   const governor = races.find((race) => race.office === 'Governor');
   const senate = races.find((race) => race.office === 'Senate');
-  const house = races.find((race) => race.office === 'House');
+  const houseRaces = races.filter((race) => race.office === 'House');
 
   return (
     <section className="space-y-4">
@@ -1069,24 +1099,35 @@ function StateContestGrid({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ContestSlot title="Presidential Race">
           {president ? (
-            <RacePickCard race={president} prediction={predictions[president.id]} submitting={submitting === president.id} locked={locked} onPick={(pick) => onRacePick(president.id, pick)} />
+            <RacePickCard race={president} prediction={predictions[president.id]} submitting={submitting === president.id} locked={locked} onPick={(pick) => onRacePick(president.id, pick)} onOpenResearch={onOpenResearch} />
           ) : null}
         </ContestSlot>
         <ContestSlot title="Gubernatorial Race">
           {governor ? (
-            <RacePickCard race={governor} prediction={predictions[governor.id]} submitting={submitting === governor.id} locked={locked} onPick={(pick) => onRacePick(governor.id, pick)} />
+            <RacePickCard race={governor} prediction={predictions[governor.id]} submitting={submitting === governor.id} locked={locked} onPick={(pick) => onRacePick(governor.id, pick)} onOpenResearch={onOpenResearch} />
           ) : null}
         </ContestSlot>
         <ContestSlot title="Senate Race">
           {senate ? (
-            <RacePickCard race={senate} prediction={predictions[senate.id]} submitting={submitting === senate.id} locked={locked} onPick={(pick) => onRacePick(senate.id, pick)} />
+            <RacePickCard race={senate} prediction={predictions[senate.id]} submitting={submitting === senate.id} locked={locked} onPick={(pick) => onRacePick(senate.id, pick)} onOpenResearch={onOpenResearch} />
           ) : null}
         </ContestSlot>
-        <ContestSlot title="Congressional Race">
-          {house ? (
-            <RacePickCard race={house} prediction={predictions[house.id]} submitting={submitting === house.id} locked={locked} onPick={(pick) => onRacePick(house.id, pick)} />
-          ) : null}
-        </ContestSlot>
+        {houseRaces.length > 0 ? (
+          houseRaces.map((house) => (
+            <div key={house.id}>
+              <RacePickCard
+                race={house}
+                prediction={predictions[house.id]}
+                submitting={submitting === house.id}
+                locked={locked}
+                onPick={(pick) => onRacePick(house.id, pick)}
+                onOpenResearch={onOpenResearch}
+              />
+            </div>
+          ))
+        ) : (
+          <ContestSlot title="Congressional Race">{null}</ContestSlot>
+        )}
       </div>
 
       {measures.length > 0 && (
@@ -1099,6 +1140,7 @@ function StateContestGrid({
                 submitting={submitting === measure.id}
                 locked={locked}
                 onPick={(pick) => onMeasurePick(measure.id, pick)}
+                onOpenResearch={onOpenResearch}
               />
             </div>
           ))}
@@ -1127,12 +1169,14 @@ function RacePickCard({
   submitting,
   locked,
   onPick,
+  onOpenResearch,
 }: {
   race: Race;
   prediction?: Pick<Prediction, 'pick' | 'status'>;
   submitting: boolean;
   locked: boolean;
   onPick: (pick: string) => void;
+  onOpenResearch: (target: ResearchTarget) => void;
 }) {
   const disabled = submitting || locked || isCalled(race);
 
@@ -1152,22 +1196,37 @@ function RacePickCard({
         {race.candidates.map((candidate) => {
           const selected = prediction?.pick === candidate.id;
           return (
-            <button
+            <div
               key={candidate.id}
-              type="button"
-              disabled={disabled}
-              onClick={() => onPick(candidate.id)}
               className={cn(
-                "flex w-full items-center justify-between rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+                "flex items-stretch overflow-hidden rounded-lg border transition",
                 selected ? "border-brand-blue bg-brand-blue/5" : "border-black/10 bg-white hover:border-brand-blue/30"
               )}
             >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-black uppercase tracking-normal">{candidate.name}</p>
-                <p className="text-[10px] font-mono uppercase text-black/40">{candidate.party}</p>
-              </div>
-              {selected && <Check size={16} className="shrink-0 text-brand-blue" />}
-            </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onPick(candidate.id)}
+                className="flex min-w-0 flex-1 items-center justify-between p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black uppercase tracking-normal">{candidate.name}</p>
+                  <p className="text-[10px] font-mono uppercase text-black/40">
+                    {candidate.party}{candidate.incumbent ? ' incumbent' : ''}
+                  </p>
+                </div>
+                {selected && <Check size={16} className="shrink-0 text-brand-blue" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenResearch({ kind: 'candidate', race, candidate })}
+                title="Research"
+                aria-label={`Research ${candidate.name}`}
+                className="flex w-11 shrink-0 items-center justify-center border-l border-black/10 text-black/45 transition hover:bg-white hover:text-brand-blue"
+              >
+                <Info size={16} />
+              </button>
+            </div>
           );
         })}
       </div>
@@ -1181,20 +1240,33 @@ function MeasurePickCard({
   submitting,
   locked,
   onPick,
+  onOpenResearch,
 }: {
   measure: BallotMeasure;
   prediction?: Pick<Prediction, 'pick' | 'status'>;
   submitting: boolean;
   locked: boolean;
   onPick: (pick: 'pass' | 'fail') => void;
+  onOpenResearch: (target: ResearchTarget) => void;
 }) {
   const disabled = submitting || locked || isCalled(measure);
 
   return (
     <div className="card-surface overflow-hidden">
-      <div className="border-b border-black/5 bg-brand-red p-3 text-white">
-        <p className="text-[10px] font-mono uppercase text-white/70">{measure.state} measure</p>
-        <h3 className="text-sm font-black uppercase tracking-normal">{measure.title}</h3>
+      <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-brand-red p-3 text-white">
+        <div className="min-w-0">
+          <p className="text-[10px] font-mono uppercase text-white/70">{measure.state} measure</p>
+          <h3 className="text-sm font-black uppercase tracking-normal">{measure.title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenResearch({ kind: 'measure', measure })}
+          title="Research"
+          aria-label={`Research ${measure.title}`}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white hover:text-brand-red"
+        >
+          <Info size={16} />
+        </button>
       </div>
       <div className="space-y-3 p-3">
         <p className="text-[10px] font-mono uppercase leading-relaxed text-black/50">{measure.description}</p>
@@ -1216,6 +1288,180 @@ function MeasurePickCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function ResearchDrawer({ target, onClose }: { target: ResearchTarget | null; onClose: () => void }) {
+  const [research, setResearch] = useState<CandidateResearch | MeasureResearch | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!target) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setResearch(null);
+
+    const researchRef = target.kind === 'candidate'
+      ? doc(db, 'races', target.race.id, 'candidateResearch', target.candidate.id)
+      : doc(db, 'ballotMeasures', target.measure.id, 'research', 'profile');
+
+    getDoc(researchRef)
+      .then((snapshot) => {
+        if (cancelled) return;
+        setResearch(snapshot.exists() ? snapshot.data() as CandidateResearch | MeasureResearch : null);
+      })
+      .catch((fetchError) => {
+        if (cancelled) return;
+        handleFirestoreError(fetchError, OperationType.GET, target.kind === 'candidate' ? 'candidateResearch' : 'measureResearch');
+        setError('Research could not be loaded.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [target]);
+
+  const title = target?.kind === 'candidate' ? target.candidate.name : target?.measure.title;
+  const subtitle = target?.kind === 'candidate'
+    ? `${target.race.state} ${formatOffice(target.race)}`
+    : target ? `${target.measure.state} measure` : '';
+  const sections = target ? researchSections(target, research) : [];
+  const sources = research?.sources ?? [];
+
+  return (
+    <AnimatePresence>
+      {target && (
+        <motion.div
+          className="fixed inset-0 z-50 flex justify-end bg-black/35"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <button
+            type="button"
+            aria-label="Close research"
+            className="absolute inset-0 cursor-default"
+            onClick={onClose}
+          />
+          <motion.aside
+            className="relative flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl"
+            initial={{ x: 420 }}
+            animate={{ x: 0 }}
+            exit={{ x: 420 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.28 }}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-black/10 bg-brand-slate p-5 text-white">
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] uppercase text-white/55">{subtitle}</p>
+                <h2 className="mt-1 text-xl font-black uppercase tracking-normal">{title}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                title="Close"
+                aria-label="Close research"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white hover:text-brand-slate"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {loading && (
+                <p className="rounded-lg border border-black/10 bg-slate-50 p-4 font-mono text-[10px] uppercase text-black/45">Loading research...</p>
+              )}
+
+              {!loading && error && (
+                <p className="rounded-lg border border-brand-red/30 bg-brand-red/10 p-4 font-mono text-[10px] uppercase text-brand-red">{error}</p>
+              )}
+
+              {!loading && !error && sections.length === 0 && sources.length === 0 && (
+                <p className="rounded-lg border border-dashed border-black/15 bg-slate-50 p-4 font-mono text-[10px] uppercase leading-relaxed text-black/40">
+                  No source-backed research has been added for this pick yet.
+                </p>
+              )}
+
+              {!loading && !error && sections.length > 0 && (
+                <div className="space-y-4">
+                  {sections.map(({ bucketLabel, section }, index) => (
+                    <section key={`${bucketLabel}-${section.title}-${index}`} className="rounded-lg border border-black/10 bg-white p-4">
+                      <p className="font-mono text-[10px] uppercase text-brand-blue/70">{bucketLabel}</p>
+                      <h3 className="mt-1 text-sm font-black uppercase tracking-normal">{section.title}</h3>
+                      {section.body && <p className="mt-3 text-sm leading-relaxed text-black/65">{section.body}</p>}
+                      {section.bullets && section.bullets.length > 0 && (
+                        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-black/65">
+                          {section.bullets.map((bullet, bulletIndex) => (
+                            <li key={`${section.title}-${bulletIndex}`} className="border-l-2 border-brand-blue/20 pl-3">{bullet}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {section.links && section.links.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {section.links.map((link) => (
+                            <a
+                              key={`${section.title}-${link.url}`}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-black/10 px-2 py-1 font-mono text-[10px] uppercase text-brand-blue hover:border-brand-blue/30"
+                            >
+                              {link.label} <ExternalLink size={12} />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  ))}
+                </div>
+              )}
+
+              {!loading && !error && sources.length > 0 && (
+                <div className="mt-5 rounded-lg border border-black/10 bg-slate-50 p-4">
+                  <h3 className="text-xs font-black uppercase tracking-normal">Sources</h3>
+                  <div className="mt-3 space-y-2">
+                    {sources.map((source) => (
+                      <div key={source.id ?? source.url}>
+                        <SourceLink source={source} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.aside>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function researchSections(target: ResearchTarget, research: CandidateResearch | MeasureResearch | null) {
+  const labels = target.kind === 'candidate' ? CANDIDATE_BUCKET_LABELS : MEASURE_BUCKET_LABELS;
+  const buckets = (research?.buckets ?? {}) as Record<string, ResearchSection[] | undefined>;
+
+  return Object.entries(labels).flatMap(([bucket, bucketLabel]) => {
+    const bucketSections = buckets[bucket] ?? [];
+    return bucketSections.map((section) => ({ bucketLabel, section }));
+  });
+}
+
+function SourceLink({ source }: { source: ResearchSource }) {
+  return (
+    <a
+      href={source.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm font-bold text-black/70 transition hover:text-brand-blue"
+    >
+      <span className="min-w-0 truncate">{source.label}</span>
+      <ExternalLink size={14} className="shrink-0" />
+    </a>
   );
 }
 
