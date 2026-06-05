@@ -17,10 +17,12 @@ import { db } from '../lib/firebase';
 import { BallotMeasure, League, LeagueMember, Prediction, Race } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
-import { ArrowLeft, ArrowRight, Check, Copy, Landmark, MapPinned, Plus, Trophy, Users, Vote } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, Check, Copy, Landmark, MapPinned, Plus, Trophy, Users, Vote } from 'lucide-react';
 
 type LeagueTab = 'state' | 'statewide' | 'senate' | 'measures' | 'president';
 type PredictionLookup = Record<string, Pick<Prediction, 'id' | 'pick' | 'status'>>;
+type ContestSummary = { id: string; state: string; category: string; label: string };
+type LeaguePredictionRecord = Prediction & { id: string };
 
 const LEAGUE_TABS: Array<{ id: LeagueTab; label: string; icon: typeof MapPinned }> = [
   { id: 'state', label: 'State View', icon: MapPinned },
@@ -40,6 +42,27 @@ function byStateName(a: { state: string }, b: { state: string }) {
 
 function isCalled(contest: Race | BallotMeasure) {
   return contest.status === 'called';
+}
+
+function contestCategory(contest: Race | BallotMeasure) {
+  if ('office' in contest) return contest.office;
+  return 'Measures';
+}
+
+function contestLabel(contest: Race | BallotMeasure) {
+  if ('office' in contest) return `${contest.office}${contest.district ? ` ${contest.district}` : ''}`;
+  return contest.title;
+}
+
+function pickLabel(contest: Race | BallotMeasure | undefined, pick?: string) {
+  if (!pick) return 'Missing';
+  if (!contest) return pick;
+  if ('candidates' in contest) {
+    return contest.candidates.find((candidate) => candidate.id === pick)?.name ?? pick;
+  }
+  if (pick === 'pass') return 'Pass';
+  if (pick === 'fail') return 'Fail';
+  return pick;
 }
 
 export function Leagues() {
@@ -157,9 +180,10 @@ export function Leagues() {
   };
 
   if (selectedLeague) {
+    const liveSelectedLeague = leagues.find((league) => league.id === selectedLeague.id) ?? selectedLeague;
     return (
       <LeagueOverview
-        league={selectedLeague}
+        league={liveSelectedLeague}
         onBack={() => setSelectedLeague(null)}
       />
     );
@@ -332,8 +356,10 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
   const [measures, setMeasures] = useState<BallotMeasure[]>([]);
   const [members, setMembers] = useState<LeagueMember[]>([]);
   const [predictions, setPredictions] = useState<PredictionLookup>({});
+  const [leaguePredictions, setLeaguePredictions] = useState<LeaguePredictionRecord[]>([]);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
+  const picksLocked = league.simulationStatus === 'simulated';
 
   useEffect(() => {
     const unsubscribeRaces = onSnapshot(query(collection(db, 'races'), orderBy('state', 'asc')), (snapshot) => {
@@ -377,6 +403,23 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
     return () => unsubscribe();
   }, [league.id, profile]);
 
+  useEffect(() => {
+    if (!picksLocked) {
+      setLeaguePredictions([]);
+      return;
+    }
+
+    const q = query(collection(db, 'predictions'), where('leagueId', '==', league.id));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setLeaguePredictions(snapshot.docs.map((predictionDoc) => ({
+        id: predictionDoc.id,
+        ...predictionDoc.data(),
+      } as LeaguePredictionRecord)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `predictions(${league.id})`));
+
+    return () => unsubscribe();
+  }, [league.id, picksLocked]);
+
   const states = useMemo(() => {
     const names = new Set<string>();
     races.forEach((race) => names.add(race.state));
@@ -401,8 +444,178 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
     return selectedState === 'all' ? measures : measures.filter((measure) => measure.state === selectedState);
   }, [activeTab, measures, selectedState]);
 
+  const contestSummaries = useMemo<ContestSummary[]>(() => {
+    const raceSummaries = races.map((race) => ({
+      id: race.id,
+      state: race.state,
+      category: contestCategory(race),
+      label: contestLabel(race),
+    }));
+    const measureSummaries = measures.map((measure) => ({
+      id: measure.id,
+      state: measure.state,
+      category: contestCategory(measure),
+      label: contestLabel(measure),
+    }));
+    return [...raceSummaries, ...measureSummaries].sort((a, b) =>
+      a.state.localeCompare(b.state) ||
+      a.category.localeCompare(b.category) ||
+      a.label.localeCompare(b.label)
+    );
+  }, [races, measures]);
+
+  const progress = useMemo(() => {
+    const missing = contestSummaries.filter((contest) => !predictions[contest.id]?.pick);
+    const completed = contestSummaries.length - missing.length;
+    const byState = new Map<string, ContestSummary[]>();
+    const byCategory = new Map<string, ContestSummary[]>();
+
+    missing.forEach((contest) => {
+      byState.set(contest.state, [...(byState.get(contest.state) ?? []), contest]);
+      byCategory.set(contest.category, [...(byCategory.get(contest.category) ?? []), contest]);
+    });
+
+    return {
+      completed,
+      total: contestSummaries.length,
+      missing,
+      percent: contestSummaries.length > 0 ? Math.round((completed / contestSummaries.length) * 100) : 0,
+      byState: Array.from(byState.entries()).sort(([a], [b]) => a.localeCompare(b)),
+      byCategory: Array.from(byCategory.entries()).sort(([a], [b]) => a.localeCompare(b)),
+    };
+  }, [contestSummaries, predictions]);
+
+  const contestById = useMemo(() => {
+    const map = new Map<string, Race | BallotMeasure>();
+    races.forEach((race) => map.set(race.id, race));
+    measures.forEach((measure) => map.set(measure.id, measure));
+    return map;
+  }, [races, measures]);
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, LeagueMember>();
+    members.forEach((member) => map.set(member.userId, member));
+    return map;
+  }, [members]);
+
+  const resultRows = useMemo(() => {
+    const rows = leaguePredictions
+      .filter((prediction) => prediction.status !== 'pending')
+      .map((prediction) => {
+        const contest = contestById.get(prediction.targetId);
+        const member = memberById.get(prediction.userId);
+        return {
+          prediction,
+          contest,
+          member,
+          state: contest?.state ?? 'Unknown',
+          category: contest ? contestCategory(contest) : prediction.type,
+          contestLabel: contest ? contestLabel(contest) : prediction.targetId,
+          pick: pickLabel(contest, prediction.pick),
+          correctPick: pickLabel(contest, prediction.correctPick),
+        };
+      })
+      .sort((a, b) =>
+        a.state.localeCompare(b.state) ||
+        a.category.localeCompare(b.category) ||
+        a.contestLabel.localeCompare(b.contestLabel) ||
+        (a.member?.displayName ?? '').localeCompare(b.member?.displayName ?? '')
+      );
+    return rows;
+  }, [contestById, leaguePredictions, memberById]);
+
+  const resultStats = useMemo(() => {
+    const byTarget = new Map<string, typeof resultRows>();
+    for (const row of resultRows) {
+      byTarget.set(row.prediction.targetId, [...(byTarget.get(row.prediction.targetId) ?? []), row]);
+    }
+
+    let biggestUpset: { label: string; pickedBy: number; memberName: string } | null = null;
+    let consensusMiss: { label: string; missedBy: number; pick: string } | null = null;
+    const uniqueCorrect: Array<{ label: string; memberName: string; pick: string }> = [];
+
+    for (const rows of byTarget.values()) {
+      const correctRows = rows.filter((row) => row.prediction.status === 'correct');
+      const incorrectRows = rows.filter((row) => row.prediction.status === 'incorrect');
+      const contestName = `${rows[0]?.state ?? ''} ${rows[0]?.contestLabel ?? ''}`.trim();
+
+      if (correctRows.length > 0) {
+        const candidate = {
+          label: contestName,
+          pickedBy: correctRows.length,
+          memberName: correctRows.map((row) => row.member?.displayName ?? row.prediction.userId).join(', '),
+        };
+        if (!biggestUpset || candidate.pickedBy < biggestUpset.pickedBy) {
+          biggestUpset = candidate;
+        }
+        if (correctRows.length === 1) {
+          uniqueCorrect.push({
+            label: contestName,
+            memberName: correctRows[0].member?.displayName ?? correctRows[0].prediction.userId,
+            pick: correctRows[0].pick,
+          });
+        }
+      }
+
+      if (incorrectRows.length > 0) {
+        const missesByPick = new Map<string, typeof incorrectRows>();
+        incorrectRows.forEach((row) => {
+          missesByPick.set(row.pick, [...(missesByPick.get(row.pick) ?? []), row]);
+        });
+        for (const [pick, missedRows] of missesByPick.entries()) {
+          const candidate = { label: contestName, missedBy: missedRows.length, pick };
+          if (!consensusMiss || candidate.missedBy > consensusMiss.missedBy) {
+            consensusMiss = candidate;
+          }
+        }
+      }
+    }
+
+    const stateAccuracy = new Map<string, { correct: number; total: number; memberName: string; state: string }>();
+    const perfectStates: Array<{ memberName: string; state: string; total: number }> = [];
+
+    resultRows.forEach((row) => {
+      if (row.prediction.status === 'missing') return;
+      const key = `${row.prediction.userId}::${row.state}`;
+      const entry = stateAccuracy.get(key) ?? {
+        correct: 0,
+        total: 0,
+        memberName: row.member?.displayName ?? row.prediction.userId,
+        state: row.state,
+      };
+      entry.total += 1;
+      if (row.prediction.status === 'correct') entry.correct += 1;
+      stateAccuracy.set(key, entry);
+    });
+
+    let bestState: { memberName: string; state: string; correct: number; total: number; pct: number } | null = null;
+    for (const entry of stateAccuracy.values()) {
+      if (entry.total === 0) continue;
+      const pct = entry.correct / entry.total;
+      const candidate = { ...entry, pct };
+      if (!bestState || candidate.pct > bestState.pct || (candidate.pct === bestState.pct && candidate.total > bestState.total)) {
+        bestState = candidate;
+      }
+      if (entry.correct === entry.total && entry.total > 0) {
+        perfectStates.push({ memberName: entry.memberName, state: entry.state, total: entry.total });
+      }
+    }
+
+    return {
+      biggestUpset,
+      consensusMiss,
+      bestState,
+      uniqueCorrect: uniqueCorrect.slice(0, 5),
+      perfectStates: perfectStates.slice(0, 5),
+    };
+  }, [resultRows]);
+
   async function handlePick(targetId: string, pick: string, type: 'race' | 'measure') {
     if (!profile) return;
+    if (picksLocked) {
+      setNotice({ tone: 'error', message: 'This league has been simulated. Reset it before changing picks.' });
+      return;
+    }
     setSubmitting(targetId);
     setNotice(null);
 
@@ -475,6 +688,30 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
         </div>
       )}
 
+      <LeagueProgressPanel
+        locked={picksLocked}
+        progress={progress}
+        onSelectState={(state) => {
+          setSelectedState(state);
+          setActiveTab('state');
+        }}
+        onSelectCategory={(category) => {
+          setSelectedState('all');
+          if (category === 'President') setActiveTab('president');
+          else if (category === 'Senate') setActiveTab('senate');
+          else if (category === 'Measures') setActiveTab('measures');
+          else setActiveTab('state');
+        }}
+      />
+
+      {picksLocked && (
+        <LeagueResultsPanel
+          members={members}
+          resultRows={resultRows}
+          stats={resultStats}
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[180px_minmax(0,1fr)_280px]">
         <aside className="space-y-2 xl:sticky xl:top-24 xl:self-start">
           <button
@@ -514,6 +751,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                   measures={measures.filter((measure) => measure.state === state)}
                   predictions={predictions}
                   submitting={submitting}
+                  locked={picksLocked}
                   onRacePick={(targetId, pick) => handlePick(targetId, pick, 'race')}
                   onMeasurePick={(targetId, pick) => handlePick(targetId, pick, 'measure')}
                 />
@@ -527,6 +765,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                     race={race}
                     prediction={predictions[race.id]}
                     submitting={submitting === race.id}
+                    locked={picksLocked}
                     onPick={(pick) => handlePick(race.id, pick, 'race')}
                   />
                 </div>
@@ -537,6 +776,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
                     measure={measure}
                     prediction={predictions[measure.id]}
                     submitting={submitting === measure.id}
+                    locked={picksLocked}
                     onPick={(pick) => handlePick(measure.id, pick, 'measure')}
                   />
                 </div>
@@ -556,12 +796,252 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
   );
 }
 
+function LeagueProgressPanel({
+  locked,
+  progress,
+  onSelectState,
+  onSelectCategory,
+}: {
+  locked: boolean;
+  progress: {
+    completed: number;
+    total: number;
+    missing: ContestSummary[];
+    percent: number;
+    byState: Array<[string, ContestSummary[]]>;
+    byCategory: Array<[string, ContestSummary[]]>;
+  };
+  onSelectState: (state: string) => void;
+  onSelectCategory: (category: string) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="font-mono text-[10px] uppercase text-black/40">{locked ? 'Simulation complete' : 'Pick progress'}</p>
+              <h2 className="text-xl font-black uppercase tracking-normal">
+                {progress.completed}/{progress.total} Picks Saved
+              </h2>
+            </div>
+            <div className={cn(
+              "rounded px-2 py-1 text-[10px] font-black uppercase",
+              progress.missing.length === 0 ? "bg-emerald-100 text-emerald-700" : "bg-brand-red/10 text-brand-red"
+            )}>
+              {progress.missing.length === 0 ? 'Complete' : `${progress.missing.length} Missing`}
+            </div>
+          </div>
+
+          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={cn("h-full rounded-full transition-all", progress.missing.length === 0 ? "bg-emerald-500" : "bg-brand-blue")}
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-slate-50 p-3 text-center">
+          <p className="text-3xl font-black italic text-brand-blue">{progress.percent}%</p>
+          <p className="font-mono text-[10px] uppercase text-black/40">Complete</p>
+        </div>
+      </div>
+
+      {progress.missing.length > 0 && !locked && (
+        <div className="mt-4 grid gap-4 border-t border-black/5 pt-4 lg:grid-cols-2">
+          <MissingGroup
+            title="Missing By State"
+            groups={progress.byState}
+            onSelect={onSelectState}
+          />
+          <MissingGroup
+            title="Missing By Category"
+            groups={progress.byCategory}
+            onSelect={onSelectCategory}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MissingGroup({
+  title,
+  groups,
+  onSelect,
+}: {
+  title: string;
+  groups: Array<[string, ContestSummary[]]>;
+  onSelect: (key: string) => void;
+}) {
+  const visibleGroups = groups.slice(0, 8);
+  return (
+    <div className="space-y-2">
+      <h3 className="font-mono text-[10px] uppercase text-black/40">{title}</h3>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {visibleGroups.map(([key, contests]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onSelect(key)}
+            className="flex items-center justify-between rounded-lg border border-black/10 bg-white px-3 py-2 text-left transition hover:border-brand-blue/40 hover:text-brand-blue"
+          >
+            <span className="truncate text-xs font-black uppercase">{key}</span>
+            <span className="ml-2 rounded bg-brand-red/10 px-2 py-1 text-[10px] font-black text-brand-red">{contests.length}</span>
+          </button>
+        ))}
+      </div>
+      {groups.length > visibleGroups.length && (
+        <p className="font-mono text-[10px] uppercase text-black/35">+{groups.length - visibleGroups.length} more groups</p>
+      )}
+    </div>
+  );
+}
+
+function LeagueResultsPanel({
+  members,
+  resultRows,
+  stats,
+}: {
+  members: LeagueMember[];
+  resultRows: Array<{
+    prediction: LeaguePredictionRecord;
+    contest?: Race | BallotMeasure;
+    member?: LeagueMember;
+    state: string;
+    category: string;
+    contestLabel: string;
+    pick: string;
+    correctPick: string;
+  }>;
+  stats: {
+    biggestUpset: { label: string; pickedBy: number; memberName: string } | null;
+    consensusMiss: { label: string; missedBy: number; pick: string } | null;
+    bestState: { memberName: string; state: string; correct: number; total: number; pct: number } | null;
+    uniqueCorrect: Array<{ label: string; memberName: string; pick: string }>;
+    perfectStates: Array<{ memberName: string; state: string; total: number }>;
+  };
+}) {
+  const visibleRows = resultRows.slice(0, 80);
+  return (
+    <section className="space-y-4 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase text-black/40">Simulation results</p>
+          <h2 className="flex items-center gap-2 text-xl font-black uppercase tracking-normal">
+            <BarChart3 size={18} className="text-brand-blue" />
+            League Results
+          </h2>
+        </div>
+        <p className="font-mono text-[10px] uppercase text-black/40">{resultRows.length} scored pick records</p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        {members.map((member, index) => (
+          <div key={member.userId} className="rounded-lg border border-black/10 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-black uppercase">{index + 1}. {member.displayName}</p>
+                <p className="font-mono text-[10px] uppercase text-black/40">{member.points} pts</p>
+              </div>
+              <Trophy size={16} className="shrink-0 text-brand-red" />
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <ResultCounter label="Right" value={member.correctPicks ?? 0} tone="good" />
+              <ResultCounter label="Wrong" value={member.incorrectPicks ?? 0} tone="bad" />
+              <ResultCounter label="Miss" value={member.missingPicks ?? 0} tone="muted" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-5">
+        <StatCard title="Biggest Upset" value={stats.biggestUpset ? `${stats.biggestUpset.label}` : 'None'} detail={stats.biggestUpset ? `${stats.biggestUpset.memberName} (${stats.biggestUpset.pickedBy})` : 'No correct picks yet'} />
+        <StatCard title="Consensus Miss" value={stats.consensusMiss ? stats.consensusMiss.label : 'None'} detail={stats.consensusMiss ? `${stats.consensusMiss.pick} (${stats.consensusMiss.missedBy})` : 'No misses yet'} />
+        <StatCard title="Best State" value={stats.bestState ? `${stats.bestState.memberName}` : 'None'} detail={stats.bestState ? `${stats.bestState.state}: ${stats.bestState.correct}/${stats.bestState.total}` : 'No scored states'} />
+        <StatCard title="Unique Correct" value={String(stats.uniqueCorrect.length)} detail={stats.uniqueCorrect[0] ? `${stats.uniqueCorrect[0].memberName}: ${stats.uniqueCorrect[0].label}` : 'None'} />
+        <StatCard title="Perfect States" value={String(stats.perfectStates.length)} detail={stats.perfectStates[0] ? `${stats.perfectStates[0].memberName}: ${stats.perfectStates[0].state}` : 'None'} />
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-black/10">
+        <div className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_90px] gap-2 bg-brand-slate px-3 py-2 text-[10px] font-black uppercase text-white/70">
+          <span>Member</span>
+          <span>Contest</span>
+          <span>Pick</span>
+          <span>Status</span>
+        </div>
+        <div className="max-h-[520px] divide-y divide-black/5 overflow-auto">
+          {visibleRows.map((row) => (
+            <div key={row.prediction.id} className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)_90px] gap-2 px-3 py-2 text-xs">
+              <span className="truncate font-black uppercase">{row.member?.displayName ?? row.prediction.userId}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-black uppercase">{row.state} {row.contestLabel}</span>
+                <span className="block truncate font-mono text-[10px] uppercase text-black/35">{row.category}</span>
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-bold uppercase">{row.pick}</span>
+                <span className="block truncate font-mono text-[10px] uppercase text-black/35">Correct: {row.correctPick}</span>
+              </span>
+              <ResultStatus status={row.prediction.status} />
+            </div>
+          ))}
+          {visibleRows.length === 0 && (
+            <div className="p-6 text-center font-mono text-[10px] uppercase text-black/35">No scored picks loaded.</div>
+          )}
+        </div>
+      </div>
+      {resultRows.length > visibleRows.length && (
+        <p className="font-mono text-[10px] uppercase text-black/35">Showing first {visibleRows.length} of {resultRows.length} scored pick records.</p>
+      )}
+    </section>
+  );
+}
+
+function ResultCounter({ label, value, tone }: { label: string; value: number; tone: 'good' | 'bad' | 'muted' }) {
+  return (
+    <div className={cn(
+      "rounded p-2",
+      tone === 'good' && "bg-emerald-50 text-emerald-700",
+      tone === 'bad' && "bg-brand-red/10 text-brand-red",
+      tone === 'muted' && "bg-white text-black/50"
+    )}>
+      <p className="text-sm font-black">{value}</p>
+      <p className="font-mono text-[9px] uppercase">{label}</p>
+    </div>
+  );
+}
+
+function StatCard({ title, value, detail }: { title: string; value: string; detail: string }) {
+  return (
+    <div className="min-h-28 rounded-lg border border-black/10 bg-slate-50 p-3">
+      <p className="font-mono text-[10px] uppercase text-black/40">{title}</p>
+      <p className="mt-2 text-sm font-black uppercase tracking-normal">{value}</p>
+      <p className="mt-2 font-mono text-[10px] uppercase text-black/45">{detail}</p>
+    </div>
+  );
+}
+
+function ResultStatus({ status }: { status: Prediction['status'] }) {
+  return (
+    <span className={cn(
+      "self-start rounded px-2 py-1 text-center text-[10px] font-black uppercase",
+      status === 'correct' && "bg-emerald-100 text-emerald-700",
+      status === 'incorrect' && "bg-brand-red/10 text-brand-red",
+      status === 'missing' && "bg-slate-100 text-black/45",
+      status === 'pending' && "bg-brand-blue/10 text-brand-blue"
+    )}>
+      {status}
+    </span>
+  );
+}
+
 function StateContestGrid({
   state,
   races,
   measures,
   predictions,
   submitting,
+  locked,
   onRacePick,
   onMeasurePick,
 }: {
@@ -570,6 +1050,7 @@ function StateContestGrid({
   measures: BallotMeasure[];
   predictions: PredictionLookup;
   submitting: string | null;
+  locked: boolean;
   onRacePick: (targetId: string, pick: string) => void;
   onMeasurePick: (targetId: string, pick: 'pass' | 'fail') => void;
 }) {
@@ -588,22 +1069,22 @@ function StateContestGrid({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ContestSlot title="Presidential Race">
           {president ? (
-            <RacePickCard race={president} prediction={predictions[president.id]} submitting={submitting === president.id} onPick={(pick) => onRacePick(president.id, pick)} />
+            <RacePickCard race={president} prediction={predictions[president.id]} submitting={submitting === president.id} locked={locked} onPick={(pick) => onRacePick(president.id, pick)} />
           ) : null}
         </ContestSlot>
         <ContestSlot title="Gubernatorial Race">
           {governor ? (
-            <RacePickCard race={governor} prediction={predictions[governor.id]} submitting={submitting === governor.id} onPick={(pick) => onRacePick(governor.id, pick)} />
+            <RacePickCard race={governor} prediction={predictions[governor.id]} submitting={submitting === governor.id} locked={locked} onPick={(pick) => onRacePick(governor.id, pick)} />
           ) : null}
         </ContestSlot>
         <ContestSlot title="Senate Race">
           {senate ? (
-            <RacePickCard race={senate} prediction={predictions[senate.id]} submitting={submitting === senate.id} onPick={(pick) => onRacePick(senate.id, pick)} />
+            <RacePickCard race={senate} prediction={predictions[senate.id]} submitting={submitting === senate.id} locked={locked} onPick={(pick) => onRacePick(senate.id, pick)} />
           ) : null}
         </ContestSlot>
         <ContestSlot title="Congressional Race">
           {house ? (
-            <RacePickCard race={house} prediction={predictions[house.id]} submitting={submitting === house.id} onPick={(pick) => onRacePick(house.id, pick)} />
+            <RacePickCard race={house} prediction={predictions[house.id]} submitting={submitting === house.id} locked={locked} onPick={(pick) => onRacePick(house.id, pick)} />
           ) : null}
         </ContestSlot>
       </div>
@@ -616,6 +1097,7 @@ function StateContestGrid({
                 measure={measure}
                 prediction={predictions[measure.id]}
                 submitting={submitting === measure.id}
+                locked={locked}
                 onPick={(pick) => onMeasurePick(measure.id, pick)}
               />
             </div>
@@ -643,14 +1125,16 @@ function RacePickCard({
   race,
   prediction,
   submitting,
+  locked,
   onPick,
 }: {
   race: Race;
   prediction?: Pick<Prediction, 'pick' | 'status'>;
   submitting: boolean;
+  locked: boolean;
   onPick: (pick: string) => void;
 }) {
-  const disabled = submitting || isCalled(race);
+  const disabled = submitting || locked || isCalled(race);
 
   return (
     <div className="card-surface overflow-hidden">
@@ -660,7 +1144,7 @@ function RacePickCard({
           <h3 className="text-sm font-black uppercase tracking-normal">{formatOffice(race)}</h3>
         </div>
         <span className={cn("rounded px-2 py-1 text-[10px] font-black uppercase", isCalled(race) ? "bg-emerald-500/20 text-emerald-100" : "bg-white/10 text-white/75")}>
-          {race.status ?? 'open'}
+          {locked ? 'locked' : race.status ?? 'open'}
         </span>
       </div>
 
@@ -695,14 +1179,16 @@ function MeasurePickCard({
   measure,
   prediction,
   submitting,
+  locked,
   onPick,
 }: {
   measure: BallotMeasure;
   prediction?: Pick<Prediction, 'pick' | 'status'>;
   submitting: boolean;
+  locked: boolean;
   onPick: (pick: 'pass' | 'fail') => void;
 }) {
-  const disabled = submitting || isCalled(measure);
+  const disabled = submitting || locked || isCalled(measure);
 
   return (
     <div className="card-surface overflow-hidden">

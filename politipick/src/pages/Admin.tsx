@@ -1,20 +1,62 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot, orderBy, query, updateDoc, doc, where, getDocs, writeBatch, increment } from 'firebase/firestore';
+import {
+  collection,
+  deleteField,
+  doc,
+  getDocs,
+  increment,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { BallotMeasure, Prediction, Race } from '../types';
+import { BallotMeasure, League, LeagueMember, Prediction, Race } from '../types';
 import { useAuth } from '../App';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 
 const POINTS_PER_CORRECT = 10;
+const LEAGUE_POINTS_PER_CORRECT = 1;
+const FIRESTORE_BATCH_LIMIT = 450;
 
 function byName(a: { state: string }, b: { state: string }) {
   return a.state.localeCompare(b.state);
 }
 
+function isSandboxRace(race: Race) {
+  return race.electionYear === 2024 && race.mode === 'sandbox' && Boolean(race.winnerId);
+}
+
+function isSandboxMeasure(measure: BallotMeasure) {
+  return measure.electionYear === 2024 && measure.mode === 'sandbox' && (measure.result === 'pass' || measure.result === 'fail');
+}
+
+function predictionKey(userId: string, targetId: string) {
+  return `${userId}::${targetId}`;
+}
+
+function missingPredictionId(leagueId: string, userId: string, targetId: string) {
+  return `${leagueId}_${userId}_${targetId}_missing`.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 180);
+}
+
+async function commitBatches(
+  writes: Array<(batch: ReturnType<typeof writeBatch>) => void>,
+) {
+  for (let index = 0; index < writes.length; index += FIRESTORE_BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    writes.slice(index, index + FIRESTORE_BATCH_LIMIT).forEach((write) => write(batch));
+    await batch.commit();
+  }
+}
+
 export function Admin() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [races, setRaces] = useState<Race[]>([]);
   const [measures, setMeasures] = useState<BallotMeasure[]>([]);
+  const [leagues, setLeagues] = useState<League[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: 'error' | 'success'; message: string } | null>(null);
 
@@ -31,9 +73,15 @@ export function Admin() {
       setMeasures(snap.docs.map((d) => ({ id: d.id, ...d.data() } as BallotMeasure)).sort(byName));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'ballotMeasures'));
 
+    const qLeagues = query(collection(db, 'leagues'), orderBy('createdAt', 'desc'));
+    const unsubLeagues = onSnapshot(qLeagues, (snap) => {
+      setLeagues(snap.docs.map((d) => ({ id: d.id, ...d.data() } as League)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'leagues'));
+
     return () => {
       unsubRaces();
       unsubMeasures();
+      unsubLeagues();
     };
   }, [isAdmin]);
 
@@ -41,6 +89,9 @@ export function Admin() {
   const openRaces = useMemo(() => races.filter((r) => r.status !== 'called'), [races]);
   const calledMeasures = useMemo(() => measures.filter((m) => m.status === 'called'), [measures]);
   const openMeasures = useMemo(() => measures.filter((m) => m.status !== 'called'), [measures]);
+  const eligibleRaces = useMemo(() => races.filter(isSandboxRace), [races]);
+  const eligibleMeasures = useMemo(() => measures.filter(isSandboxMeasure), [measures]);
+  const eligibleContestCount = eligibleRaces.length + eligibleMeasures.length;
 
   async function scoreTarget(targetId: string, correctPick: string) {
     const predsQ = query(collection(db, 'predictions'), where('targetId', '==', targetId));
@@ -71,6 +122,241 @@ export function Admin() {
     }
 
     await batch.commit();
+  }
+
+  async function getLeagueMembers(leagueId: string) {
+    const membersSnap = await getDocs(collection(db, `leagues/${leagueId}/members`));
+    return membersSnap.docs.map((memberDoc) => ({ id: memberDoc.id, ...memberDoc.data() } as LeagueMember & { id: string }));
+  }
+
+  async function getLeaguePredictions(leagueId: string) {
+    const predictionsSnap = await getDocs(query(collection(db, 'predictions'), where('leagueId', '==', leagueId)));
+    return predictionsSnap.docs.map((predictionDoc) => ({
+      id: predictionDoc.id,
+      ref: predictionDoc.ref,
+      data: predictionDoc.data() as Omit<Prediction, 'id'>,
+    }));
+  }
+
+  async function simulateLeague(league: League) {
+    if (!isAdmin || !user) return;
+    if (eligibleContestCount === 0) {
+      setNotice({ kind: 'error', message: 'No eligible 2024 sandbox contests with results are loaded.' });
+      return;
+    }
+
+    setBusyId(`simulate-${league.id}`);
+    setNotice(null);
+
+    try {
+      const members = await getLeagueMembers(league.id);
+      if (members.length === 0) {
+        setNotice({ kind: 'error', message: 'This league has no members to score.' });
+        return;
+      }
+
+      const leaguePredictions = await getLeaguePredictions(league.id);
+      const predictionByMemberTarget = new Map<string, (typeof leaguePredictions)[number]>();
+      for (const prediction of leaguePredictions) {
+        predictionByMemberTarget.set(predictionKey(prediction.data.userId, prediction.data.targetId), prediction);
+      }
+
+      const contests = [
+        ...eligibleRaces.map((race) => ({
+          targetId: race.id,
+          type: 'race' as const,
+          correctPick: race.winnerId!,
+        })),
+        ...eligibleMeasures.map((measure) => ({
+          targetId: measure.id,
+          type: 'measure' as const,
+          correctPick: measure.result!,
+        })),
+      ];
+
+      let missingTotal = 0;
+      const memberScores = new Map<string, {
+        correctPicks: number;
+        incorrectPicks: number;
+        missingPicks: number;
+        points: number;
+      }>();
+
+      for (const member of members) {
+        memberScores.set(member.userId, {
+          correctPicks: 0,
+          incorrectPicks: 0,
+          missingPicks: 0,
+          points: 0,
+        });
+      }
+
+      for (const member of members) {
+        for (const contest of contests) {
+          const existing = predictionByMemberTarget.get(predictionKey(member.userId, contest.targetId));
+          const score = memberScores.get(member.userId)!;
+          if (!existing?.data.pick) {
+            score.missingPicks += 1;
+            missingTotal += 1;
+            continue;
+          }
+
+          if (existing.data.pick === contest.correctPick) {
+            score.correctPicks += 1;
+            score.points += LEAGUE_POINTS_PER_CORRECT;
+          } else {
+            score.incorrectPicks += 1;
+          }
+        }
+      }
+
+      if (missingTotal > 0) {
+        const proceed = window.confirm(
+          `${missingTotal} missing picks will be scored as 0 across ${members.length} league members. Simulate anyway?`,
+        );
+        if (!proceed) return;
+      }
+
+      const writes: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
+
+      for (const member of members) {
+        for (const contest of contests) {
+          const existing = predictionByMemberTarget.get(predictionKey(member.userId, contest.targetId));
+          if (!existing?.data.pick) {
+            if (existing) {
+              writes.push((batch) => batch.update(existing.ref, {
+                status: 'missing',
+                score: 0,
+                correctPick: contest.correctPick,
+                scoredAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              }));
+            } else {
+              const ref = doc(db, 'predictions', missingPredictionId(league.id, member.userId, contest.targetId));
+              writes.push((batch) => batch.set(ref, {
+                userId: member.userId,
+                leagueId: league.id,
+                targetId: contest.targetId,
+                type: contest.type,
+                status: 'missing',
+                score: 0,
+                correctPick: contest.correctPick,
+                createdAt: serverTimestamp(),
+                scoredAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              }));
+            }
+            continue;
+          }
+
+          const isCorrect = existing.data.pick === contest.correctPick;
+          writes.push((batch) => batch.update(existing.ref, {
+            status: isCorrect ? 'correct' : 'incorrect',
+            score: isCorrect ? LEAGUE_POINTS_PER_CORRECT : 0,
+            correctPick: contest.correctPick,
+            scoredAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }));
+        }
+      }
+
+      for (const member of members) {
+        const score = memberScores.get(member.userId)!;
+        const memberRef = doc(db, `leagues/${league.id}/members`, member.userId);
+        writes.push((batch) => batch.update(memberRef, {
+          points: score.points,
+          correctPicks: score.correctPicks,
+          incorrectPicks: score.incorrectPicks,
+          missingPicks: score.missingPicks,
+          completedPicks: score.correctPicks + score.incorrectPicks,
+          totalEligiblePicks: contests.length,
+          updatedAt: serverTimestamp(),
+        }));
+      }
+
+      writes.push((batch) => batch.update(doc(db, 'leagues', league.id), {
+        contestMode: 'sandbox',
+        contestYear: 2024,
+        simulationStatus: 'simulated',
+        simulatedAt: serverTimestamp(),
+        simulatedBy: user.uid,
+        eligibleContestCount: contests.length,
+        totalScoredPicks: members.length * contests.length,
+        totalMissingPicks: missingTotal,
+      }));
+
+      await commitBatches(writes);
+      setNotice({ kind: 'success', message: `Simulated ${league.name}: ${contests.length} contests scored for ${members.length} members.` });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `leagues/${league.id}/simulation`);
+      setNotice({ kind: 'error', message: 'Failed to simulate league.' });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resetLeague(league: League) {
+    if (!isAdmin || !user) return;
+
+    const proceed = window.confirm(`Reset simulation for ${league.name}? This clears league scores and reopens picks.`);
+    if (!proceed) return;
+
+    setBusyId(`reset-${league.id}`);
+    setNotice(null);
+
+    try {
+      const [members, leaguePredictions] = await Promise.all([
+        getLeagueMembers(league.id),
+        getLeaguePredictions(league.id),
+      ]);
+
+      const writes: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
+      for (const prediction of leaguePredictions) {
+        const isMissingRecord = prediction.data.status === 'missing' && !prediction.data.pick;
+        if (isMissingRecord) {
+          writes.push((batch) => batch.delete(prediction.ref));
+          continue;
+        }
+
+        writes.push((batch) => batch.update(prediction.ref, {
+          status: 'pending',
+          score: deleteField(),
+          correctPick: deleteField(),
+          scoredAt: deleteField(),
+          updatedAt: serverTimestamp(),
+        }));
+      }
+
+      for (const member of members) {
+        writes.push((batch) => batch.update(doc(db, `leagues/${league.id}/members`, member.userId), {
+          points: 0,
+          correctPicks: 0,
+          incorrectPicks: 0,
+          missingPicks: 0,
+          completedPicks: 0,
+          totalEligiblePicks: eligibleContestCount,
+          updatedAt: serverTimestamp(),
+        }));
+      }
+
+      writes.push((batch) => batch.update(doc(db, 'leagues', league.id), {
+        simulationStatus: 'open',
+        resetAt: serverTimestamp(),
+        resetBy: user.uid,
+        simulatedAt: deleteField(),
+        simulatedBy: deleteField(),
+        totalScoredPicks: 0,
+        totalMissingPicks: 0,
+      }));
+
+      await commitBatches(writes);
+      setNotice({ kind: 'success', message: `Reset ${league.name}. Picks are open again.` });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `leagues/${league.id}/reset`);
+      setNotice({ kind: 'error', message: 'Failed to reset league simulation.' });
+    } finally {
+      setBusyId(null);
+    }
   }
 
   async function callRace(race: Race, winnerId: string) {
@@ -138,6 +424,75 @@ export function Admin() {
           {notice.message}
         </div>
       )}
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between border-b border-black/10 pb-2">
+          <h2 className="font-black italic text-xl uppercase italic text-brand-blue">League Simulation</h2>
+          <p className="text-[10px] font-mono uppercase text-black/40">{eligibleContestCount} eligible 2024 sandbox contests</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {leagues.map((league) => {
+            const isSimulated = league.simulationStatus === 'simulated';
+            const isBusy = busyId === `simulate-${league.id}` || busyId === `reset-${league.id}`;
+            return (
+              <div key={league.id} className="bg-white border border-black/10 p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-black uppercase tracking-tight text-sm">{league.name}</p>
+                    <p className="text-[10px] font-mono uppercase text-black/40">Invite {league.inviteCode}</p>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-black px-2 py-1 uppercase transform -skew-x-12",
+                    isSimulated ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                  )}>
+                    {league.simulationStatus ?? 'open'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="text-[10px] font-mono uppercase text-black/40">Scored</p>
+                    <p className="font-black">{league.totalScoredPicks ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="text-[10px] font-mono uppercase text-black/40">Missing</p>
+                    <p className="font-black">{league.totalMissingPicks ?? 0}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="text-[10px] font-mono uppercase text-black/40">Contests</p>
+                    <p className="font-black">{league.eligibleContestCount ?? eligibleContestCount}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={isBusy || isSimulated || eligibleContestCount === 0}
+                    onClick={() => simulateLeague(league)}
+                    className="rounded-lg bg-brand-blue px-3 py-3 text-xs font-black uppercase text-white transition hover:bg-brand-red disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    Simulate
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy || !isSimulated}
+                    onClick={() => resetLeague(league)}
+                    className="rounded-lg border border-black/10 bg-white px-3 py-3 text-xs font-black uppercase transition hover:border-brand-red hover:text-brand-red disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {leagues.length === 0 && (
+            <div className="bg-white border border-black/10 p-6 font-mono text-[10px] uppercase text-black/40 lg:col-span-2">
+              No leagues found.
+            </div>
+          )}
+        </div>
+      </section>
 
       <section className="space-y-4">
         <div className="flex items-center justify-between border-b border-black/10 pb-2">

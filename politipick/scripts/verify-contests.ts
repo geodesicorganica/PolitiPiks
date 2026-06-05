@@ -15,6 +15,7 @@ type RaceDoc = {
   district?: unknown;
   closeDate?: unknown;
   candidates?: unknown;
+  winnerId?: unknown;
 };
 
 type MeasureDoc = {
@@ -22,6 +23,7 @@ type MeasureDoc = {
   state?: unknown;
   title?: unknown;
   closeDate?: unknown;
+  result?: unknown;
 };
 
 type StateCoverage = {
@@ -30,9 +32,62 @@ type StateCoverage = {
   Senate: number;
   House: number;
   ballotMeasures: number;
+  houseDistricts: Set<string>;
 };
 
-const REQUIRED_STATE_VIEW_OFFICES = ['President', 'Governor', 'Senate', 'House'] as const;
+const EXPECTED_2024_HOUSE_SEATS: Record<string, number> = {
+  AK: 1,
+  AL: 7,
+  AR: 4,
+  AZ: 9,
+  CA: 52,
+  CO: 8,
+  CT: 5,
+  DC: 0,
+  DE: 1,
+  FL: 28,
+  GA: 14,
+  HI: 2,
+  IA: 4,
+  ID: 2,
+  IL: 17,
+  IN: 9,
+  KS: 4,
+  KY: 6,
+  LA: 6,
+  MA: 9,
+  MD: 8,
+  ME: 2,
+  MI: 13,
+  MN: 8,
+  MO: 8,
+  MS: 4,
+  MT: 2,
+  NC: 14,
+  ND: 1,
+  NE: 3,
+  NH: 2,
+  NJ: 12,
+  NM: 3,
+  NV: 4,
+  NY: 26,
+  OH: 15,
+  OK: 5,
+  OR: 6,
+  PA: 17,
+  RI: 2,
+  SC: 7,
+  SD: 1,
+  TN: 9,
+  TX: 38,
+  UT: 4,
+  VA: 11,
+  VT: 1,
+  WA: 10,
+  WI: 8,
+  WV: 2,
+  WY: 1,
+};
 
 function getArg(name: string) {
   const idx = process.argv.indexOf(name);
@@ -130,6 +185,7 @@ function getStateCoverage(coverageByState: Map<string, StateCoverage>, state: st
     Senate: 0,
     House: 0,
     ballotMeasures: 0,
+    houseDistricts: new Set<string>(),
   };
   coverageByState.set(state, next);
   return next;
@@ -194,6 +250,9 @@ async function main() {
     if (office in coverage && office !== 'ballotMeasures') {
       coverage[office as keyof Omit<StateCoverage, 'ballotMeasures'>] += 1;
     }
+    if (office === 'House') {
+      coverage.houseDistricts.add(asString(race.district) || 'statewide');
+    }
 
     const district = asString(race.district) || 'statewide';
     const contestKey = `${state}|${office}|${district}`;
@@ -219,6 +278,14 @@ async function main() {
       }
       if (candidateId) candidateIds.add(candidateId);
     }
+
+    const winnerId = asString(race.winnerId);
+    if (idYear === '2024' && ['President', 'Senate', 'House'].includes(office) && !winnerId) {
+      issues.push(`Race ${race.id} missing winnerId`);
+    }
+    if (winnerId && !candidateIds.has(winnerId)) {
+      issues.push(`Race ${race.id} winnerId ${winnerId} is not in candidates`);
+    }
   }
 
   for (const measure of measures) {
@@ -233,14 +300,28 @@ async function main() {
     if (!asString(measure.state)) issues.push(`Measure ${measure.id} missing state`);
     if (!asString(measure.title)) issues.push(`Measure ${measure.id} missing title`);
     if (!dateYear) issues.push(`Measure ${measure.id} has malformed closeDate`);
+    if (idYear === '2024' && !['pass', 'fail'].includes(asString(measure.result))) {
+      issues.push(`Measure ${measure.id} missing pass/fail result`);
+    }
   }
 
   const missingStateViewSlots: string[] = [];
-  for (const [state, coverage] of coverageByState.entries()) {
-    for (const office of REQUIRED_STATE_VIEW_OFFICES) {
-      if (coverage[office] === 0) {
-        missingStateViewSlots.push(`${state}: missing ${office}`);
-      }
+  const allStates = new Set([...Object.keys(EXPECTED_2024_HOUSE_SEATS), ...coverageByState.keys()]);
+  for (const state of Array.from(allStates).sort((a, b) => a.localeCompare(b))) {
+    const coverage = coverageByState.get(state);
+    const expectedHouseSeats = EXPECTED_2024_HOUSE_SEATS[state];
+
+    if (!coverage) {
+      missingStateViewSlots.push(`${state}: missing all contests`);
+      continue;
+    }
+
+    if (coverage.President === 0) {
+      missingStateViewSlots.push(`${state}: missing President`);
+    }
+
+    if (typeof expectedHouseSeats === 'number' && coverage.House !== expectedHouseSeats) {
+      missingStateViewSlots.push(`${state}: expected ${expectedHouseSeats} House contests, found ${coverage.House}`);
     }
   }
 
@@ -261,7 +342,7 @@ async function main() {
     'State coverage:',
     formatCoverage(coverageByState) || '  none',
     '',
-    `State-view coverage gaps (${missingStateViewSlots.length}):`,
+    `Actionable 2024 coverage gaps (${missingStateViewSlots.length}):`,
     missingStateViewSlots.slice(0, 80).map((item) => `  ${item}`).join('\n') || '  none',
     missingStateViewSlots.length > 80 ? `  ... ${missingStateViewSlots.length - 80} more` : '',
     '',
