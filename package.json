@@ -13,6 +13,7 @@
     "grant-admin": "tsx scripts/grant-admin.ts",
     "seed-2024": "npm --prefix ingest run seed:2024",
     "clear-2026-mock-contests": "tsx scripts/clear-2026-mock-contests.ts",
+    "enrich-research-2024": "tsx scripts/enrich-research-2024.ts",
     "verify-contests": "tsx scripts/verify-contests.ts"
   },
   "dependencies": {
