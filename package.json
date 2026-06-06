@@ -9,7 +9,11 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "lint:rules": "eslint firestore.rules"
+    "lint:rules": "eslint firestore.rules",
+    "grant-admin": "tsx scripts/grant-admin.ts",
+    "seed-2024": "npm --prefix ingest run seed:2024",
+    "clear-2026-mock-contests": "tsx scripts/clear-2026-mock-contests.ts",
+    "verify-contests": "tsx scripts/verify-contests.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

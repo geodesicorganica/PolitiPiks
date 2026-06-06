@@ -4,53 +4,69 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-brand-blue: #002D72;
-  --color-brand-red: #E01E3C;
-  --color-brand-slate: #0F172A;
-  --color-brand-dark: #000000;
+  --color-brand-blue: #0A3161;
+  --color-brand-red: #B31942;
+  --color-brand-slate: #1B1B1B;
 }
 
 :root {
-  --bg: #000000;
-  --ink: #F1F5F9;
-  --line: rgba(255,255,255,0.08);
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --ink: #141414;
+  --line: rgba(10, 49, 97, 0.12);
 }
 
 body {
   background-color: var(--bg);
   color: var(--ink);
   font-family: var(--font-sans);
-  background-image: 
-    radial-gradient(circle at 2px 2px, rgba(255,255,255,0.03) 1px, transparent 0);
-  background-size: 24px 24px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(179, 25, 66, 0.08), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(10, 49, 97, 0.08), transparent 32%);
 }
 
 /* Technical grid helper */
 .grid-paper {
   background-size: 20px 20px;
-  background-image: 
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
 }
 
 .data-row {
   border-bottom: 1px solid var(--line);
-  transition: all 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .data-row:hover {
-  background: #0F172A;
-  border-color: var(--color-brand-red);
+  background: color-mix(in srgb, var(--surface) 80%, #e9eef5 20%);
+  transform: translateX(2px);
 }
 
 .mono {
   font-family: var(--font-mono);
 }
 
-.brutalist-card {
-  @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800 shadow-[4px_4px_0px_0px_rgba(224,30,60,0.3)] transition-all hover:shadow-[6px_6px_0px_0px_rgba(224,30,60,0.5)];
+.card-surface {
+  background: color-mix(in srgb, var(--surface) 92%, #eff3f9 8%);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(7, 20, 36, 0.06);
 }
 
-.scroll-hide::-webkit-scrollbar {
-  display: none;
+.section-shell {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 96%, #f4f7fc 4%);
+  box-shadow: 0 18px 42px rgba(7, 20, 36, 0.07);
+}
+
+.page-title {
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid color-mix(in srgb, #0A3161 70%, white 30%);
+  outline-offset: 2px;
 }

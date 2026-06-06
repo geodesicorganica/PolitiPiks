@@ -28,100 +28,321 @@ service cloud.firestore {
       return resource.data;
     }
 
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isLeagueMember(leagueId) {
+      return isSignedIn() &&
+             leagueId is string &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid));
+    }
+
+    function leagueIsSimulated(leagueId) {
+      return leagueId is string &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)) &&
+             get(/databases/$(database)/documents/leagues/$(leagueId)).data.simulationStatus == 'simulated';
+    }
+
+    function leagueAcceptsPicks(leagueId) {
+      return leagueId is string &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)) &&
+             get(/databases/$(database)/documents/leagues/$(leagueId)).data.simulationStatus != 'simulated';
+    }
+
+    function predictionAcceptsUserUpdate(data) {
+      return !data.keys().hasAny(['leagueId']) ||
+             (isLeagueMember(data.leagueId) && leagueAcceptsPicks(data.leagueId));
+    }
+
+    function isContestMode(value) {
+      return value == 'sandbox' || value == 'live';
+    }
+
+    function isContestStatus(value) {
+      return value == 'upcoming' || value == 'live' || value == 'called';
+    }
+
+    function isPredictionStatus(value) {
+      return value == 'pending' || value == 'correct' || value == 'incorrect' || value == 'missing';
+    }
+
+    function isNonNegativeNumber(value) {
+      return value is number && value >= 0;
+    }
+
     match /test/connection {
-      allow read: if true;
+      allow read: if isSignedIn();
     }
 
     // --- Users ---
     function isValidUser(data) {
-      return data.uid == request.auth.uid &&
-             data.displayName is string && data.displayName.size() <= 100 &&
-             data.email is string && data.email.size() <= 100 &&
-             data.photoURL is string && data.photoURL.size() <= 2000 &&
-             data.totalPoints is number && data.totalPoints >= 0 &&
-             data.predictionsCount is number && data.predictionsCount >= 0 &&
-             data.correctPredictions is number && data.correctPredictions >= 0 &&
+      return data.uid is string &&
+             data.displayName is string &&
+             data.email is string &&
+             data.photoURL is string &&
+             data.totalPoints is number &&
+             data.predictionsCount is number &&
+             data.correctPredictions is number &&
              data.keys().hasAll(['uid', 'displayName', 'email', 'photoURL', 'totalPoints', 'predictionsCount', 'correctPredictions']) &&
              data.keys().size() == 7;
     }
 
-    function isValidUserPublic(data) {
-      return data.displayName is string && data.displayName.size() <= 100 &&
-             data.photoURL is string && data.photoURL.size() <= 2000 &&
-             data.totalPoints is number && data.totalPoints >= 0 &&
-             data.predictionsCount is number && data.predictionsCount >= 0 &&
-             data.correctPredictions is number && data.correctPredictions >= 0 &&
-             data.keys().hasAll(['displayName', 'photoURL', 'totalPoints', 'predictionsCount', 'correctPredictions']) &&
-             data.keys().size() == 5;
-    }
-
     match /users/{userId} {
       allow get: if isOwner(userId);
+      allow list: if isSignedIn();
       allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'email']);
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints', 'predictionsCount', 'correctPredictions']);
     }
 
-    match /users_public/{userId} {
-      allow read: if isSignedIn();
-      allow create, update: if isOwner(userId) && isValidUserPublic(incoming());
-    }
-
-    match /users_private/{userId} {
-      allow read, write: if isOwner(userId);
+    // --- Admins ---
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // --- Leagues ---
     function isValidLeague(data) {
       return data.name is string && data.name.size() <= 100 &&
              data.ownerId == request.auth.uid &&
-             data.inviteCode is string && data.inviteCode.size() <= 10 &&
+             data.inviteCode is string &&
              data.createdAt == request.time &&
+             (!data.keys().hasAny(['contestMode']) || isContestMode(data.contestMode)) &&
+             (!data.keys().hasAny(['contestYear']) || data.contestYear is number) &&
+             (!data.keys().hasAny(['simulationStatus']) || data.simulationStatus == 'open') &&
+             (!data.keys().hasAny(['eligibleContestCount']) || isNonNegativeNumber(data.eligibleContestCount)) &&
+             (!data.keys().hasAny(['totalScoredPicks']) || isNonNegativeNumber(data.totalScoredPicks)) &&
+             (!data.keys().hasAny(['totalMissingPicks']) || isNonNegativeNumber(data.totalMissingPicks)) &&
              data.keys().hasAll(['name', 'ownerId', 'inviteCode', 'createdAt']) &&
-             data.keys().size() == 4;
+             data.keys().hasOnly([
+               'name',
+               'ownerId',
+               'inviteCode',
+               'contestMode',
+               'contestYear',
+               'simulationStatus',
+               'eligibleContestCount',
+               'totalScoredPicks',
+               'totalMissingPicks',
+               'createdAt'
+             ]);
+    }
+
+    function isValidLeagueSimulation(data) {
+      return (!data.keys().hasAny(['contestMode']) || isContestMode(data.contestMode)) &&
+             (!data.keys().hasAny(['contestYear']) || data.contestYear is number) &&
+             (!data.keys().hasAny(['simulationStatus']) || data.simulationStatus == 'open' || data.simulationStatus == 'simulated') &&
+             (!data.keys().hasAny(['simulatedAt']) || data.simulatedAt is timestamp) &&
+             (!data.keys().hasAny(['simulatedBy']) || data.simulatedBy is string) &&
+             (!data.keys().hasAny(['resetAt']) || data.resetAt is timestamp) &&
+             (!data.keys().hasAny(['resetBy']) || data.resetBy is string) &&
+             (!data.keys().hasAny(['eligibleContestCount']) || isNonNegativeNumber(data.eligibleContestCount)) &&
+             (!data.keys().hasAny(['totalScoredPicks']) || isNonNegativeNumber(data.totalScoredPicks)) &&
+             (!data.keys().hasAny(['totalMissingPicks']) || isNonNegativeNumber(data.totalMissingPicks));
     }
 
     function isValidMember(data) {
       return data.userId == request.auth.uid &&
-             data.displayName is string && data.displayName.size() <= 100 &&
-             data.photoURL is string && data.photoURL.size() <= 500 &&
-             data.points is number && data.joinedAt == request.time &&
+             data.displayName is string &&
+             data.photoURL is string &&
+             data.points is number &&
+             data.joinedAt == request.time &&
+             (!data.keys().hasAny(['correctPicks']) || isNonNegativeNumber(data.correctPicks)) &&
+             (!data.keys().hasAny(['incorrectPicks']) || isNonNegativeNumber(data.incorrectPicks)) &&
+             (!data.keys().hasAny(['missingPicks']) || isNonNegativeNumber(data.missingPicks)) &&
+             (!data.keys().hasAny(['completedPicks']) || isNonNegativeNumber(data.completedPicks)) &&
+             (!data.keys().hasAny(['totalEligiblePicks']) || isNonNegativeNumber(data.totalEligiblePicks)) &&
              data.keys().hasAll(['userId', 'displayName', 'photoURL', 'points', 'joinedAt']) &&
-             data.keys().size() == 5;
+             data.keys().hasOnly([
+               'userId',
+               'displayName',
+               'photoURL',
+               'points',
+               'correctPicks',
+               'incorrectPicks',
+               'missingPicks',
+               'completedPicks',
+               'totalEligiblePicks',
+               'joinedAt'
+             ]);
+    }
+
+    function isValidMemberScore(data) {
+      return data.points is number &&
+             (!data.keys().hasAny(['correctPicks']) || isNonNegativeNumber(data.correctPicks)) &&
+             (!data.keys().hasAny(['incorrectPicks']) || isNonNegativeNumber(data.incorrectPicks)) &&
+             (!data.keys().hasAny(['missingPicks']) || isNonNegativeNumber(data.missingPicks)) &&
+             (!data.keys().hasAny(['completedPicks']) || isNonNegativeNumber(data.completedPicks)) &&
+             (!data.keys().hasAny(['totalEligiblePicks']) || isNonNegativeNumber(data.totalEligiblePicks)) &&
+             (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp);
     }
 
     match /leagues/{leagueId} {
-      allow get: if isSignedIn() && isValidId(leagueId);
-      allow list: if isSignedIn(); // Broad list needed for joining by invite code
+      allow read: if isSignedIn();
       allow create: if isSignedIn() && isValidLeague(incoming());
-      allow update: if isSignedIn() && isValidId(leagueId) && (
-        resource.data.ownerId == request.auth.uid || 
-        exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid))
-      );
-      
+      allow update: if isSignedIn() &&
+        resource.data.ownerId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name']);
+      allow update: if isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'contestMode',
+          'contestYear',
+          'simulationStatus',
+          'simulatedAt',
+          'simulatedBy',
+          'resetAt',
+          'resetBy',
+          'eligibleContestCount',
+          'totalScoredPicks',
+          'totalMissingPicks'
+        ]) &&
+        isValidLeagueSimulation(incoming());
+
       match /members/{memberId} {
-        allow get: if isSignedIn() && isValidId(memberId);
-        allow list: if isSignedIn();
+        allow read: if isSignedIn();
         allow create: if isOwner(memberId) && isValidMember(incoming());
-        allow update: if isOwner(memberId) && isValidId(memberId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['points'])
-        );
+        allow update: if isOwner(memberId) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+        allow update: if isAdmin() &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'points',
+            'correctPicks',
+            'incorrectPicks',
+            'missingPicks',
+            'completedPicks',
+            'totalEligiblePicks',
+            'updatedAt'
+          ]) &&
+          isValidMemberScore(incoming());
       }
+    }
+
+    function isValidRace(data) {
+      return data.state is string &&
+             data.office is string &&
+             data.closeDate is string &&
+             data.candidates is list &&
+             (!data.keys().hasAny(['district']) || data.district is string || data.district == null) &&
+             (!data.keys().hasAny(['electionYear']) || data.electionYear is number) &&
+             (!data.keys().hasAny(['mode']) || isContestMode(data.mode)) &&
+             (!data.keys().hasAny(['status']) || isContestStatus(data.status)) &&
+             (!data.keys().hasAny(['winnerId']) || data.winnerId is string) &&
+             data.keys().hasAll(['state', 'office', 'closeDate', 'candidates']);
+    }
+
+    function isValidBallotMeasure(data) {
+      return data.state is string &&
+             data.title is string &&
+             data.description is string &&
+             data.closeDate is string &&
+             (!data.keys().hasAny(['electionYear']) || data.electionYear is number) &&
+             (!data.keys().hasAny(['mode']) || isContestMode(data.mode)) &&
+             (!data.keys().hasAny(['status']) || isContestStatus(data.status)) &&
+             (!data.keys().hasAny(['result']) || data.result == 'pass' || data.result == 'fail') &&
+             data.keys().hasAll(['state', 'title', 'description', 'closeDate']);
+    }
+
+    function isValidResearchDoc(data) {
+      return (!data.keys().hasAny(['candidateId']) || data.candidateId is string) &&
+             (!data.keys().hasAny(['raceId']) || data.raceId is string) &&
+             (!data.keys().hasAny(['measureId']) || data.measureId is string) &&
+             (!data.keys().hasAny(['buckets']) || data.buckets is map) &&
+             (!data.keys().hasAny(['sources']) || data.sources is list) &&
+             (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp) &&
+             (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp);
     }
 
     match /races/{raceId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow create: if isAdmin() && isValidRace(incoming());
+      allow update: if isAdmin() && isValidRace(incoming());
+      allow delete: if isAdmin();
+
+      match /candidateResearch/{candidateId} {
+        allow read: if isSignedIn();
+        allow create, update: if isAdmin() &&
+          isValidResearchDoc(incoming()) &&
+          (!incoming().keys().hasAny(['candidateId']) || incoming().candidateId == candidateId) &&
+          (!incoming().keys().hasAny(['raceId']) || incoming().raceId == raceId);
+        allow delete: if isAdmin();
+      }
     }
 
-    match /measures/{measureId} {
+    match /ballotMeasures/{measureId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      allow create: if isAdmin() && isValidBallotMeasure(incoming());
+      allow update: if isAdmin() && isValidBallotMeasure(incoming());
+      allow delete: if isAdmin();
+
+      match /research/{researchId} {
+        allow read: if isSignedIn();
+        allow create, update: if isAdmin() &&
+          isValidResearchDoc(incoming()) &&
+          (!incoming().keys().hasAny(['measureId']) || incoming().measureId == measureId);
+        allow delete: if isAdmin();
+      }
+    }
+
+    function isValidUserPredictionCreate(data) {
+      return data.userId == request.auth.uid &&
+             data.targetId is string &&
+             (data.type == 'race' || data.type == 'measure') &&
+             data.pick is string &&
+             data.status == 'pending' &&
+             data.createdAt == request.time &&
+             (!data.keys().hasAny(['leagueId']) || data.leagueId is string) &&
+             (!data.keys().hasAny(['leagueId']) || (isLeagueMember(data.leagueId) && leagueAcceptsPicks(data.leagueId))) &&
+             data.keys().hasAll(['userId', 'targetId', 'type', 'pick', 'status', 'createdAt']) &&
+             data.keys().hasOnly(['userId', 'leagueId', 'targetId', 'type', 'pick', 'status', 'createdAt']);
+    }
+
+    function isValidAdminPredictionCreate(data) {
+      return data.userId is string &&
+             data.targetId is string &&
+             (data.type == 'race' || data.type == 'measure') &&
+             isPredictionStatus(data.status) &&
+             (!data.keys().hasAny(['leagueId']) || data.leagueId is string) &&
+             (!data.keys().hasAny(['pick']) || data.pick is string) &&
+             (!data.keys().hasAny(['score']) || isNonNegativeNumber(data.score)) &&
+             (!data.keys().hasAny(['correctPick']) || data.correctPick is string) &&
+             (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp) &&
+             (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp) &&
+             (!data.keys().hasAny(['scoredAt']) || data.scoredAt is timestamp);
+    }
+
+    function isValidPredictionScore(data) {
+      return isPredictionStatus(data.status) &&
+             (!data.keys().hasAny(['score']) || isNonNegativeNumber(data.score)) &&
+             (!data.keys().hasAny(['correctPick']) || data.correctPick is string) &&
+             (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp) &&
+             (!data.keys().hasAny(['scoredAt']) || data.scoredAt is timestamp);
     }
 
     match /predictions/{predictionId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        (
+          resource.data.keys().hasAny(['leagueId']) &&
+          resource.data.leagueId is string &&
+          isLeagueMember(resource.data.leagueId) &&
+          leagueIsSimulated(resource.data.leagueId)
+        )
+      );
+      allow create: if isSignedIn() && isValidUserPredictionCreate(incoming());
+      allow create: if isAdmin() && isValidAdminPredictionCreate(incoming());
+      allow delete: if isAdmin();
+      allow delete: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        predictionAcceptsUserUpdate(existing());
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        predictionAcceptsUserUpdate(existing()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['pick', 'updatedAt']) &&
+        incoming().status == 'pending';
+      allow update: if isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'score', 'correctPick', 'scoredAt', 'updatedAt']) &&
+        isValidPredictionScore(incoming());
     }
   }
 }

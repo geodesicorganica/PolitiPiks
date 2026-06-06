@@ -5,17 +5,14 @@
 
 import { useEffect, useState, createContext, useContext } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db, signInWithGoogle } from './lib/firebase';
 import { UserProfile } from './types';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Races } from './pages/Races';
 import { Leagues } from './pages/Leagues';
-import { Leaderboard } from './pages/Leaderboard';
-import { LeagueDetail } from './pages/LeagueDetail';
-import { CandidateDetail } from './pages/CandidateDetail';
-import { Candidate } from './types';
+import { Admin } from './pages/Admin';
 import { AnimatePresence, motion } from 'motion/react';
 import { handleFirestoreError, OperationType } from './lib/utils';
 
@@ -23,6 +20,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  isAdmin: boolean;
   signIn: () => Promise<void>;
 }
 
@@ -37,10 +35,11 @@ export const useAuth = () => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState('dashboard');
-  const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [currentTab, setCurrentTab] = useState('leagues');
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -79,6 +78,7 @@ export default function App() {
         }
       } else {
         setProfile(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -86,11 +86,30 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to admin status (so it can be granted without re-login)
+    const adminDoc = doc(db, 'admins', user.uid);
+    const unsubscribe = onSnapshot(adminDoc, (snap) => {
+      setIsAdmin(snap.exists());
+    }, () => setIsAdmin(false));
+
+    return () => unsubscribe();
+  }, [user]);
+
   const signIn = async () => {
+    setSignInError(null);
+    setSigningIn(true);
     try {
       await signInWithGoogle();
-    } catch (error) {
+    } catch (error: any) {
+      const code = error?.code ? ` (${error.code})` : '';
+      const message = error?.message ? String(error.message) : 'Sign-in failed.';
+      setSignInError(`${message}${code}`);
       console.error(error);
+    } finally {
+      setSigningIn(false);
     }
   };
 
@@ -100,7 +119,7 @@ export default function App() {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-          className="w-8 h-8 border-2 border-white border-t-transparent rounded-full"
+          className="w-10 h-10 border-2 border-white border-t-transparent rounded-full"
         />
       </div>
     );
@@ -108,25 +127,32 @@ export default function App() {
 
   if (!user) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white p-6 grid-paper">
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-brand-blue text-white p-6 grid-paper">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-md w-full text-center space-y-8"
+          className="max-w-md w-full text-center space-y-8 rounded-2xl border border-white/15 bg-white/8 p-8 backdrop-blur-md shadow-2xl shadow-black/20"
         >
           <div className="space-y-4">
-            <h1 className="text-6xl font-black italic tracking-tighter text-brand-red">POLITIPICK</h1>
-            <p className="text-slate-400 font-mono text-sm uppercase tracking-widest">Midterm Fantasy Leagues 2026</p>
+            <h1 className="text-5xl sm:text-6xl font-black italic tracking-tighter text-brand-red page-title">POLITIPICK</h1>
+            <p className="text-white/65 font-mono text-sm uppercase tracking-widest">Midterm Fantasy Leagues 2026</p>
           </div>
           
           <button
             onClick={signIn}
-            className="w-full py-4 bg-white text-black font-bold uppercase tracking-tighter hover:bg-brand-red hover:text-white transition-colors border-2 border-white"
+            disabled={signingIn}
+            className="w-full py-4 rounded-xl bg-white text-black font-bold uppercase tracking-tight hover:bg-brand-red hover:text-white transition-colors border border-white disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Sign in with Google
+            {signingIn ? 'Signing in…' : 'Sign in with Google'}
           </button>
+
+          {signInError && (
+            <div className="rounded-lg border border-brand-red/40 bg-brand-red/10 text-brand-red text-left p-3 font-mono text-[10px] uppercase">
+              {signInError}
+            </div>
+          )}
           
-          <p className="text-xs text-slate-500 font-mono">
+          <p className="text-xs text-white/55 font-mono">
             Picks are locked 1 hour before polls close in each respective state.
           </p>
         </motion.div>
@@ -135,7 +161,7 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, signIn }}>
       <Layout activeTab={currentTab} onTabChange={setCurrentTab}>
         <AnimatePresence mode="wait">
           <motion.div
@@ -147,17 +173,9 @@ export default function App() {
             className="flex-1"
           >
             {currentTab === 'dashboard' && <Dashboard />}
-            {currentTab === 'races' && (
-              selectedCandidate 
-                ? <CandidateDetail candidate={selectedCandidate} onBack={() => setSelectedCandidate(null)} />
-                : <Races onSelectCandidate={setSelectedCandidate} />
-            )}
-            {currentTab === 'leagues' && (
-              selectedLeagueId 
-                ? <LeagueDetail leagueId={selectedLeagueId} onBack={() => setSelectedLeagueId(null)} />
-                : <Leagues onSelectLeague={setSelectedLeagueId} />
-            )}
-            {currentTab === 'leaderboard' && <Leaderboard />}
+            {currentTab === 'races' && <Races />}
+            {currentTab === 'leagues' && <Leagues />}
+            {currentTab === 'admin' && isAdmin && <Admin />}
           </motion.div>
         </AnimatePresence>
       </Layout>

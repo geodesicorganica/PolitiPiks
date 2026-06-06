@@ -17,111 +17,88 @@ export function Leaderboard() {
       setLoading(false);
       return;
     }
-    
+
     const q = query(
-      collection(db, 'users_public'),
+      collection(db, 'users'),
       where('totalPoints', '>=', 0),
       orderBy('totalPoints', 'desc'),
       limit(10)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTopUsers(snapshot.docs.map(doc => ({ ...doc.data() as UserProfile, uid: doc.id })));
+      setTopUsers(snapshot.docs.map(doc => doc.data() as UserProfile));
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users_public');
+      handleFirestoreError(error, OperationType.LIST, 'users');
     });
 
     return () => unsubscribe();
   }, []);
 
   return (
-    <div className="space-y-12 pb-12">
-      <div className="border-b-4 border-slate-800 pb-6 flex justify-between items-end">
-        <div>
-          <h1 className="text-5xl font-black italic tracking-tighter uppercase italic text-white flex items-center gap-4">
-             Global <span className="text-brand-red">Ranks</span>
-          </h1>
-          <p className="text-xs font-mono uppercase text-slate-500 mt-2">The architects of prediction. Top 0.1% tier.</p>
-        </div>
+    <div className="space-y-8 pb-12">
+      <div className="border-b border-brand-red/20 pb-4">
+        <h1 className="page-title text-4xl font-black italic uppercase text-brand-red">Global Rankings</h1>
+        <p className="text-xs font-mono uppercase text-black/40 mt-1">The elite predictors of the 2026 midterms.</p>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 brutalist-card overflow-hidden">
+      <div className="section-shell overflow-hidden">
         {loading ? (
           <div className="p-20 flex items-center justify-center">
-            <motion.div 
+            <motion.div
                animate={{ scale: [1, 1.1, 1] }} transition={{ repeat: Infinity, duration: 1 }}
-               className="text-[10px] font-mono uppercase text-slate-700"
+               className="text-[10px] font-mono uppercase text-black/20"
             >
-              Analyzing performance metrics...
+              Calculating ranks...
             </motion.div>
           </div>
         ) : (
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-black/5">
             {topUsers.map((u, index) => (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
-                key={u.uid} 
-                className={cn(
-                  "p-6 flex items-center justify-between group transition-all",
-                  u.uid === profile?.uid ? "bg-brand-red/10 border-l-4 border-l-brand-red" : "hover:bg-slate-800/30"
-                )}
+                key={u.uid}
+                className="data-row p-6 flex items-center justify-between group"
               >
-                <div className="flex items-center gap-8">
-                  <div className="w-16 h-16 flex items-center justify-center font-black italic text-3xl shrink-0">
+                <div className="flex items-center gap-6">
+                  <div className="w-12 h-12 flex items-center justify-center font-black italic text-2xl relative">
+                    {index === 0 && <Trophy className="absolute -top-2 -left-2 text-yellow-500 rotate-[-15deg]" size={20} />}
+                    {index === 1 && <Medal className="absolute -top-2 -left-2 text-slate-400 rotate-[-15deg]" size={20} />}
+                    {index === 2 && <Star className="absolute -top-2 -left-2 text-amber-600 rotate-[-15deg]" size={20} />}
                     <span className={cn(
-                      "text-slate-800 group-hover:text-slate-700 transition-colors",
-                      index < 3 && "text-brand-red"
+                      "text-slate-300 group-hover:text-brand-blue transition-colors",
+                      index < 3 && "text-brand-red font-black"
                     )}>
                       {String(index + 1).padStart(2, '0')}
                     </span>
                   </div>
-                  
-                  <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-none border-2 border-slate-800 overflow-hidden bg-black p-0.5">
-                       <img 
-                        src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.displayName}`} 
-                        alt="" 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
+
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={u.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.displayName}`}
+                      alt=""
+                      className="w-10 h-10 rounded-full border border-black/10 bg-slate-100"
+                    />
                     <div>
-                      <p className="font-black uppercase tracking-tighter text-xl text-white italic">{u.displayName}</p>
-                      <p className="text-[10px] font-mono text-slate-500 uppercase flex items-center gap-3 mt-1">
-                        <span className="flex items-center gap-1"><Medal size={12} className="text-brand-red" /> {u.predictionsCount} PICKS</span>
-                        <span className="w-1 h-1 bg-slate-800 rounded-full" />
-                        <span className="flex items-center gap-1 text-slate-400">ACCURACY: {u.predictionsCount ? Math.round((u.correctPredictions / u.predictionsCount) * 100) : 0}%</span>
+                      <p className="font-black uppercase tracking-tighter text-lg">{u.displayName}</p>
+                      <p className="text-[10px] font-mono text-black/45 uppercase">
+                        {u.correctPredictions} Correct • {u.totalPoints} Global Points
                       </p>
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="text-right">
-                   <p className="text-[10px] font-mono uppercase text-slate-600 mb-1">XP Points</p>
-                   <p className="text-3xl font-black italic tracking-tighter text-white group-hover:text-brand-red transition-all">{u.totalPoints}</p>
+                   <p className="text-[10px] font-mono uppercase text-black/40">Points</p>
+                   <p className="text-2xl font-black italic tracking-tighter text-brand-blue">{u.totalPoints}</p>
                 </div>
               </motion.div>
             ))}
           </div>
         )}
       </div>
-
-      {/* Your Rank Pin */}
-      {!loading && !topUsers.find(u => u.uid === profile?.uid) && profile && (
-         <div className="brutalist-card bg-brand-red p-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-white flex items-center justify-center text-brand-red font-black italic">#142</div>
-               <div>
-                  <p className="text-white font-black uppercase italic text-lg">{profile.displayName}</p>
-                  <p className="text-[10px] text-white/70 font-mono uppercase italic">You are currently outside the elite top 10.</p>
-               </div>
-            </div>
-            <p className="text-3xl font-black text-white italic tracking-tighter">{profile.totalPoints}</p>
-         </div>
-      )}
     </div>
   );
 }
