@@ -1,0 +1,24 @@
+{
+  "name": "politipick-ingest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "seed:2024": "tsx src/seed-medsl2024.ts"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.0",
+    "express": "^4.19.2",
+    "papaparse": "^5.4.1",
+    "react-example": "file:..",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/papaparse": "^5.3.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

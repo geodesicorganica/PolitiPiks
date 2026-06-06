@@ -6,3 +6,19 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase / local tooling
+.firebase/
+firebase-debug.log
+.tools/
+politipick/
+
+# Service account / admin SDK keys (never commit)
+serviceAccount*.json
+*service-account*.json
+firebase-adminsdk*.json
+*.pem
+politipiks-firebase-adminsdk-*.json
+
+# Scaffold/metadata (not part of app source)
+.remote-source/
