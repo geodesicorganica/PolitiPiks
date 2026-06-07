@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../App';
 import {
   addDoc,
@@ -1088,6 +1088,7 @@ function StateContestGrid({
   const governor = races.find((race) => race.office === 'Governor');
   const senate = races.find((race) => race.office === 'Senate');
   const houseRaces = races.filter((race) => race.office === 'House');
+  const statewideRaces = [president, governor, senate].filter((race): race is Race => Boolean(race));
 
   return (
     <section className="space-y-4">
@@ -1096,24 +1097,21 @@ function StateContestGrid({
         <span className="font-mono text-[10px] uppercase text-black/40">{races.length + measures.length} contests</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ContestSlot title="Presidential Race">
-          {president ? (
-            <RacePickCard race={president} prediction={predictions[president.id]} submitting={submitting === president.id} locked={locked} onPick={(pick) => onRacePick(president.id, pick)} onOpenResearch={onOpenResearch} />
-          ) : null}
-        </ContestSlot>
-        <ContestSlot title="Gubernatorial Race">
-          {governor ? (
-            <RacePickCard race={governor} prediction={predictions[governor.id]} submitting={submitting === governor.id} locked={locked} onPick={(pick) => onRacePick(governor.id, pick)} onOpenResearch={onOpenResearch} />
-          ) : null}
-        </ContestSlot>
-        <ContestSlot title="Senate Race">
-          {senate ? (
-            <RacePickCard race={senate} prediction={predictions[senate.id]} submitting={submitting === senate.id} locked={locked} onPick={(pick) => onRacePick(senate.id, pick)} onOpenResearch={onOpenResearch} />
-          ) : null}
-        </ContestSlot>
-        {houseRaces.length > 0 ? (
-          houseRaces.map((house) => (
+      {(statewideRaces.length > 0 || houseRaces.length > 0) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {statewideRaces.map((race) => (
+            <div key={race.id}>
+              <RacePickCard
+                race={race}
+                prediction={predictions[race.id]}
+                submitting={submitting === race.id}
+                locked={locked}
+                onPick={(pick) => onRacePick(race.id, pick)}
+                onOpenResearch={onOpenResearch}
+              />
+            </div>
+          ))}
+          {houseRaces.map((house) => (
             <div key={house.id}>
               <RacePickCard
                 race={house}
@@ -1124,11 +1122,9 @@ function StateContestGrid({
                 onOpenResearch={onOpenResearch}
               />
             </div>
-          ))
-        ) : (
-          <ContestSlot title="Congressional Race">{null}</ContestSlot>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {measures.length > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -1147,19 +1143,6 @@ function StateContestGrid({
         </div>
       )}
     </section>
-  );
-}
-
-function ContestSlot({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="min-h-40">
-      {children || (
-        <div className="h-full rounded-lg border border-dashed border-black/15 bg-white/70 p-4">
-          <p className="text-[10px] font-mono uppercase text-black/35">{title}</p>
-          <p className="mt-6 text-center text-[10px] font-mono uppercase text-black/30">No contest loaded</p>
-        </div>
-      )}
-    </div>
   );
 }
 
