@@ -15,6 +15,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BallotMeasure, League, LeagueMember, Prediction, Race } from '../types';
+import {
+  buildEligibleLeagueContests,
+  isSandboxMeasure,
+  isSandboxRace,
+  missingPredictionId,
+  predictionKey,
+  scoreLeagueSimulation,
+} from '../lib/leagueSandbox';
 import { useAuth } from '../App';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 
@@ -24,22 +32,6 @@ const FIRESTORE_BATCH_LIMIT = 450;
 
 function byName(a: { state: string }, b: { state: string }) {
   return a.state.localeCompare(b.state);
-}
-
-function isSandboxRace(race: Race) {
-  return race.electionYear === 2024 && race.mode === 'sandbox' && Boolean(race.winnerId);
-}
-
-function isSandboxMeasure(measure: BallotMeasure) {
-  return measure.electionYear === 2024 && measure.mode === 'sandbox' && (measure.result === 'pass' || measure.result === 'fail');
-}
-
-function predictionKey(userId: string, targetId: string) {
-  return `${userId}::${targetId}`;
-}
-
-function missingPredictionId(leagueId: string, userId: string, targetId: string) {
-  return `${leagueId}_${userId}_${targetId}_missing`.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 180);
 }
 
 async function commitBatches(
@@ -161,107 +153,53 @@ export function Admin() {
         predictionByMemberTarget.set(predictionKey(prediction.data.userId, prediction.data.targetId), prediction);
       }
 
-      const contests = [
-        ...eligibleRaces.map((race) => ({
-          targetId: race.id,
-          type: 'race' as const,
-          correctPick: race.winnerId!,
-        })),
-        ...eligibleMeasures.map((measure) => ({
-          targetId: measure.id,
-          type: 'measure' as const,
-          correctPick: measure.result!,
-        })),
-      ];
+      const contests = buildEligibleLeagueContests(eligibleRaces, eligibleMeasures);
+      const scorePlan = scoreLeagueSimulation(
+        members,
+        leaguePredictions.map((prediction) => ({ id: prediction.id, ...prediction.data } as Prediction)),
+        contests,
+        LEAGUE_POINTS_PER_CORRECT,
+      );
 
-      let missingTotal = 0;
-      const memberScores = new Map<string, {
-        correctPicks: number;
-        incorrectPicks: number;
-        missingPicks: number;
-        points: number;
-      }>();
-
-      for (const member of members) {
-        memberScores.set(member.userId, {
-          correctPicks: 0,
-          incorrectPicks: 0,
-          missingPicks: 0,
-          points: 0,
-        });
-      }
-
-      for (const member of members) {
-        for (const contest of contests) {
-          const existing = predictionByMemberTarget.get(predictionKey(member.userId, contest.targetId));
-          const score = memberScores.get(member.userId)!;
-          if (!existing?.data.pick) {
-            score.missingPicks += 1;
-            missingTotal += 1;
-            continue;
-          }
-
-          if (existing.data.pick === contest.correctPick) {
-            score.correctPicks += 1;
-            score.points += LEAGUE_POINTS_PER_CORRECT;
-          } else {
-            score.incorrectPicks += 1;
-          }
-        }
-      }
-
-      if (missingTotal > 0) {
+      if (scorePlan.missingTotal > 0) {
         const proceed = window.confirm(
-          `${missingTotal} missing picks will be scored as 0 across ${members.length} league members. Simulate anyway?`,
+          `${scorePlan.missingTotal} missing picks will be scored as 0 across ${members.length} league members. Simulate anyway?`,
         );
         if (!proceed) return;
       }
 
       const writes: Array<(batch: ReturnType<typeof writeBatch>) => void> = [];
 
-      for (const member of members) {
-        for (const contest of contests) {
-          const existing = predictionByMemberTarget.get(predictionKey(member.userId, contest.targetId));
-          if (!existing?.data.pick) {
-            if (existing) {
-              writes.push((batch) => batch.update(existing.ref, {
-                status: 'missing',
-                score: 0,
-                correctPick: contest.correctPick,
-                scoredAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              }));
-            } else {
-              const ref = doc(db, 'predictions', missingPredictionId(league.id, member.userId, contest.targetId));
-              writes.push((batch) => batch.set(ref, {
-                userId: member.userId,
-                leagueId: league.id,
-                targetId: contest.targetId,
-                type: contest.type,
-                status: 'missing',
-                score: 0,
-                correctPick: contest.correctPick,
-                createdAt: serverTimestamp(),
-                scoredAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-              }));
-            }
-            continue;
-          }
-
-          const isCorrect = existing.data.pick === contest.correctPick;
-          writes.push((batch) => batch.update(existing.ref, {
-            status: isCorrect ? 'correct' : 'incorrect',
-            score: isCorrect ? LEAGUE_POINTS_PER_CORRECT : 0,
-            correctPick: contest.correctPick,
+      for (const outcome of scorePlan.outcomes) {
+        const existing = predictionByMemberTarget.get(predictionKey(outcome.userId, outcome.contest.targetId));
+        if (!existing) {
+          const ref = doc(db, 'predictions', missingPredictionId(league.id, outcome.userId, outcome.contest.targetId));
+          writes.push((batch) => batch.set(ref, {
+            userId: outcome.userId,
+            leagueId: league.id,
+            targetId: outcome.contest.targetId,
+            type: outcome.contest.type,
+            status: 'missing',
+            score: 0,
+            correctPick: outcome.correctPick,
+            createdAt: serverTimestamp(),
             scoredAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           }));
+          continue;
         }
+
+        writes.push((batch) => batch.update(existing.ref, {
+          status: outcome.status,
+          score: outcome.score,
+          correctPick: outcome.correctPick,
+          scoredAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }));
       }
 
       for (const member of members) {
-        const score = memberScores.get(member.userId)!;
+        const score = scorePlan.memberScores.get(member.userId)!;
         const memberRef = doc(db, `leagues/${league.id}/members`, member.userId);
         writes.push((batch) => batch.update(memberRef, {
           points: score.points,
@@ -269,7 +207,7 @@ export function Admin() {
           incorrectPicks: score.incorrectPicks,
           missingPicks: score.missingPicks,
           completedPicks: score.correctPicks + score.incorrectPicks,
-          totalEligiblePicks: contests.length,
+          totalEligiblePicks: scorePlan.contests.length,
           updatedAt: serverTimestamp(),
         }));
       }
@@ -280,13 +218,13 @@ export function Admin() {
         simulationStatus: 'simulated',
         simulatedAt: serverTimestamp(),
         simulatedBy: user.uid,
-        eligibleContestCount: contests.length,
-        totalScoredPicks: members.length * contests.length,
-        totalMissingPicks: missingTotal,
+        eligibleContestCount: scorePlan.contests.length,
+        totalScoredPicks: scorePlan.totalScoredPicks,
+        totalMissingPicks: scorePlan.missingTotal,
       }));
 
       await commitBatches(writes);
-      setNotice({ kind: 'success', message: `Simulated ${league.name}: ${contests.length} contests scored for ${members.length} members.` });
+      setNotice({ kind: 'success', message: `Simulated ${league.name}: ${scorePlan.contests.length} contests scored for ${members.length} members.` });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `leagues/${league.id}/simulation`);
       setNotice({ kind: 'error', message: 'Failed to simulate league.' });

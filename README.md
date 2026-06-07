@@ -70,6 +70,16 @@ Run this after ingesting or seeding data to check whether the current Firestore 
 
 This is read-only. It reports totals by office, year, and state, plus malformed dates, empty candidate lists, duplicate slots, actionable 2024 coverage gaps, and informational research coverage.
 
+## Verify league flow logic
+
+Run the deterministic league harness after touching league pick, scoring, progress, or results code:
+
+```sh
+npm run verify-league-flow
+```
+
+This does not require Firebase auth or a browser. It checks state-view contest grouping, missing-pick progress, league simulation scoring, result stats, and source-only research fallback shape against in-memory fixtures.
+
 ## Enrich 2024 research fallback docs
 
 The league pick drawer reads source-backed research subdocuments. This writes conservative source-only fallback docs for the 2024 sandbox without generating summaries:
