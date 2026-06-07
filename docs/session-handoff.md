@@ -2,37 +2,38 @@
 
 ## Current Branch
 
-- Branch: `codex/league-overview-2024-seeding`
-- Latest pushed commit: `0ca0dbf Add league sandbox simulation and 2024 contest coverage`
+- Branch: `codex/league-results-verification`
+- Base: `origin/main` at `ea0d2af Add 2024 research enrichment fallback`
 - Remote: `origin` -> `https://github.com/geodesicorganica/PolitiPiks.git`
 
-## Work Preserved In This Session
+## Merged Work
 
-- Updated `docs/league-first-mvp.md` earlier as the product/data contract for the league-first MVP.
-- Added and expanded `scripts/verify-contests.ts` and `npm run verify-contests`.
-- Updated README docs with 2024 sandbox seeding and read-only verification instructions.
-- Current working tree has uncommitted follow-up work for league-first navigation, read-only Browse Contests, research coverage verification, MEDSL candidate cleanup, all-at-large House loading, all-House league state rendering, and lazy research drawer UI.
+- PR #1 merged into `main` as `32d0d4b Port league-first sandbox MVP to main`.
+- PR #2 merged into `main` as `ea0d2af Add 2024 research enrichment fallback`.
+- The old nested `politipick/` directory remains an ignored local artifact; current project files live at repo root `C:\Projects\Politipiks`.
+
+## Current Branch Work
+
+- Fixed the league state view so missing offices do not render empty placeholder cards.
+- `src/pages/Leagues.tsx` now renders only loaded statewide races, House races, and measures for a selected state.
 
 ## Key Product Decisions
 
 - MVP is league-first, not global-ranking-first.
 - Internal testing uses 2024 historical sandbox data.
 - Public MVP moves to 2026 data after mechanics and UX are proven.
-- Default signed-in experience should be Leagues.
+- Default signed-in experience is Leagues.
 - Browse Contests is view-only for MVP.
 - Global rankings and global pick-making are out of scope.
 - League picks are separate from global picks and scoped by `leagueId`.
 - Picks save immediately and stay editable until admin simulates results for that league.
 - Admin simulation is per league, scores all eligible sandbox contests, and can be reset.
 - Correct pick is 1 point; missing picks score 0 and are tracked separately.
-- Results view should include leaderboard, contest-level pick history, and stats: biggest upset pick, most consensus miss, best state, unique correct picks, and perfect states.
-- Research drawers are required in pick views, lazy-loaded, and source-backed.
-- No AI-generated research summaries in MVP.
-- Provenance should be stored in the data model but not shown in the MVP UI.
+- Research drawers are lazy-loaded, source-backed, and do not use AI-generated summaries in MVP.
 
 ## Current Data Reality
 
-From `npm run verify-contests` against Firestore:
+From the latest verifier run after research enrichment:
 
 - Races: `519`
 - Ballot measures: `95`
@@ -42,25 +43,42 @@ From `npm run verify-contests` against Firestore:
 - House races: `435`
 - Actionable 2024 coverage gaps: `0`
 - Data quality issues: `0`
-- Candidate research docs: `0/1549`
-- Measure research docs: `0/95`
+- Candidate research docs: `1549/1549`
+- Candidate research missing: `0`
+- Candidate source-only fallbacks: `1549`
+- Measure research docs: `95`
+- Measure research missing: `0`
+- Measure source-only fallbacks: `95`
+- Pickable options with no research/source fallback: `0`
 
-Interpretation: current contest data is structurally clean and complete enough for internal sandbox gameplay. Research subdocuments are modeled, allowed by rules, surfaced in the UI, and reported by the verifier, but still need an ingest/enrichment pass before public readiness.
+Interpretation: contest coverage and source-backed fallback research are complete enough for internal sandbox gameplay. The research is still fallback-level, not normalized official/campaign enrichment.
 
 ## Validation Already Run
 
 - `npm run lint`
+- `npm run lint:rules`
 - `npm run build`
 - `npm --prefix ingest run build`
 - `npm run verify-contests`
-- Browser smoke test on `http://localhost:3000`: no console errors in signed-out render; Global nav and dead Statewide tab absent.
+- Research enrichment write to Firestore with `--force`
+
+For the current branch edit:
+
+- `npm run lint`
+- `npm run lint:rules`
+- `npm run build`
+
+Browser verification is still pending. The in-app browser controller failed twice with a Windows sandbox process setup error, and the local Express dev server could not start because port `3000` was already occupied by another process returning `404` for `/api/health`.
 
 ## Next Task
 
-Continue from `docs/league-first-mvp.md`.
-
 Recommended next implementation task:
 
-1. Commit and push the current completed slice if the diff review looks good.
-2. Start research enrichment ingest/source discovery for candidate and measure subdocuments.
-3. Add authenticated browser coverage for the league pick flow, including House tab/state House rendering and research drawer empty states.
+1. Commit and push `codex/league-results-verification` after diff review.
+2. Add authenticated browser coverage or a deterministic test harness for the league pick flow:
+   - create/join league
+   - House tab renders all House contests
+   - state view omits missing-office placeholders
+   - research drawer loads source-only fallback links
+   - simulated leagues lock picks and show results
+3. Start official/campaign research enrichment so research drawers move beyond source-only fallback links.
