@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { FieldValue, Firestore } from '@google-cloud/firestore';
-import { BallotMeasure, Candidate, CandidateResearch, MeasureResearch, Race, ResearchSource } from '../src/types';
+import { BallotMeasure, Candidate, CandidateResearch, MeasureResearch, Race, ResearchSection, ResearchSource } from '../src/types';
 
 type ServiceAccount = Record<string, unknown>;
 type WritePlan = {
@@ -109,6 +109,137 @@ function uniqueSources(sources: Array<ResearchSource | null>) {
   });
 }
 
+function link(label: string, url: string, sourceId?: string) {
+  return url ? [{ label, url, sourceId }] : undefined;
+}
+
+function nonEmpty<T>(items: Array<T | null | undefined>) {
+  return items.filter((item): item is T => Boolean(item));
+}
+
+function candidateIdentitySections(race: Race, candidate: Candidate): ResearchSection[] {
+  const candidateName = asString(candidate.name);
+  const raceLabel = `${race.state} ${race.office}${race.district ? ` ${race.district}` : ''}`.trim();
+  const bullets = nonEmpty([
+    `Party: ${candidate.party}`,
+    `Office: ${raceLabel}`,
+    race.electionYear ? `Election year: ${race.electionYear}` : null,
+    candidate.incumbent ? 'Listed as incumbent in the contest data.' : null,
+  ]);
+
+  return [{
+    title: 'Ballot Identity',
+    body: `${candidateName} is listed as a ${candidate.party} candidate for ${raceLabel} in the 2024 sandbox contest data.`,
+    bullets,
+    sourceIds: ['medsl-2024'],
+  }];
+}
+
+function candidateCampaignSections(candidate: Candidate): ResearchSection[] {
+  const websiteUrl = asString(candidate.websiteUrl);
+  const ballotpediaUrl = asString(candidate.ballotpediaUrl);
+  const sections: ResearchSection[] = [];
+
+  if (websiteUrl) {
+    sections.push({
+      title: 'Campaign Website',
+      body: 'A campaign website URL is available from the candidate record.',
+      links: link('Campaign Website', websiteUrl, 'campaign-site'),
+      sourceIds: ['campaign-site'],
+    });
+  }
+
+  if (ballotpediaUrl) {
+    sections.push({
+      title: 'Candidate Profile',
+      body: 'A Ballotpedia candidate profile URL is available as an aggregator reference.',
+      links: link('Ballotpedia Candidate Page', ballotpediaUrl, 'ballotpedia'),
+      sourceIds: ['ballotpedia'],
+    });
+  }
+
+  return sections;
+}
+
+function candidateElectionSections(race: Race): ResearchSection[] {
+  const raceLabel = `${race.state} ${race.office}${race.district ? ` ${race.district}` : ''}`.trim();
+  return [{
+    title: 'Contest Context',
+    body: `This candidate appears in the ${raceLabel} contest loaded from the 2024 official returns dataset for sandbox gameplay.`,
+    bullets: nonEmpty([
+      race.mode ? `Mode: ${race.mode}` : null,
+      race.closeDate ? `Election date: ${race.closeDate}` : null,
+    ]),
+    sourceIds: ['medsl-2024'],
+  }];
+}
+
+function measureSummarySections(measure: BallotMeasure): ResearchSection[] {
+  const body = asString(measure.overview) || asString(measure.description);
+  if (!body) return [];
+
+  return [{
+    title: measure.shortTitle || measure.title,
+    body,
+    sourceIds: ['medsl-2024'],
+  }];
+}
+
+function measureOfficialTextSections(measure: BallotMeasure): ResearchSection[] {
+  const fullTextUrl = asString(measure.fullTextUrl);
+  const ballotpediaUrl = asString(measure.ballotpediaUrl);
+  const sections: ResearchSection[] = [];
+
+  if (fullTextUrl) {
+    sections.push({
+      title: 'Official Text',
+      body: 'An official text URL is available from the measure record.',
+      links: link('Official Measure Text', fullTextUrl, 'official-text'),
+      sourceIds: ['official-text'],
+    });
+  }
+
+  if (ballotpediaUrl) {
+    sections.push({
+      title: 'Measure Profile',
+      body: 'A Ballotpedia measure profile URL is available as an aggregator reference.',
+      links: link('Ballotpedia Measure Page', ballotpediaUrl, 'ballotpedia'),
+      sourceIds: ['ballotpedia'],
+    });
+  }
+
+  return sections;
+}
+
+function measureFiscalSections(measure: BallotMeasure): ResearchSection[] {
+  const metrics = Array.isArray(measure.impactMetrics) ? measure.impactMetrics : [];
+  if (metrics.length === 0) return [];
+
+  return [{
+    title: 'Impact Metrics',
+    bullets: metrics.map((metric) => `${metric.label}: current ${metric.current}, projected ${metric.projected}`),
+    sourceIds: ['medsl-2024'],
+  }];
+}
+
+function measureLegalHistorySections(measure: BallotMeasure): ResearchSection[] {
+  const bullets = nonEmpty([
+    measure.measureNumber ? `Measure number: ${measure.measureNumber}` : null,
+    measure.qualificationStatus ? `Qualification status: ${measure.qualificationStatus}` : null,
+    measure.electionDate ? `Election date: ${measure.electionDate}` : measure.closeDate ? `Election date: ${measure.closeDate}` : null,
+  ]);
+  const body = asString(measure.history);
+  if (!body && bullets.length === 0) return [];
+
+  const section: ResearchSection = {
+    title: 'Legal And Ballot Context',
+    bullets,
+    sourceIds: ['medsl-2024'],
+  };
+  if (body) section.body = body;
+  return [section];
+}
+
 function candidateResearchFor(race: Race, candidate: Candidate): CandidateResearch {
   const candidateName = asString(candidate.name);
   const raceLabel = `${race.state} ${race.office}${race.district ? ` ${race.district}` : ''}`.trim();
@@ -127,6 +258,11 @@ function candidateResearchFor(race: Race, candidate: Candidate): CandidateResear
   return {
     candidateId: candidate.id,
     raceId: race.id,
+    buckets: {
+      identity: candidateIdentitySections(race, candidate),
+      campaign: candidateCampaignSections(candidate),
+      electionsHistory: candidateElectionSections(race),
+    },
     sources,
     updatedAt: new Date().toISOString(),
   };
@@ -143,6 +279,12 @@ function measureResearchFor(measure: BallotMeasure): MeasureResearch {
 
   return {
     measureId: measure.id,
+    buckets: {
+      summary: measureSummarySections(measure),
+      officialText: measureOfficialTextSections(measure),
+      fiscalEffects: measureFiscalSections(measure),
+      legalHistory: measureLegalHistorySections(measure),
+    },
     sources,
     updatedAt: new Date().toISOString(),
   };
