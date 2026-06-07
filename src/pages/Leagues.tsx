@@ -15,14 +15,24 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BallotMeasure, Candidate, CandidateResearch, League, LeagueMember, MeasureResearch, Prediction, Race, ResearchSection, ResearchSource } from '../types';
+import {
+  buildContestSummaries,
+  buildLeagueResultRows,
+  calculateLeagueProgress,
+  calculateLeagueResultStats,
+  contestCategory,
+  contestLabel,
+  getStateContestGroups,
+  pickLabel,
+  type ContestSummary,
+  type LeaguePredictionRecord,
+  type PredictionLookup,
+} from '../lib/leagueSandbox';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { ArrowLeft, ArrowRight, BarChart3, Check, Copy, ExternalLink, Info, Landmark, MapPinned, Plus, Trophy, Users, Vote, X } from 'lucide-react';
 
 type LeagueTab = 'state' | 'house' | 'senate' | 'measures' | 'president';
-type PredictionLookup = Record<string, Pick<Prediction, 'id' | 'pick' | 'status'>>;
-type ContestSummary = { id: string; state: string; category: string; label: string };
-type LeaguePredictionRecord = Prediction & { id: string };
 type ResearchTarget =
   | { kind: 'candidate'; race: Race; candidate: Candidate }
   | { kind: 'measure'; measure: BallotMeasure };
@@ -64,27 +74,6 @@ function byStateName(a: { state: string }, b: { state: string }) {
 
 function isCalled(contest: Race | BallotMeasure) {
   return contest.status === 'called';
-}
-
-function contestCategory(contest: Race | BallotMeasure) {
-  if ('office' in contest) return contest.office;
-  return 'Measures';
-}
-
-function contestLabel(contest: Race | BallotMeasure) {
-  if ('office' in contest) return `${contest.office}${contest.district ? ` ${contest.district}` : ''}`;
-  return contest.title;
-}
-
-function pickLabel(contest: Race | BallotMeasure | undefined, pick?: string) {
-  if (!pick) return 'Missing';
-  if (!contest) return pick;
-  if ('candidates' in contest) {
-    return contest.candidates.find((candidate) => candidate.id === pick)?.name ?? pick;
-  }
-  if (pick === 'pass') return 'Pass';
-  if (pick === 'fail') return 'Fail';
-  return pick;
 }
 
 export function Leagues() {
@@ -467,171 +456,13 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
     return selectedState === 'all' ? measures : measures.filter((measure) => measure.state === selectedState);
   }, [activeTab, measures, selectedState]);
 
-  const contestSummaries = useMemo<ContestSummary[]>(() => {
-    const raceSummaries = races.map((race) => ({
-      id: race.id,
-      state: race.state,
-      category: contestCategory(race),
-      label: contestLabel(race),
-    }));
-    const measureSummaries = measures.map((measure) => ({
-      id: measure.id,
-      state: measure.state,
-      category: contestCategory(measure),
-      label: contestLabel(measure),
-    }));
-    return [...raceSummaries, ...measureSummaries].sort((a, b) =>
-      a.state.localeCompare(b.state) ||
-      a.category.localeCompare(b.category) ||
-      a.label.localeCompare(b.label)
-    );
-  }, [races, measures]);
-
-  const progress = useMemo(() => {
-    const missing = contestSummaries.filter((contest) => !predictions[contest.id]?.pick);
-    const completed = contestSummaries.length - missing.length;
-    const byState = new Map<string, ContestSummary[]>();
-    const byCategory = new Map<string, ContestSummary[]>();
-
-    missing.forEach((contest) => {
-      byState.set(contest.state, [...(byState.get(contest.state) ?? []), contest]);
-      byCategory.set(contest.category, [...(byCategory.get(contest.category) ?? []), contest]);
-    });
-
-    return {
-      completed,
-      total: contestSummaries.length,
-      missing,
-      percent: contestSummaries.length > 0 ? Math.round((completed / contestSummaries.length) * 100) : 0,
-      byState: Array.from(byState.entries()).sort(([a], [b]) => a.localeCompare(b)),
-      byCategory: Array.from(byCategory.entries()).sort(([a], [b]) => a.localeCompare(b)),
-    };
-  }, [contestSummaries, predictions]);
-
-  const contestById = useMemo(() => {
-    const map = new Map<string, Race | BallotMeasure>();
-    races.forEach((race) => map.set(race.id, race));
-    measures.forEach((measure) => map.set(measure.id, measure));
-    return map;
-  }, [races, measures]);
-
-  const memberById = useMemo(() => {
-    const map = new Map<string, LeagueMember>();
-    members.forEach((member) => map.set(member.userId, member));
-    return map;
-  }, [members]);
-
-  const resultRows = useMemo(() => {
-    const rows = leaguePredictions
-      .filter((prediction) => prediction.status !== 'pending')
-      .map((prediction) => {
-        const contest = contestById.get(prediction.targetId);
-        const member = memberById.get(prediction.userId);
-        return {
-          prediction,
-          contest,
-          member,
-          state: contest?.state ?? 'Unknown',
-          category: contest ? contestCategory(contest) : prediction.type,
-          contestLabel: contest ? contestLabel(contest) : prediction.targetId,
-          pick: pickLabel(contest, prediction.pick),
-          correctPick: pickLabel(contest, prediction.correctPick),
-        };
-      })
-      .sort((a, b) =>
-        a.state.localeCompare(b.state) ||
-        a.category.localeCompare(b.category) ||
-        a.contestLabel.localeCompare(b.contestLabel) ||
-        (a.member?.displayName ?? '').localeCompare(b.member?.displayName ?? '')
-      );
-    return rows;
-  }, [contestById, leaguePredictions, memberById]);
-
-  const resultStats = useMemo(() => {
-    const byTarget = new Map<string, typeof resultRows>();
-    for (const row of resultRows) {
-      byTarget.set(row.prediction.targetId, [...(byTarget.get(row.prediction.targetId) ?? []), row]);
-    }
-
-    let biggestUpset: { label: string; pickedBy: number; memberName: string } | null = null;
-    let consensusMiss: { label: string; missedBy: number; pick: string } | null = null;
-    const uniqueCorrect: Array<{ label: string; memberName: string; pick: string }> = [];
-
-    for (const rows of byTarget.values()) {
-      const correctRows = rows.filter((row) => row.prediction.status === 'correct');
-      const incorrectRows = rows.filter((row) => row.prediction.status === 'incorrect');
-      const contestName = `${rows[0]?.state ?? ''} ${rows[0]?.contestLabel ?? ''}`.trim();
-
-      if (correctRows.length > 0) {
-        const candidate = {
-          label: contestName,
-          pickedBy: correctRows.length,
-          memberName: correctRows.map((row) => row.member?.displayName ?? row.prediction.userId).join(', '),
-        };
-        if (!biggestUpset || candidate.pickedBy < biggestUpset.pickedBy) {
-          biggestUpset = candidate;
-        }
-        if (correctRows.length === 1) {
-          uniqueCorrect.push({
-            label: contestName,
-            memberName: correctRows[0].member?.displayName ?? correctRows[0].prediction.userId,
-            pick: correctRows[0].pick,
-          });
-        }
-      }
-
-      if (incorrectRows.length > 0) {
-        const missesByPick = new Map<string, typeof incorrectRows>();
-        incorrectRows.forEach((row) => {
-          missesByPick.set(row.pick, [...(missesByPick.get(row.pick) ?? []), row]);
-        });
-        for (const [pick, missedRows] of missesByPick.entries()) {
-          const candidate = { label: contestName, missedBy: missedRows.length, pick };
-          if (!consensusMiss || candidate.missedBy > consensusMiss.missedBy) {
-            consensusMiss = candidate;
-          }
-        }
-      }
-    }
-
-    const stateAccuracy = new Map<string, { correct: number; total: number; memberName: string; state: string }>();
-    const perfectStates: Array<{ memberName: string; state: string; total: number }> = [];
-
-    resultRows.forEach((row) => {
-      if (row.prediction.status === 'missing') return;
-      const key = `${row.prediction.userId}::${row.state}`;
-      const entry = stateAccuracy.get(key) ?? {
-        correct: 0,
-        total: 0,
-        memberName: row.member?.displayName ?? row.prediction.userId,
-        state: row.state,
-      };
-      entry.total += 1;
-      if (row.prediction.status === 'correct') entry.correct += 1;
-      stateAccuracy.set(key, entry);
-    });
-
-    let bestState: { memberName: string; state: string; correct: number; total: number; pct: number } | null = null;
-    for (const entry of stateAccuracy.values()) {
-      if (entry.total === 0) continue;
-      const pct = entry.correct / entry.total;
-      const candidate = { ...entry, pct };
-      if (!bestState || candidate.pct > bestState.pct || (candidate.pct === bestState.pct && candidate.total > bestState.total)) {
-        bestState = candidate;
-      }
-      if (entry.correct === entry.total && entry.total > 0) {
-        perfectStates.push({ memberName: entry.memberName, state: entry.state, total: entry.total });
-      }
-    }
-
-    return {
-      biggestUpset,
-      consensusMiss,
-      bestState,
-      uniqueCorrect: uniqueCorrect.slice(0, 5),
-      perfectStates: perfectStates.slice(0, 5),
-    };
-  }, [resultRows]);
+  const contestSummaries = useMemo(() => buildContestSummaries(races, measures), [races, measures]);
+  const progress = useMemo(() => calculateLeagueProgress(contestSummaries, predictions), [contestSummaries, predictions]);
+  const resultRows = useMemo(
+    () => buildLeagueResultRows(leaguePredictions, races, measures, members),
+    [leaguePredictions, races, measures, members],
+  );
+  const resultStats = useMemo(() => calculateLeagueResultStats(resultRows), [resultRows]);
 
   async function handlePick(targetId: string, pick: string, type: 'race' | 'measure') {
     if (!profile) return;
@@ -1084,11 +915,7 @@ function StateContestGrid({
   onMeasurePick: (targetId: string, pick: 'pass' | 'fail') => void;
   onOpenResearch: (target: ResearchTarget) => void;
 }) {
-  const president = races.find((race) => race.office === 'President');
-  const governor = races.find((race) => race.office === 'Governor');
-  const senate = races.find((race) => race.office === 'Senate');
-  const houseRaces = races.filter((race) => race.office === 'House');
-  const statewideRaces = [president, governor, senate].filter((race): race is Race => Boolean(race));
+  const { statewideRaces, houseRaces } = getStateContestGroups(races, measures);
 
   return (
     <section className="space-y-4">

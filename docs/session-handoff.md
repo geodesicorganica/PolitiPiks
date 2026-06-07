@@ -2,20 +2,24 @@
 
 ## Current Branch
 
-- Branch: `codex/league-results-verification`
-- Base: `origin/main` at `ea0d2af Add 2024 research enrichment fallback`
+- Branch: `codex/league-flow-harness`
+- Base: `origin/main` at `64a306f Hide missing league state contests`
 - Remote: `origin` -> `https://github.com/geodesicorganica/PolitiPiks.git`
 
 ## Merged Work
 
 - PR #1 merged into `main` as `32d0d4b Port league-first sandbox MVP to main`.
 - PR #2 merged into `main` as `ea0d2af Add 2024 research enrichment fallback`.
+- PR #3 merged into `main` as `64a306f Hide missing league state contests`.
 - The old nested `politipick/` directory remains an ignored local artifact; current project files live at repo root `C:\Projects\Politipiks`.
 
 ## Current Branch Work
 
-- Fixed the league state view so missing offices do not render empty placeholder cards.
-- `src/pages/Leagues.tsx` now renders only loaded statewide races, House races, and measures for a selected state.
+- Added shared pure league sandbox logic in `src/lib/leagueSandbox.ts`.
+- Refactored `src/pages/Leagues.tsx` to use shared contest summaries, progress, state grouping, result rows, and result stats.
+- Refactored `src/pages/Admin.tsx` to use shared eligible-contest and simulation scoring logic while keeping Firestore writes in the admin page.
+- Added `scripts/verify-league-flow.ts` and `npm run verify-league-flow`.
+- Updated README with the deterministic league-flow verification command.
 
 ## Key Product Decisions
 
@@ -53,32 +57,19 @@ From the latest verifier run after research enrichment:
 
 Interpretation: contest coverage and source-backed fallback research are complete enough for internal sandbox gameplay. The research is still fallback-level, not normalized official/campaign enrichment.
 
-## Validation Already Run
+## Validation To Run For This Branch
 
+- `npm run verify-league-flow`
 - `npm run lint`
 - `npm run lint:rules`
 - `npm run build`
 - `npm --prefix ingest run build`
-- `npm run verify-contests`
-- Research enrichment write to Firestore with `--force`
 
-For the current branch edit:
-
-- `npm run lint`
-- `npm run lint:rules`
-- `npm run build`
-
-Browser verification is still pending. The in-app browser controller failed twice with a Windows sandbox process setup error, and the local Express dev server could not start because port `3000` was already occupied by another process returning `404` for `/api/health`.
+Browser verification is still useful after this branch, but the current coverage target is deterministic logic coverage that does not depend on Google auth, an occupied port, or the in-app browser controller.
 
 ## Next Task
 
-Recommended next implementation task:
+After this branch is merged:
 
-1. Commit and push `codex/league-results-verification` after diff review.
-2. Add authenticated browser coverage or a deterministic test harness for the league pick flow:
-   - create/join league
-   - House tab renders all House contests
-   - state view omits missing-office placeholders
-   - research drawer loads source-only fallback links
-   - simulated leagues lock picks and show results
-3. Start official/campaign research enrichment so research drawers move beyond source-only fallback links.
+1. Add an authenticated browser path or Firebase-emulator test for create/join/pick/reset interactions.
+2. Start official/campaign research enrichment so research drawers move beyond source-only fallback links.
