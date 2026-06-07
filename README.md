@@ -80,6 +80,16 @@ npm run verify-league-flow
 
 This does not require Firebase auth or a browser. It checks state-view contest grouping, missing-pick progress, league simulation scoring, result stats, and source-only research fallback shape against in-memory fixtures.
 
+## Verify Firestore league interactions
+
+Run the Firestore emulator coverage after touching rules or league create/join/pick/simulate/reset behavior:
+
+```sh
+npm run verify-firestore-league-flow
+```
+
+This starts the local Firestore emulator and runs authenticated rules coverage for league creation, invite-code joining, league-scoped picks, simulated pick locking, post-simulation pick reveal, and admin reset/reopen behavior. The Firebase Firestore emulator requires Java 11+ on `PATH`.
+
 ## Enrich 2024 research fallback docs
 
 The league pick drawer reads source-backed research subdocuments. This writes conservative source-only fallback docs for the 2024 sandbox without generating summaries:
