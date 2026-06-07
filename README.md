@@ -69,3 +69,24 @@ Run this after ingesting or seeding data to check whether the current Firestore 
   - `$env:FIREBASE_SERVICE_ACCOUNT='C:\Projects\Politipiks\politipick\politipiks-firebase-adminsdk-fbsvc-17ba26e01c.json'; $env:PROJECT_ID='politipiks'; npm run verify-contests`
 
 This is read-only. It reports totals by office, year, and state, plus malformed dates, empty candidate lists, duplicate slots, actionable 2024 coverage gaps, and informational research coverage.
+
+## Enrich 2024 research fallback docs
+
+The league pick drawer reads source-backed research subdocuments. This writes conservative source-only fallback docs for the 2024 sandbox without generating summaries:
+
+- `races/{raceId}/candidateResearch/{candidateId}`
+- `ballotMeasures/{measureId}/research/profile`
+
+Dry run:
+
+```sh
+npm run enrich-research-2024 -- --dry-run --service-account ./politipiks-firebase-adminsdk-...json
+```
+
+Write missing docs:
+
+```sh
+npm run enrich-research-2024 -- --service-account ./politipiks-firebase-adminsdk-...json
+```
+
+Use `--force` to refresh existing generated docs.
