@@ -90,23 +90,25 @@ npm run verify-firestore-league-flow
 
 This starts the local Firestore emulator and runs authenticated rules coverage for league creation, invite-code joining, league-scoped picks, simulated pick locking, post-simulation pick reveal, and admin reset/reopen behavior. The Firebase Firestore emulator requires Java 11+ on `PATH`.
 
-## Enrich 2024 research fallback docs
+## Enrich 2024 research docs
 
-The league pick drawer reads source-backed research subdocuments. This writes conservative source-only fallback docs for the 2024 sandbox without generating summaries:
+The league pick drawer reads source-backed research subdocuments. This writes conservative research docs for the 2024 sandbox using existing contest, candidate, measure, and URL fields. It does not generate AI summaries or expose historical winners in pick research:
 
 - `races/{raceId}/candidateResearch/{candidateId}`
 - `ballotMeasures/{measureId}/research/profile`
 
+Candidate docs include identity, campaign/profile links when available, and contest-context buckets. Measure docs include summary, official/profile links when available, fiscal metrics when present, and legal/ballot-context buckets.
+
 Dry run:
 
 ```sh
-npm run enrich-research-2024 -- --dry-run --service-account ./politipiks-firebase-adminsdk-...json
+npx tsx scripts/enrich-research-2024.ts --dry-run --service-account ./politipiks-firebase-adminsdk-...json
 ```
 
 Write missing docs:
 
 ```sh
-npm run enrich-research-2024 -- --service-account ./politipiks-firebase-adminsdk-...json
+npx tsx scripts/enrich-research-2024.ts --service-account ./politipiks-firebase-adminsdk-...json
 ```
 
 Use `--force` to refresh existing generated docs.
