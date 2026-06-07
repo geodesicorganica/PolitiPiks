@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ingest/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install ingest dependencies
+        run: npm --prefix ingest ci
+
+      - name: Typecheck app
+        run: npm run lint
+
+      - name: Lint Firestore rules
+        run: npm run lint:rules
+
+      - name: Build app
+        run: npm run build
+
+      - name: Build ingest
+        run: npm --prefix ingest run build
+
+      - name: Verify league flow
+        run: npm run verify-league-flow
+
+      - name: Verify Firestore league flow
+        run: npm run verify-firestore-league-flow
