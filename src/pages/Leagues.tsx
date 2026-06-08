@@ -221,6 +221,7 @@ export function Leagues() {
           <button
             disabled={isSubmitting}
             onClick={() => setTab('join')}
+            data-testid="open-join-league"
             className={cn("px-4 py-2 rounded-lg font-bold uppercase text-xs transition-all", tab === 'join' ? "bg-brand-blue text-white" : "bg-white text-black/40 hover:text-black")}
           >
             Join
@@ -228,6 +229,7 @@ export function Leagues() {
           <button
             disabled={isSubmitting}
             onClick={() => setTab('create')}
+            data-testid="open-create-league"
             className={cn("px-4 py-2 rounded-lg font-bold uppercase text-xs transition-all", tab === 'create' ? "bg-brand-red text-white" : "bg-white text-black/40 hover:text-black")}
           >
             Create
@@ -255,15 +257,13 @@ export function Leagues() {
               </div>
             ) : (
               leagues.map((league) => (
-                <button
-                  type="button"
+                <article
                   key={league.id}
-                  onClick={() => setSelectedLeague(league)}
                   className="card-surface p-6 border-l-8 border-brand-blue space-y-4 text-left transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-blue/10"
                 >
                   <div className="flex justify-between items-start gap-4">
                     <h3 className="text-xl font-black italic uppercase tracking-tight">{league.name}</h3>
-                    <div className="text-right" onClick={(event) => event.stopPropagation()}>
+                    <div className="text-right">
                       <p className="text-[10px] font-mono uppercase text-black/40">Invite Code</p>
                       <button
                         type="button"
@@ -282,11 +282,16 @@ export function Leagues() {
                       <div className="w-8 h-8 rounded-full bg-slate-300 border-2 border-white" />
                       <div className="w-8 h-8 rounded-full bg-slate-400 border-2 border-white flex items-center justify-center text-[10px] font-bold">+</div>
                     </div>
-                    <span className="text-[10px] font-black uppercase flex items-center gap-1 text-brand-blue">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeague(league)}
+                      data-testid={`open-league-${league.id}`}
+                      className="text-[10px] font-black uppercase flex items-center gap-1 text-brand-blue transition hover:text-brand-red"
+                    >
                       Open League <ArrowRight size={12} />
-                    </span>
+                    </button>
                   </div>
-                </button>
+                </article>
               ))
             )}
           </motion.div>
@@ -308,12 +313,14 @@ export function Leagues() {
                   disabled={isSubmitting}
                   onChange={(e) => setNewLeagueName(e.target.value)}
                   placeholder="The Politicos"
+                  data-testid="league-name-input"
                   className="w-full p-4 rounded-lg bg-slate-50 border border-black/10 font-bold uppercase tracking-tight focus:outline-none focus:border-brand-blue disabled:opacity-50"
                 />
               </div>
               <button
                 onClick={handleCreate}
                 disabled={isSubmitting || !newLeagueName.trim()}
+                data-testid="launch-league"
                 className="w-full py-4 rounded-lg bg-brand-red text-white font-black uppercase tracking-tight hover:bg-brand-blue transition-colors flex items-center justify-center gap-2 disabled:bg-slate-300"
               >
                 {isSubmitting ? 'Launching...' : 'Launch League'} <Plus size={18} />
@@ -340,12 +347,14 @@ export function Leagues() {
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                   placeholder="ABC123"
                   maxLength={6}
+                  data-testid="league-invite-input"
                   className="w-full p-4 rounded-lg bg-slate-50 border border-black/10 font-bold uppercase tracking-widest text-center text-xl focus:outline-none focus:border-brand-blue disabled:opacity-50"
                 />
               </div>
               <button
                 onClick={handleJoin}
                 disabled={isSubmitting || inviteCode.length < 6}
+                data-testid="join-league"
                 className="w-full py-4 rounded-lg bg-brand-blue text-white font-black uppercase tracking-tight hover:bg-brand-red transition-colors flex items-center justify-center gap-2 disabled:bg-slate-300"
               >
                 {isSubmitting ? 'Joining...' : 'Join Squad'} <Users size={18} />
@@ -1017,6 +1026,7 @@ function RacePickCard({
                 type="button"
                 disabled={disabled}
                 onClick={() => onPick(candidate.id)}
+                data-testid={`race-pick-${race.id}-${candidate.id}`}
                 className="flex min-w-0 flex-1 items-center justify-between p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="min-w-0">
@@ -1032,6 +1042,7 @@ function RacePickCard({
                 onClick={() => onOpenResearch({ kind: 'candidate', race, candidate })}
                 title="Research"
                 aria-label={`Research ${candidate.name}`}
+                data-testid={`research-candidate-${race.id}-${candidate.id}`}
                 className="flex w-11 shrink-0 items-center justify-center border-l border-black/10 text-black/45 transition hover:bg-white hover:text-brand-blue"
               >
                 <Info size={16} />
@@ -1073,6 +1084,7 @@ function MeasurePickCard({
           onClick={() => onOpenResearch({ kind: 'measure', measure })}
           title="Research"
           aria-label={`Research ${measure.title}`}
+          data-testid={`research-measure-${measure.id}`}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white hover:text-brand-red"
         >
           <Info size={16} />
@@ -1087,6 +1099,7 @@ function MeasurePickCard({
               type="button"
               disabled={disabled}
               onClick={() => onPick(option)}
+              data-testid={`measure-pick-${measure.id}-${option}`}
               className={cn(
                 "rounded-lg border p-3 text-xs font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-60",
                 prediction?.pick === option ? "border-brand-red bg-brand-red text-white" : "border-black/10 bg-white hover:border-brand-red/30"

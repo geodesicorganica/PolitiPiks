@@ -9,6 +9,7 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
+import type { User } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
@@ -61,22 +62,34 @@ function assertTestAuthAllowed() {
   }
 }
 
+async function normalizeTestUserProfile(user: User) {
+  if (user.displayName !== TEST_AUTH_DISPLAY_NAME) {
+    await updateProfile(user, { displayName: TEST_AUTH_DISPLAY_NAME });
+  }
+  return user;
+}
+
 export const signInWithTestUser = async () => {
   assertTestAuthAllowed();
 
   try {
-    const result = await createUserWithEmailAndPassword(auth, TEST_AUTH_EMAIL, TEST_AUTH_PASSWORD);
-    if (result.user.displayName !== TEST_AUTH_DISPLAY_NAME) {
-      await updateProfile(result.user, { displayName: TEST_AUTH_DISPLAY_NAME });
-    }
-    return result.user;
+    const result = await signInWithEmailAndPassword(auth, TEST_AUTH_EMAIL, TEST_AUTH_PASSWORD);
+    return await normalizeTestUserProfile(result.user);
   } catch (error: any) {
-    if (error?.code !== 'auth/email-already-in-use') {
+    if (error?.code !== 'auth/user-not-found' && error?.code !== 'auth/invalid-credential') {
       throw error;
     }
+  }
 
-    const result = await signInWithEmailAndPassword(auth, TEST_AUTH_EMAIL, TEST_AUTH_PASSWORD);
-    return result.user;
+  try {
+    const result = await createUserWithEmailAndPassword(auth, TEST_AUTH_EMAIL, TEST_AUTH_PASSWORD);
+    return await normalizeTestUserProfile(result.user);
+  } catch (error: any) {
+    if (error?.code === 'auth/email-already-in-use') {
+      const result = await signInWithEmailAndPassword(auth, TEST_AUTH_EMAIL, TEST_AUTH_PASSWORD);
+      return await normalizeTestUserProfile(result.user);
+    }
+    throw error;
   }
 };
 

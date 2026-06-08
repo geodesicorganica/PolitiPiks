@@ -1,7 +1,7 @@
 {
   "firestore": [
     {
-      "database": "ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a",
+      "database": "ai-studio-cead0e40-d220-401c-9ce8-1d4e5901d29a",
       "rules": "firestore.rules"
     }
   ],
