@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit",
     "lint:rules": "eslint firestore.rules",
     "grant-admin": "tsx scripts/grant-admin.ts",
+    "emulators": "firebase emulators:start --only auth,firestore",
     "seed-2024": "npm --prefix ingest run seed:2024",
     "clear-2026-mock-contests": "tsx scripts/clear-2026-mock-contests.ts",
     "enrich-research-2024": "tsx scripts/enrich-research-2024.ts",
