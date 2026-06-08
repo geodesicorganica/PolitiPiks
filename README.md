@@ -37,6 +37,16 @@ The security rules in `firestore.rules` must be deployed to your Firebase projec
 - Login: `npx firebase-tools login`
 - Deploy rules: `npx firebase-tools deploy --only firestore:rules --project politipiks`
 
+## Deployment readiness
+
+Use `docs/deployment-readiness.md` as the MVP deployment gate. At minimum, run:
+
+```sh
+npm run verify-deployment-readiness
+```
+
+This fails if `firebase.json` targets a different Firestore database than the app config, or if the current shell enables production-unsafe browser flags such as test auth, emulators, mock contests, or admin seeding.
+
 ## Make yourself an admin (to call results + score picks)
 
 Admins are determined by the existence of a Firestore doc at `admins/<uid>`.

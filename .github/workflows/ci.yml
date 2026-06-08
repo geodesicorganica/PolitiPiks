@@ -52,6 +52,9 @@ jobs:
       - name: Lint Firestore rules
         run: npm run lint:rules
 
+      - name: Verify deployment readiness
+        run: npm run verify-deployment-readiness
+
       - name: Build app
         run: npm run build
 
