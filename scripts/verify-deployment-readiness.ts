@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { parse } from 'dotenv';
 
 type FirebaseAppletConfig = {
+  projectId?: string;
   firestoreDatabaseId?: string;
 };
 
@@ -10,6 +11,10 @@ type FirebaseJson = {
 };
 
 type EnvMap = Record<string, string | undefined>;
+
+type ServiceAccount = {
+  project_id?: string;
+};
 
 const unsafeProductionFlags = [
   'VITE_USE_FIREBASE_EMULATORS',
@@ -48,9 +53,13 @@ function assertSafeEnv(sourceName: string, env: EnvMap) {
 function assertDatabaseConfigMatches() {
   const appConfig = readJson<FirebaseAppletConfig>('firebase-applet-config.json');
   const firebaseJson = readJson<FirebaseJson>('firebase.json');
+  const appProject = appConfig.projectId;
   const appDatabase = appConfig.firestoreDatabaseId;
   const rulesDatabase = firebaseJson.firestore?.[0]?.database;
 
+  if (!appProject) {
+    throw new Error('firebase-applet-config.json is missing projectId.');
+  }
   if (!appDatabase) {
     throw new Error('firebase-applet-config.json is missing firestoreDatabaseId.');
   }
@@ -62,7 +71,29 @@ function assertDatabaseConfigMatches() {
   }
 }
 
+function assertProjectEnvMatchesAppConfig() {
+  const appConfig = readJson<FirebaseAppletConfig>('firebase-applet-config.json');
+  const appProject = appConfig.projectId;
+
+  if (!appProject) {
+    throw new Error('firebase-applet-config.json is missing projectId.');
+  }
+
+  if (process.env.PROJECT_ID && process.env.PROJECT_ID !== appProject) {
+    throw new Error(`PROJECT_ID mismatch: app=${appProject}, env=${process.env.PROJECT_ID}.`);
+  }
+
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (serviceAccountPath) {
+    const serviceAccount = readJson<ServiceAccount>(serviceAccountPath);
+    if (serviceAccount.project_id && serviceAccount.project_id !== appProject) {
+      throw new Error(`FIREBASE_SERVICE_ACCOUNT project mismatch: app=${appProject}, serviceAccount=${serviceAccount.project_id}.`);
+    }
+  }
+}
+
 assertDatabaseConfigMatches();
+assertProjectEnvMatchesAppConfig();
 assertSafeEnv('process.env', process.env);
 
 const envFile = getArg('--env-file');
