@@ -43,6 +43,9 @@ jobs:
       - name: Install ingest dependencies
         run: npm --prefix ingest ci
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Typecheck app
         run: npm run lint
 
@@ -60,3 +63,6 @@ jobs:
 
       - name: Verify Firestore league flow
         run: npm run verify-firestore-league-flow
+
+      - name: Verify browser league flow
+        run: npm run verify-browser-league-flow

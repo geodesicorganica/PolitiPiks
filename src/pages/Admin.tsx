@@ -408,6 +408,7 @@ export function Admin() {
                     type="button"
                     disabled={isBusy || isSimulated || eligibleContestCount === 0}
                     onClick={() => simulateLeague(league)}
+                    data-testid={`simulate-league-${league.id}`}
                     className="rounded-lg bg-brand-blue px-3 py-3 text-xs font-black uppercase text-white transition hover:bg-brand-red disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
                     Simulate
@@ -416,6 +417,7 @@ export function Admin() {
                     type="button"
                     disabled={isBusy || !isSimulated}
                     onClick={() => resetLeague(league)}
+                    data-testid={`reset-league-${league.id}`}
                     className="rounded-lg border border-black/10 bg-white px-3 py-3 text-xs font-black uppercase transition hover:border-brand-red hover:text-brand-red disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Reset
