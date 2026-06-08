@@ -15,6 +15,21 @@ This is a Vite + React + Firebase app.
 3. Start dev server: `npm run dev`
 4. Open: `http://localhost:3000`
 
+## Local browser auth testing
+
+Browser automation should use Firebase emulators instead of Google popup auth.
+
+1. Start Auth and Firestore emulators:
+   - `npm run emulators`
+2. In a second shell, enable local test auth and start the app:
+   - PowerShell:
+     - `$env:VITE_USE_FIREBASE_EMULATORS='true'; $env:VITE_ENABLE_TEST_AUTH='true'; npm run dev`
+3. Open `http://localhost:3000` and use the `Test sign in` button.
+
+The test sign-in path is guarded to localhost and requires both `VITE_USE_FIREBASE_EMULATORS=true` and `VITE_ENABLE_TEST_AUTH=true`. It creates or signs into the emulator user configured by `VITE_TEST_AUTH_EMAIL`, `VITE_TEST_AUTH_PASSWORD`, and `VITE_TEST_AUTH_DISPLAY_NAME`.
+
+For admin browser tests, sign in first, read the Firebase Auth emulator UID from the browser session, then seed `admins/<uid>` directly into the Firestore emulator before navigating to the Admin tab.
+
 ## Deploy Firestore Rules (required for tamper-resistance)
 
 The security rules in `firestore.rules` must be deployed to your Firebase project.
@@ -88,7 +103,7 @@ Run the Firestore emulator coverage after touching rules or league create/join/p
 npm run verify-firestore-league-flow
 ```
 
-This starts the local Firestore emulator and runs authenticated rules coverage for league creation, invite-code joining, league-scoped picks, simulated pick locking, post-simulation pick reveal, and admin reset/reopen behavior. The Firebase Firestore emulator requires Java 11+ on `PATH`.
+This starts the local Firestore emulator and runs authenticated rules coverage for league creation, invite-code joining, league-scoped picks, simulated pick locking, post-simulation pick reveal, and admin reset/reopen behavior. The Firebase Firestore emulator requires Java 21+ on `PATH`.
 
 ## Enrich 2024 research docs
 

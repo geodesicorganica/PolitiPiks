@@ -6,7 +6,8 @@
 import { useEffect, useState, createContext, useContext } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
-import { auth, db, signInWithGoogle } from './lib/firebase';
+import { auth, db, signInWithGoogle, signInWithTestUser } from './lib/firebase';
+import { ENABLE_TEST_AUTH, USE_FIREBASE_EMULATORS } from './lib/config';
 import { UserProfile } from './types';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
@@ -40,6 +41,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('leagues');
   const [signInError, setSignInError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const testAuthAvailable = ENABLE_TEST_AUTH && USE_FIREBASE_EMULATORS;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -113,6 +115,21 @@ export default function App() {
     }
   };
 
+  const signInTest = async () => {
+    setSignInError(null);
+    setSigningIn(true);
+    try {
+      await signInWithTestUser();
+    } catch (error: any) {
+      const code = error?.code ? ` (${error.code})` : '';
+      const message = error?.message ? String(error.message) : 'Test sign-in failed.';
+      setSignInError(`${message}${code}`);
+      console.error(error);
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-brand-blue text-white">
@@ -145,6 +162,17 @@ export default function App() {
           >
             {signingIn ? 'Signing in…' : 'Sign in with Google'}
           </button>
+
+          {testAuthAvailable && (
+            <button
+              onClick={signInTest}
+              disabled={signingIn}
+              data-testid="test-sign-in"
+              className="w-full py-3 rounded-xl border border-white/25 bg-white/10 text-white font-bold uppercase tracking-tight hover:bg-white/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {signingIn ? 'Signing in…' : 'Test sign in'}
+            </button>
+          )}
 
           {signInError && (
             <div className="rounded-lg border border-brand-red/40 bg-brand-red/10 text-brand-red text-left p-3 font-mono text-[10px] uppercase">
