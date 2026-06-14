@@ -344,5 +344,18 @@ service cloud.firestore {
         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'score', 'correctPick', 'scoredAt', 'updatedAt']) &&
         isValidPredictionScore(incoming());
     }
+    // --- PIP-S Data (Development) ---
+    match /entities/{entityId} {
+      allow read, write: if true;
+      match /status_logs/{logId} {
+        allow read, write: if true;
+      }
+    }
+    match /edges/{edgeId} {
+      allow read, write: if true;
+    }
+    match /transactions/{transactionId} {
+      allow read, write: if true;
+    }
   }
 }

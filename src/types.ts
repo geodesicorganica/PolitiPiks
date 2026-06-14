@@ -323,3 +323,68 @@ export interface MeasureResearch {
   sources?: ResearchSource[];
   updatedAt?: string;
 }
+
+// ---------------------------------------------------------
+// PIP-S State Tab Types (NoSQL Entity Models)
+// ---------------------------------------------------------
+
+export interface AdvancedTelemetry {
+  specialInterestSyndicationScore?: number;
+  extraterritorialSpilloverCoefficient?: number;
+  topicTitleInversionGap?: number;
+  survivalProbability?: number;
+  legislativeEffectivenessScore?: number;
+  amendingArbitrageIndex?: number;
+  caucusCohesionDefianceScore?: number;
+  fundingConcentrationHhi?: number;
+  outOfDistrictExtractionIndex?: number;
+}
+
+export interface PlayerEfficacyMetric {
+  playerId: string;
+  accuracyScore: number;
+  biasIndex: number;
+}
+
+export type EntityType = 'POLITICIAN' | 'CORPORATION' | 'PAC' | 'NON_PROFIT' | 'BILL' | 'BALLOT_MEASURE';
+
+export interface NodeEntity {
+  id: string;
+  name: string;
+  entityType: EntityType;
+  jurisdictionState: string;
+  districtCode?: string;
+  createdAt: string;
+  telemetry?: AdvancedTelemetry;
+}
+
+export type StandardizedStatus = 'INTRODUCED' | 'IN_COMMITTEE' | 'FLOOR_VOTE' | 'CROSS_CHAMBER' | 'EXECUTIVE_ACTION' | 'ENACTED' | 'VETOED';
+
+export interface LegislativeStatusLog {
+  id: string;
+  billNodeId: string;
+  standardizedStatus: StandardizedStatus;
+  rawStateStatus: string;
+  assignedCommittee?: string;
+  changedAt: string;
+}
+
+export interface CampaignTransaction {
+  id: string;
+  donorNodeId: string;
+  recipientNodeId: string;
+  amount: number;
+  transactionDate: string;
+  isOutOfDistrict: boolean;
+  donorZipCode: string;
+  filingReferenceUrl?: string;
+}
+
+export interface Edge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  edgeType: 'CITES' | 'TEXTUAL_TWIN' | 'AMENDED_BY' | 'FUNDED_BY' | 'TARGETS_POPULATION';
+  weight?: number;
+}
+

@@ -14,6 +14,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Races } from './pages/Races';
 import { Leagues } from './pages/Leagues';
 import { Admin } from './pages/Admin';
+import { StatePlatform } from './pages/StatePlatform';
 import { AnimatePresence, motion } from 'motion/react';
 import { handleFirestoreError, OperationType } from './lib/utils';
 
@@ -203,6 +204,7 @@ export default function App() {
             {currentTab === 'dashboard' && <Dashboard />}
             {currentTab === 'races' && <Races />}
             {currentTab === 'leagues' && <Leagues />}
+            {currentTab === 'state' && <StatePlatform />}
             {currentTab === 'admin' && isAdmin && <Admin />}
           </motion.div>
         </AnimatePresence>

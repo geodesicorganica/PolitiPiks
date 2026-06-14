@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../App';
-import { LayoutDashboard, Vote, Users, LogOut, Shield } from 'lucide-react';
+import { LayoutDashboard, Vote, Users, LogOut, Shield, Landmark } from 'lucide-react';
 import { logout } from '../lib/firebase';
 import { cn } from '../lib/utils';
 
@@ -15,6 +15,7 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
 
   const navItems = [
     { id: 'leagues', label: 'Leagues', icon: Users },
+    { id: 'state', label: 'State', icon: Landmark },
     { id: 'races', label: 'Browse', icon: Vote },
     { id: 'dashboard', label: 'Activity', icon: LayoutDashboard },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []),
