@@ -106,7 +106,7 @@ Human — two things only a human should trigger:
 
 ## Human checklist (chronological)
 
-- [ ] 0. Review + commit/push the pipeline code
+- [x] 0. Review + commit/push the pipeline code
 - [x] 1. Sign up for the 4 free API keys
 - [x] 2. Put keys + service account into `.env.local` / dispatch secrets
 - [ ] 3. Kick off smoke run; spot-check a GA drawer
