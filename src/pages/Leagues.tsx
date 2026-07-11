@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../App';
 import {
   addDoc,
@@ -32,10 +32,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { ArrowLeft, ArrowRight, BarChart3, Check, Copy, ExternalLink, Info, Landmark, MapPinned, Plus, Trophy, Users, Vote, X } from 'lucide-react';
 
+import { ResearchDrawer } from '../components/ResearchDrawer';
+import { ResearchTarget, useContestResearch } from '../hooks/useContestResearch';
+
 type LeagueTab = 'state' | 'house' | 'senate' | 'measures' | 'president';
-type ResearchTarget =
-  | { kind: 'candidate'; race: Race; candidate: Candidate }
-  | { kind: 'measure'; measure: BallotMeasure };
 
 const LEAGUE_TABS: Array<{ id: LeagueTab; label: string; icon: typeof MapPinned }> = [
   { id: 'state', label: 'State View', icon: MapPinned },
@@ -45,24 +45,7 @@ const LEAGUE_TABS: Array<{ id: LeagueTab; label: string; icon: typeof MapPinned 
   { id: 'president', label: 'President', icon: Trophy },
 ];
 
-const CANDIDATE_BUCKET_LABELS: Record<string, string> = {
-  identity: 'Identity',
-  campaign: 'Campaign',
-  publicRecord: 'Public Record',
-  legislativeActivity: 'Legislative Activity',
-  policyPositions: 'Policy Positions',
-  electionsHistory: 'Election History',
-  provenance: 'Sources',
-};
-
-const MEASURE_BUCKET_LABELS: Record<string, string> = {
-  summary: 'Summary',
-  officialText: 'Official Text',
-  fiscalEffects: 'Fiscal Effects',
-  supportOpposition: 'Support And Opposition',
-  legalHistory: 'Legal History',
-  provenance: 'Sources',
-};
+// Buckets moved to ResearchDrawer
 
 function formatOffice(race: Race) {
   return `${race.office}${race.district ? ` ${race.district}` : ''}`;
@@ -81,6 +64,7 @@ export function Leagues() {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
   const [newLeagueName, setNewLeagueName] = useState('');
+  const [newLeagueCycle, setNewLeagueCycle] = useState<'2024-sandbox' | '2026-live'>('2024-sandbox');
   const [inviteCode, setInviteCode] = useState('');
   const [tab, setTab] = useState<'my' | 'join' | 'create'>('my');
   const [copied, setCopied] = useState<string | null>(null);
@@ -123,10 +107,13 @@ export function Leagues() {
     setNotice(null);
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     try {
+      const [cycleYear, cycleMode] = newLeagueCycle.split('-');
       const docRef = await addDoc(collection(db, 'leagues'), {
         name: newLeagueName.trim(),
         ownerId: profile.uid,
         inviteCode: code,
+        contestYear: Number(cycleYear),
+        contestMode: cycleMode,
         createdAt: serverTimestamp()
       });
 
@@ -317,6 +304,19 @@ export function Leagues() {
                   className="w-full p-4 rounded-lg bg-slate-50 border border-black/10 font-bold uppercase tracking-tight focus:outline-none focus:border-brand-blue disabled:opacity-50"
                 />
               </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-black/40 block mb-1">Contest Cycle</label>
+                <select
+                  value={newLeagueCycle}
+                  disabled={isSubmitting}
+                  onChange={(e) => setNewLeagueCycle(e.target.value as '2024-sandbox' | '2026-live')}
+                  data-testid="league-cycle-select"
+                  className="w-full p-4 rounded-lg bg-slate-50 border border-black/10 font-bold uppercase tracking-tight focus:outline-none focus:border-brand-blue disabled:opacity-50"
+                >
+                  <option value="2024-sandbox">2024 Sandbox (Historical)</option>
+                  <option value="2026-live">2026 Live (Midterms)</option>
+                </select>
+              </div>
               <button
                 onClick={handleCreate}
                 disabled={isSubmitting || !newLeagueName.trim()}
@@ -379,16 +379,24 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
   const [leaguePredictions, setLeaguePredictions] = useState<LeaguePredictionRecord[]>([]);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
-  const [researchTarget, setResearchTarget] = useState<ResearchTarget | null>(null);
+  const [researchTarget, setResearchTarget] = useState<ResearchTarget>(null);
+  const { bundle, loading: researchLoading, error: researchError } = useContestResearch(researchTarget);
   const picksLocked = league.simulationStatus === 'simulated';
 
   useEffect(() => {
+    // Leagues are scoped to one contest cycle; existing leagues without the
+    // fields predate live contests and default to the 2024 sandbox.
+    const leagueYear = league.contestYear ?? 2024;
+    const leagueMode = league.contestMode ?? 'sandbox';
+    const inLeagueCycle = (contest: { electionYear?: number; mode?: string }) =>
+      (contest.electionYear ?? 2024) === leagueYear && (contest.mode ?? 'sandbox') === leagueMode;
+
     const unsubscribeRaces = onSnapshot(query(collection(db, 'races'), orderBy('state', 'asc')), (snapshot) => {
-      setRaces(snapshot.docs.map((raceDoc) => ({ id: raceDoc.id, ...raceDoc.data() } as Race)).sort(byStateName));
+      setRaces(snapshot.docs.map((raceDoc) => ({ id: raceDoc.id, ...raceDoc.data() } as Race)).filter(inLeagueCycle).sort(byStateName));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'races'));
 
     const unsubscribeMeasures = onSnapshot(query(collection(db, 'ballotMeasures'), orderBy('state', 'asc')), (snapshot) => {
-      setMeasures(snapshot.docs.map((measureDoc) => ({ id: measureDoc.id, ...measureDoc.data() } as BallotMeasure)).sort(byStateName));
+      setMeasures(snapshot.docs.map((measureDoc) => ({ id: measureDoc.id, ...measureDoc.data() } as BallotMeasure)).filter(inLeagueCycle).sort(byStateName));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'ballotMeasures'));
 
     const unsubscribeMembers = onSnapshot(query(collection(db, `leagues/${league.id}/members`), orderBy('points', 'desc')), (snapshot) => {
@@ -400,7 +408,7 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
       unsubscribeMeasures();
       unsubscribeMembers();
     };
-  }, [league.id]);
+  }, [league.id, league.contestYear, league.contestMode]);
 
   useEffect(() => {
     if (!profile) return;
@@ -553,19 +561,10 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
 
       <LeagueProgressPanel
         locked={picksLocked}
+        races={races}
+        measures={measures}
+        predictions={predictions}
         progress={progress}
-        onSelectState={(state) => {
-          setSelectedState(state);
-          setActiveTab('state');
-        }}
-        onSelectCategory={(category) => {
-          setSelectedState('all');
-          if (category === 'President') setActiveTab('president');
-          else if (category === 'Senate') setActiveTab('senate');
-          else if (category === 'House') setActiveTab('house');
-          else if (category === 'Measures') setActiveTab('measures');
-          else setActiveTab('state');
-        }}
       />
 
       {picksLocked && (
@@ -576,36 +575,22 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
         />
       )}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[180px_minmax(0,1fr)_280px]">
-        <aside className="space-y-2 xl:sticky xl:top-24 xl:self-start">
-          <button
-            type="button"
-            onClick={() => setSelectedState('all')}
-            className={cn(
-              "w-full rounded-lg border px-3 py-2 text-left text-[10px] font-black uppercase transition",
-              selectedState === 'all' ? "border-brand-blue bg-brand-blue text-white" : "border-black/10 bg-white text-black/55 hover:text-black"
-            )}
-          >
-            All States
-          </button>
-          <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
-            {states.map((state) => (
-              <button
-                key={state}
-                type="button"
-                onClick={() => setSelectedState(state)}
-                className={cn(
-                  "rounded-lg border px-3 py-2 text-left text-[10px] font-black uppercase transition",
-                  selectedState === state ? "border-brand-red bg-brand-red text-white" : "border-black/10 bg-white text-black/55 hover:text-black"
-                )}
-              >
-                {state}
-              </button>
-            ))}
-          </div>
-        </aside>
-
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
         <main className="min-w-0 space-y-5">
+          {/* State Dropdown Filter */}
+          <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-black/10 shadow-sm">
+            <label htmlFor="state-filter" className="font-mono text-[10px] uppercase text-black/40 font-bold">Filter By State</label>
+            <select
+              id="state-filter"
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="flex-1 bg-slate-50 border border-black/10 rounded-md px-3 py-1.5 text-xs font-bold uppercase focus:outline-none focus:border-brand-blue"
+            >
+              <option value="all">All States</option>
+              {states.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
           {activeTab === 'state' ? (
             visibleStates.map((state) => (
               <div key={state}>
@@ -659,110 +644,71 @@ function LeagueOverview({ league, onBack }: { league: League; onBack: () => void
 
         <LeaderboardPanel members={members} currentUserId={profile?.uid ?? null} />
       </div>
-      <ResearchDrawer target={researchTarget} onClose={() => setResearchTarget(null)} />
+      <ResearchDrawer 
+        isOpen={!!researchTarget}
+        target={researchTarget} 
+        bundle={bundle}
+        loading={researchLoading}
+        error={researchError}
+        onClose={() => setResearchTarget(null)} 
+      />
     </div>
   );
 }
 
 function LeagueProgressPanel({
   locked,
+  races,
+  measures,
+  predictions,
   progress,
-  onSelectState,
-  onSelectCategory,
 }: {
   locked: boolean;
-  progress: {
-    completed: number;
-    total: number;
-    missing: ContestSummary[];
-    percent: number;
-    byState: Array<[string, ContestSummary[]]>;
-    byCategory: Array<[string, ContestSummary[]]>;
+  races: Race[];
+  measures: BallotMeasure[];
+  predictions: PredictionLookup;
+  progress: { percent: number };
+}) {
+  const getStats = (items: Array<Race | BallotMeasure>) => {
+    const total = items.length;
+    const submitted = items.filter(i => predictions[i.id]).length;
+    return { total, submitted };
   };
-  onSelectState: (state: string) => void;
-  onSelectCategory: (category: string) => void;
-}) {
+
+  const categories = [
+    { label: 'President', stats: getStats(races.filter(r => r.office === 'President')) },
+    { label: 'Senate', stats: getStats(races.filter(r => r.office === 'Senate')) },
+    { label: 'House', stats: getStats(races.filter(r => r.office === 'House')) },
+    { label: 'Measures', stats: getStats(measures) },
+  ];
+
   return (
-    <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="font-mono text-[10px] uppercase text-black/40">{locked ? 'Simulation complete' : 'Pick progress'}</p>
-              <h2 className="text-xl font-black uppercase tracking-normal">
-                {progress.completed}/{progress.total} Picks Saved
-              </h2>
+    <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="flex-1 w-full overflow-x-auto pb-2 lg:pb-0 hide-scrollbar">
+        <div className="flex gap-4 min-w-max">
+          {categories.map(cat => (
+            <div key={cat.label} className="min-w-32 rounded-lg border border-black/10 bg-slate-50 p-4 flex flex-col gap-2 transition hover:-translate-y-1 hover:shadow-md">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-brand-blue font-bold">{cat.label}</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black">{cat.stats.submitted}</span>
+                <span className="text-xs font-bold text-black/40">/ {cat.stats.total}</span>
+              </div>
+              <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden mt-1">
+                <div 
+                  className={cn("h-full rounded-full transition-all duration-500", cat.stats.submitted === cat.stats.total ? "bg-emerald-500" : "bg-brand-red")}
+                  style={{ width: `${cat.stats.total > 0 ? (cat.stats.submitted / cat.stats.total) * 100 : 0}%` }}
+                />
+              </div>
             </div>
-            <div className={cn(
-              "rounded px-2 py-1 text-[10px] font-black uppercase",
-              progress.missing.length === 0 ? "bg-emerald-100 text-emerald-700" : "bg-brand-red/10 text-brand-red"
-            )}>
-              {progress.missing.length === 0 ? 'Complete' : `${progress.missing.length} Missing`}
-            </div>
-          </div>
-
-          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={cn("h-full rounded-full transition-all", progress.missing.length === 0 ? "bg-emerald-500" : "bg-brand-blue")}
-              style={{ width: `${progress.percent}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 p-3 text-center">
-          <p className="text-3xl font-black italic text-brand-blue">{progress.percent}%</p>
-          <p className="font-mono text-[10px] uppercase text-black/40">Complete</p>
+          ))}
         </div>
       </div>
-
-      {progress.missing.length > 0 && !locked && (
-        <div className="mt-4 grid gap-4 border-t border-black/5 pt-4 lg:grid-cols-2">
-          <MissingGroup
-            title="Missing By State"
-            groups={progress.byState}
-            onSelect={onSelectState}
-          />
-          <MissingGroup
-            title="Missing By Category"
-            groups={progress.byCategory}
-            onSelect={onSelectCategory}
-          />
-        </div>
-      )}
+      
+      <div className="shrink-0 rounded-xl bg-brand-slate text-white p-5 text-center min-w-[140px] shadow-inner shadow-black/20">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-white/50 font-bold mb-1">{locked ? 'Final Score' : 'League Comp'}</p>
+        <p className="text-4xl font-black italic text-brand-red">{progress.percent}%</p>
+      </div>
     </section>
-  );
-}
-
-function MissingGroup({
-  title,
-  groups,
-  onSelect,
-}: {
-  title: string;
-  groups: Array<[string, ContestSummary[]]>;
-  onSelect: (key: string) => void;
-}) {
-  const visibleGroups = groups.slice(0, 8);
-  return (
-    <div className="space-y-2">
-      <h3 className="font-mono text-[10px] uppercase text-black/40">{title}</h3>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {visibleGroups.map(([key, contests]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onSelect(key)}
-            className="flex items-center justify-between rounded-lg border border-black/10 bg-white px-3 py-2 text-left transition hover:border-brand-blue/40 hover:text-brand-blue"
-          >
-            <span className="truncate text-xs font-black uppercase">{key}</span>
-            <span className="ml-2 rounded bg-brand-red/10 px-2 py-1 text-[10px] font-black text-brand-red">{contests.length}</span>
-          </button>
-        ))}
-      </div>
-      {groups.length > visibleGroups.length && (
-        <p className="font-mono text-[10px] uppercase text-black/35">+{groups.length - visibleGroups.length} more groups</p>
-      )}
-    </div>
   );
 }
 
@@ -924,60 +870,52 @@ function StateContestGrid({
   onMeasurePick: (targetId: string, pick: 'pass' | 'fail') => void;
   onOpenResearch: (target: ResearchTarget) => void;
 }) {
-  const { statewideRaces, houseRaces } = getStateContestGroups(races, measures);
+  const presidentRaces = races.filter(r => r.office === 'President');
+  const senateRaces = races.filter(r => r.office === 'Senate');
+  const houseRaces = races.filter(r => r.office === 'House');
+
+  const renderSection = (title: string, items: React.ReactNode[], styleClass: string) => {
+    if (items.length === 0) return null;
+    return (
+      <div className={cn("mt-4 rounded-xl border p-4 shadow-sm", styleClass)}>
+        <h3 className="text-xs font-black uppercase tracking-widest text-black/50 mb-4">{title}</h3>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {items}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <div className="flex items-center justify-between border-b border-brand-blue/10 pb-2">
-        <h2 className="text-xl font-black italic uppercase tracking-normal">{state}</h2>
-        <span className="font-mono text-[10px] uppercase text-black/40">{races.length + measures.length} contests</span>
+        <h2 className="text-2xl font-black italic uppercase tracking-normal">{state}</h2>
+        <span className="font-mono text-[10px] uppercase text-black/40 bg-white px-2 py-1 rounded border border-black/10">{races.length + measures.length} contests</span>
       </div>
 
-      {(statewideRaces.length > 0 || houseRaces.length > 0) && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {statewideRaces.map((race) => (
-            <div key={race.id}>
-              <RacePickCard
-                race={race}
-                prediction={predictions[race.id]}
-                submitting={submitting === race.id}
-                locked={locked}
-                onPick={(pick) => onRacePick(race.id, pick)}
-                onOpenResearch={onOpenResearch}
-              />
-            </div>
-          ))}
-          {houseRaces.map((house) => (
-            <div key={house.id}>
-              <RacePickCard
-                race={house}
-                prediction={predictions[house.id]}
-                submitting={submitting === house.id}
-                locked={locked}
-                onPick={(pick) => onRacePick(house.id, pick)}
-                onOpenResearch={onOpenResearch}
-              />
-            </div>
-          ))}
+      {renderSection("Presidential Race", presidentRaces.map(race => (
+        <div key={race.id}>
+          <RacePickCard race={race} prediction={predictions[race.id]} submitting={submitting === race.id} locked={locked} onPick={(pick) => onRacePick(race.id, pick)} onOpenResearch={onOpenResearch} />
         </div>
-      )}
+      )), "bg-blue-50/50 border-blue-100")}
 
-      {measures.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {measures.map((measure) => (
-            <div key={measure.id}>
-              <MeasurePickCard
-                measure={measure}
-                prediction={predictions[measure.id]}
-                submitting={submitting === measure.id}
-                locked={locked}
-                onPick={(pick) => onMeasurePick(measure.id, pick)}
-                onOpenResearch={onOpenResearch}
-              />
-            </div>
-          ))}
+      {renderSection("Senate Races", senateRaces.map(race => (
+        <div key={race.id}>
+          <RacePickCard race={race} prediction={predictions[race.id]} submitting={submitting === race.id} locked={locked} onPick={(pick) => onRacePick(race.id, pick)} onOpenResearch={onOpenResearch} />
         </div>
-      )}
+      )), "bg-indigo-50/50 border-indigo-100")}
+
+      {renderSection("House Races", houseRaces.map(race => (
+        <div key={race.id}>
+          <RacePickCard race={race} prediction={predictions[race.id]} submitting={submitting === race.id} locked={locked} onPick={(pick) => onRacePick(race.id, pick)} onOpenResearch={onOpenResearch} />
+        </div>
+      )), "bg-slate-50 border-black/5")}
+
+      {renderSection("Ballot Measures", measures.map(measure => (
+        <div key={measure.id}>
+          <MeasurePickCard measure={measure} prediction={predictions[measure.id]} submitting={submitting === measure.id} locked={locked} onPick={(pick) => onMeasurePick(measure.id, pick)} onOpenResearch={onOpenResearch} />
+        </div>
+      )), "bg-brand-red/5 border-brand-red/10")}
     </section>
   );
 }
@@ -1001,14 +939,20 @@ function RacePickCard({
 
   return (
     <div className="card-surface overflow-hidden">
-      <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-brand-slate p-3 text-white">
+      <div 
+        className="flex cursor-pointer items-start justify-between gap-3 border-b border-black/5 bg-brand-slate p-3 text-white transition hover:bg-brand-slate/90"
+        onClick={() => onOpenResearch({ kind: 'race', raceId: race.id })}
+      >
         <div>
           <p className="text-[10px] font-mono uppercase text-white/60">{race.state}</p>
           <h3 className="text-sm font-black uppercase tracking-normal">{formatOffice(race)}</h3>
         </div>
-        <span className={cn("rounded px-2 py-1 text-[10px] font-black uppercase", isCalled(race) ? "bg-emerald-500/20 text-emerald-100" : "bg-white/10 text-white/75")}>
-          {locked ? 'locked' : race.status ?? 'open'}
-        </span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={cn("rounded px-2 py-1 text-[10px] font-black uppercase", isCalled(race) ? "bg-emerald-500/20 text-emerald-100" : "bg-white/10 text-white/75")}>
+            {locked ? 'locked' : race.status ?? 'open'}
+          </span>
+          <Info size={14} className="text-white/40" />
+        </div>
       </div>
 
       <div className="space-y-2 p-3">
@@ -1018,16 +962,15 @@ function RacePickCard({
             <div
               key={candidate.id}
               className={cn(
-                "flex items-stretch overflow-hidden rounded-lg border transition",
+                "group flex items-stretch overflow-hidden rounded-lg border transition",
                 selected ? "border-brand-blue bg-brand-blue/5" : "border-black/10 bg-white hover:border-brand-blue/30"
               )}
             >
               <button
                 type="button"
-                disabled={disabled}
-                onClick={() => onPick(candidate.id)}
-                data-testid={`race-pick-${race.id}-${candidate.id}`}
-                className="flex min-w-0 flex-1 items-center justify-between p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => onOpenResearch({ kind: 'race', raceId: race.id, initialCandidateId: candidate.id })}
+                data-testid={`research-candidate-${race.id}-${candidate.id}`}
+                className="flex min-w-0 flex-1 items-center justify-between p-3 text-left transition hover:bg-black/5"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black uppercase tracking-normal">{candidate.name}</p>
@@ -1035,17 +978,21 @@ function RacePickCard({
                     {candidate.party}{candidate.incumbent ? ' incumbent' : ''}
                   </p>
                 </div>
-                {selected && <Check size={16} className="shrink-0 text-brand-blue" />}
               </button>
               <button
                 type="button"
-                onClick={() => onOpenResearch({ kind: 'candidate', race, candidate })}
-                title="Research"
-                aria-label={`Research ${candidate.name}`}
-                data-testid={`research-candidate-${race.id}-${candidate.id}`}
-                className="flex w-11 shrink-0 items-center justify-center border-l border-black/10 text-black/45 transition hover:bg-white hover:text-brand-blue"
+                disabled={disabled}
+                onClick={() => onPick(candidate.id)}
+                aria-label={`Vote for ${candidate.name}`}
+                data-testid={`race-pick-${race.id}-${candidate.id}`}
+                className="flex w-14 shrink-0 items-center justify-center border-l border-black/10 transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-brand-blue/10"
               >
-                <Info size={16} />
+                <div className={cn(
+                  "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                  selected ? "border-brand-blue bg-brand-blue text-white" : "border-black/20 bg-transparent text-transparent group-hover:border-brand-blue/50"
+                )}>
+                  <Check size={14} className={selected ? "opacity-100 scale-100" : "opacity-0 scale-50 transition-transform"} strokeWidth={4} />
+                </div>
               </button>
             </div>
           );
@@ -1073,27 +1020,26 @@ function MeasurePickCard({
   const disabled = submitting || locked || isCalled(measure);
 
   return (
-    <div className="card-surface overflow-hidden">
-      <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-brand-red p-3 text-white">
+    <div className="card-surface overflow-hidden flex flex-col">
+      <div className="flex items-start justify-between gap-3 border-b border-black/5 bg-brand-red p-3 text-white shrink-0">
         <div className="min-w-0">
           <p className="text-[10px] font-mono uppercase text-white/70">{measure.state} measure</p>
           <h3 className="text-sm font-black uppercase tracking-normal">{measure.title}</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => onOpenResearch({ kind: 'measure', measure })}
-          title="Research"
-          aria-label={`Research ${measure.title}`}
-          data-testid={`research-measure-${measure.id}`}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white hover:text-brand-red"
-        >
-          <Info size={16} />
-        </button>
       </div>
-      <div className="space-y-3 p-3">
-        <p className="text-[10px] font-mono uppercase leading-relaxed text-black/50">{measure.description}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {(['pass', 'fail'] as const).map((option) => (
+      
+      <button
+        type="button"
+        onClick={() => onOpenResearch({ kind: 'measure', measureId: measure.id })}
+        className="flex-1 p-3 text-left transition hover:bg-black/5"
+      >
+        <p className="text-[10px] font-mono uppercase leading-relaxed text-black/50 line-clamp-3">{measure.description}</p>
+      </button>
+
+      <div className="grid grid-cols-2 gap-0 border-t border-black/5 divide-x divide-black/5 bg-slate-50 shrink-0">
+        {(['pass', 'fail'] as const).map((option) => {
+          const selected = prediction?.pick === option;
+          return (
             <button
               key={option}
               type="button"
@@ -1101,192 +1047,28 @@ function MeasurePickCard({
               onClick={() => onPick(option)}
               data-testid={`measure-pick-${measure.id}-${option}`}
               className={cn(
-                "rounded-lg border p-3 text-xs font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-60",
-                prediction?.pick === option ? "border-brand-red bg-brand-red text-white" : "border-black/10 bg-white hover:border-brand-red/30"
+                "group flex items-center justify-between p-3 text-xs font-black uppercase transition disabled:cursor-not-allowed disabled:opacity-60 hover:bg-brand-red/5",
+                selected && "bg-brand-red/10"
               )}
             >
-              {option}
+              <span className={cn("transition-colors", selected ? "text-brand-red" : "text-black/70 group-hover:text-black")}>{option}</span>
+              <div className={cn(
+                "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                selected ? "border-brand-red bg-brand-red text-white" : "border-black/20 bg-transparent text-transparent group-hover:border-brand-red/50"
+              )}>
+                <Check size={14} className={selected ? "opacity-100 scale-100" : "opacity-0 scale-50 transition-transform"} strokeWidth={4} />
+              </div>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function ResearchDrawer({ target, onClose }: { target: ResearchTarget | null; onClose: () => void }) {
-  const [research, setResearch] = useState<CandidateResearch | MeasureResearch | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// Old research drawer removed
 
-  useEffect(() => {
-    if (!target) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setResearch(null);
-
-    const researchRef = target.kind === 'candidate'
-      ? doc(db, 'races', target.race.id, 'candidateResearch', target.candidate.id)
-      : doc(db, 'ballotMeasures', target.measure.id, 'research', 'profile');
-
-    getDoc(researchRef)
-      .then((snapshot) => {
-        if (cancelled) return;
-        setResearch(snapshot.exists() ? snapshot.data() as CandidateResearch | MeasureResearch : null);
-      })
-      .catch((fetchError) => {
-        if (cancelled) return;
-        handleFirestoreError(fetchError, OperationType.GET, target.kind === 'candidate' ? 'candidateResearch' : 'measureResearch');
-        setError('Research could not be loaded.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [target]);
-
-  const title = target?.kind === 'candidate' ? target.candidate.name : target?.measure.title;
-  const subtitle = target?.kind === 'candidate'
-    ? `${target.race.state} ${formatOffice(target.race)}`
-    : target ? `${target.measure.state} measure` : '';
-  const sections = target ? researchSections(target, research) : [];
-  const sources = research?.sources ?? [];
-
-  return (
-    <AnimatePresence>
-      {target && (
-        <motion.div
-          className="fixed inset-0 z-50 flex justify-end bg-black/35"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <button
-            type="button"
-            aria-label="Close research"
-            className="absolute inset-0 cursor-default"
-            onClick={onClose}
-          />
-          <motion.aside
-            className="relative flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl"
-            initial={{ x: 420 }}
-            animate={{ x: 0 }}
-            exit={{ x: 420 }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.28 }}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-black/10 bg-brand-slate p-5 text-white">
-              <div className="min-w-0">
-                <p className="font-mono text-[10px] uppercase text-white/55">{subtitle}</p>
-                <h2 className="mt-1 text-xl font-black uppercase tracking-normal">{title}</h2>
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                title="Close"
-                aria-label="Close research"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/80 transition hover:bg-white hover:text-brand-slate"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-5">
-              {loading && (
-                <p className="rounded-lg border border-black/10 bg-slate-50 p-4 font-mono text-[10px] uppercase text-black/45">Loading research...</p>
-              )}
-
-              {!loading && error && (
-                <p className="rounded-lg border border-brand-red/30 bg-brand-red/10 p-4 font-mono text-[10px] uppercase text-brand-red">{error}</p>
-              )}
-
-              {!loading && !error && sections.length === 0 && sources.length === 0 && (
-                <p className="rounded-lg border border-dashed border-black/15 bg-slate-50 p-4 font-mono text-[10px] uppercase leading-relaxed text-black/40">
-                  No source-backed research has been added for this pick yet.
-                </p>
-              )}
-
-              {!loading && !error && sections.length > 0 && (
-                <div className="space-y-4">
-                  {sections.map(({ bucketLabel, section }, index) => (
-                    <section key={`${bucketLabel}-${section.title}-${index}`} className="rounded-lg border border-black/10 bg-white p-4">
-                      <p className="font-mono text-[10px] uppercase text-brand-blue/70">{bucketLabel}</p>
-                      <h3 className="mt-1 text-sm font-black uppercase tracking-normal">{section.title}</h3>
-                      {section.body && <p className="mt-3 text-sm leading-relaxed text-black/65">{section.body}</p>}
-                      {section.bullets && section.bullets.length > 0 && (
-                        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-black/65">
-                          {section.bullets.map((bullet, bulletIndex) => (
-                            <li key={`${section.title}-${bulletIndex}`} className="border-l-2 border-brand-blue/20 pl-3">{bullet}</li>
-                          ))}
-                        </ul>
-                      )}
-                      {section.links && section.links.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {section.links.map((link) => (
-                            <a
-                              key={`${section.title}-${link.url}`}
-                              href={link.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-lg border border-black/10 px-2 py-1 font-mono text-[10px] uppercase text-brand-blue hover:border-brand-blue/30"
-                            >
-                              {link.label} <ExternalLink size={12} />
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  ))}
-                </div>
-              )}
-
-              {!loading && !error && sources.length > 0 && (
-                <div className="mt-5 rounded-lg border border-black/10 bg-slate-50 p-4">
-                  <h3 className="text-xs font-black uppercase tracking-normal">Sources</h3>
-                  <div className="mt-3 space-y-2">
-                    {sources.map((source) => (
-                      <div key={source.id ?? source.url}>
-                        <SourceLink source={source} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.aside>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function researchSections(target: ResearchTarget, research: CandidateResearch | MeasureResearch | null) {
-  const labels = target.kind === 'candidate' ? CANDIDATE_BUCKET_LABELS : MEASURE_BUCKET_LABELS;
-  const buckets = (research?.buckets ?? {}) as Record<string, ResearchSection[] | undefined>;
-
-  return Object.entries(labels).flatMap(([bucket, bucketLabel]) => {
-    const bucketSections = buckets[bucket] ?? [];
-    return bucketSections.map((section) => ({ bucketLabel, section }));
-  });
-}
-
-function SourceLink({ source }: { source: ResearchSource }) {
-  return (
-    <a
-      href={source.url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm font-bold text-black/70 transition hover:text-brand-blue"
-    >
-      <span className="min-w-0 truncate">{source.label}</span>
-      <ExternalLink size={14} className="shrink-0" />
-    </a>
-  );
-}
+// Old source components removed
 
 function LeaderboardPanel({ members, currentUserId }: { members: LeagueMember[]; currentUserId: string | null }) {
   return (

@@ -173,6 +173,14 @@ export interface Race extends SourceMetadata {
   summary?: string;
   ballotpediaUrl?: string;
   newsUrl?: string;
+  priorResult?: {
+    electionYear: number;
+    demTwoPartyShare?: number | null;
+    repTwoPartyShare?: number | null;
+    margin?: number | null;
+    winnerCandidateId?: string | null;
+  };
+  lean?: 'safe_D' | 'likely_D' | 'lean_D' | 'tossup' | 'lean_R' | 'likely_R' | 'safe_R';
 }
 
 export interface BallotMeasure extends SourceMetadata {
@@ -356,6 +364,41 @@ export interface NodeEntity {
   districtCode?: string;
   createdAt: string;
   telemetry?: AdvancedTelemetry;
+  // Bill-specific fields, populated by scripts/ingest-bills.ts (OpenStates).
+  identifier?: string; // e.g. "AB 12"
+  session?: string;
+  openStatesId?: string;
+  sourceUrl?: string;
+  latestActionAt?: string;
+  latestActionDescription?: string;
+  tldr?: { whatChanges?: string; whoImpacted?: string };
+  fiscalSummary?: { headline?: string; detail?: string };
+  updatedAt?: string;
+}
+
+/** A bill text version stored at entities/{billNodeId}/versions/{id}. */
+export interface BillVersion {
+  id: string;
+  billNodeId: string;
+  label: string; // e.g. "Introduced", "Amended in Assembly"
+  date?: string;
+  url?: string;
+  mediaType?: string;
+  /** Extracted plain text, truncated to fit Firestore document limits. */
+  text?: string;
+  textTruncated?: boolean;
+}
+
+/** A scheduled legislative hearing/event, stored in the hearings collection. */
+export interface Hearing {
+  id: string;
+  state: string;
+  billId?: string; // display label, e.g. "CA-AB 12"
+  billNodeId?: string; // entities/{id} when matched to an ingested bill
+  committee: string;
+  date: string; // ISO timestamp
+  room?: string;
+  status: string; // Scheduled | Postponed | Cancelled | ...
 }
 
 export type StandardizedStatus = 'INTRODUCED' | 'IN_COMMITTEE' | 'FLOOR_VOTE' | 'CROSS_CHAMBER' | 'EXECUTIVE_ACTION' | 'ENACTED' | 'VETOED';
@@ -384,7 +427,161 @@ export interface Edge {
   id: string;
   sourceId: string;
   targetId: string;
-  edgeType: 'CITES' | 'TEXTUAL_TWIN' | 'AMENDED_BY' | 'FUNDED_BY' | 'TARGETS_POPULATION';
+  edgeType: 'CITES' | 'TEXTUAL_TWIN' | 'AMENDED_BY' | 'FUNDED_BY' | 'TARGETS_POPULATION' | 'SPONSORED_BY';
   weight?: number;
 }
+
+// ---------------------------------------------------------
+// ContestResearchBundle Types (v2 Architecture)
+// ---------------------------------------------------------
+
+/**
+ * Two unit conventions are mixed in this type, matching how producers
+ * (e.g. scripts/build-contest-metrics.ts) and the sole heavy consumer
+ * (src/components/ResearchDrawer.tsx, via formatPercent/formatSignedPoints/
+ * formatSignedPercent) already treat them:
+ *
+ * - Fractions (0-1): priorVoteShareDem/Rep, turnoutRate, turnoutChange,
+ *   demographic shares. Display multiplies by 100 and appends '%'.
+ * - Percentage points (already scaled, Dem-positive): priorMargin,
+ *   swingVsPrevious, partisanLean, averageMargin, nationalHeadwindTailwind,
+ *   economicDirectionIndicator. Display renders the number as-is with a
+ *   '+' prefix for positive values.
+ *
+ * A new field must pick one of these two conventions; use the matching
+ * formatter when adding a display for it, not an ad hoc expression.
+ */
+export interface ContestMetrics {
+  id: string;
+  raceId: string;
+  historical?: {
+    priorVoteShareDem?: number | null;
+    priorVoteShareRep?: number | null;
+    priorMargin?: number | null;
+    swingVsPrevious?: number | null;
+    partisanLean?: number | null;
+  };
+  polling?: {
+    averageMargin?: number | null;
+    pollCount?: number;
+    latestPollDate?: string | null;
+    fieldDateRange?: { start?: string | null; end?: string | null };
+    sampleSizeAggregate?: number | null;
+    trend?: 'D_gaining' | 'R_gaining' | 'flat' | null;
+    variance?: number | null;
+  };
+  fundamentals?: {
+    incumbencyFlag?: boolean;
+    homeStateAdvantageFlag?: boolean;
+    nationalHeadwindTailwind?: number | null;
+    priorCycleBaseline?: number | null;
+    partyContinuity?: boolean;
+    economicDirectionIndicator?: number | null;
+  };
+  turnout?: {
+    turnoutRate?: number | null;
+    turnoutChange?: number | null;
+    earlyVoteShare?: number | null;
+  };
+  demographics?: {
+    racialComposition?: Record<string, number>;
+    ageComposition?: Record<string, number>;
+    educationComposition?: Record<string, number>;
+    urbanRuralShare?: { urban?: number | null; rural?: number | null; };
+    incomeProxy?: { medianIncome?: number | null; };
+    populationChange?: number | null;
+  };
+}
+
+export type CandidateResearchCard = {
+  candidateId: string;
+  name: string;
+  party: string;
+  incumbency?: 'incumbent' | 'challenger' | 'open-seat' | null;
+  identitySummary?: string;
+  contestContext?: string | null;
+  publicRecordBullets?: string[];
+  electionsHistorySummary?: string | null;
+  policyPositionsBullets?: string[];
+  legislativeActivityBullets?: string[];
+  pollingDelta?: number | null;
+  fundamentalsAdjustment?: number | null;
+  sourceIds: string[];
+};
+
+export type HistoricalMetrics = NonNullable<ContestMetrics['historical']>;
+export type PollingMetrics = NonNullable<ContestMetrics['polling']>;
+export type FundamentalsMetrics = NonNullable<ContestMetrics['fundamentals']>;
+export type TurnoutMetrics = NonNullable<ContestMetrics['turnout']>;
+export type DemographicMetrics = NonNullable<ContestMetrics['demographics']>;
+
+export type SupportOppositionMetrics = {
+  supporters?: string[];
+  opponents?: string[];
+  summary?: string | null;
+};
+
+export type FiscalMetrics = {
+  summary: string | null;
+};
+
+export type SourceRecord = {
+  id: string;
+  title: string;
+  type: string;
+  url?: string | null;
+  lastUpdated?: string | null;
+  coverageScope?: string;
+};
+
+export type FreshnessSummary = {
+  lastUpdated?: string | null;
+  staleFields: string[];
+};
+
+export type ConfidenceSummary = {
+  overall: number;
+  lowConfidenceFields: string[];
+};
+
+export type ContestResearchBundle = {
+  contestId: string;
+  contestType: 'race' | 'measure';
+
+  meta: {
+    title: string;
+    officeOrMeasure: string;
+    jurisdiction: string;
+    electionYear: number;
+    mode: 'sandbox' | 'live';
+    status: 'upcoming' | 'live' | 'called';
+  };
+
+  overview: {
+    summary: string;
+    source: 'stored' | 'derived' | 'generated' | 'fallback';
+  };
+
+  race?: {
+    candidates: CandidateResearchCard[];
+    historical?: HistoricalMetrics;
+    polling?: PollingMetrics;
+    fundamentals?: FundamentalsMetrics;
+    turnout?: TurnoutMetrics;
+    demographics?: DemographicMetrics;
+  };
+
+  measure?: {
+    summary: string;
+    supportOpposition?: SupportOppositionMetrics;
+    fiscalEffects?: FiscalMetrics;
+    officialTextSummary?: string | null;
+    legalHistorySummary?: string | null;
+  };
+
+  sources: SourceRecord[];
+  freshness: FreshnessSummary;
+  confidence: ConfidenceSummary;
+  missingFields: string[];
+};
 

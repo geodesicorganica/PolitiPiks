@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { Firestore, FieldValue } from '@google-cloud/firestore';
 
 export function requireEnv(name: string) {
@@ -10,6 +11,87 @@ export function getFirestore() {
   const projectId = requireEnv('PROJECT_ID');
   const databaseId = requireEnv('FIRESTORE_DATABASE_ID');
   return new Firestore({ projectId, databaseId });
+}
+
+// -----------------------------------------------------------------------------
+// CLI bootstrap for one-shot seed scripts (seed-medsl2024.ts, seed-fec2026.ts,
+// seed-file.ts). Distinct from getFirestore() above, which is env-var-only for
+// the always-running Cloud Run service.
+// -----------------------------------------------------------------------------
+
+export type ServiceAccount = Record<string, unknown>;
+
+export function getArg(name: string) {
+  const idx = process.argv.indexOf(name);
+  if (idx === -1) return null;
+  return process.argv[idx + 1] ?? null;
+}
+
+export function hasFlag(name: string) {
+  return process.argv.includes(name);
+}
+
+export function getServiceAccount(): ServiceAccount | null {
+  const serviceAccountPath = getArg('--service-account') ?? process.env.FIREBASE_SERVICE_ACCOUNT ?? null;
+  if (!serviceAccountPath) return null;
+  return JSON.parse(readFileSync(serviceAccountPath, 'utf8')) as ServiceAccount;
+}
+
+function readJsonSafe(path: string) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getDatabaseId() {
+  const cliDb = getArg('--database') ?? getArg('--database-id');
+  if (cliDb) return cliDb;
+  if (process.env.FIRESTORE_DATABASE_ID) return process.env.FIRESTORE_DATABASE_ID;
+
+  const localFirebase = readJsonSafe('firebase.json');
+  const parentFirebase = readJsonSafe('../firebase.json');
+  const guessed =
+    ((localFirebase?.firestore as Array<{ database?: unknown }> | undefined)?.[0]?.database as string | undefined) ??
+    ((parentFirebase?.firestore as Array<{ database?: unknown }> | undefined)?.[0]?.database as string | undefined);
+
+  return guessed && guessed.length > 0 ? guessed : '(default)';
+}
+
+export function getProjectId(serviceAccount: ServiceAccount | null) {
+  const cliProject = getArg('--project-id') ?? getArg('--project');
+  if (cliProject) return cliProject;
+  if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
+  if (typeof serviceAccount?.project_id === 'string' && serviceAccount.project_id.length > 0) {
+    return serviceAccount.project_id;
+  }
+  throw new Error('Missing project id. Provide --project-id or set PROJECT_ID.');
+}
+
+export function createFirestoreFromCli(projectId: string, databaseId: string, serviceAccount: ServiceAccount | null) {
+  const db = serviceAccount
+    ? (() => {
+        const clientEmail = serviceAccount.client_email;
+        const privateKey = serviceAccount.private_key;
+        if (typeof clientEmail !== 'string' || typeof privateKey !== 'string') {
+          throw new Error('Invalid service account JSON: expected client_email and private_key.');
+        }
+        return new Firestore({ projectId, databaseId, credentials: { client_email: clientEmail, private_key: privateKey } });
+      })()
+    : new Firestore({ projectId, databaseId });
+
+  db.settings({ ignoreUndefinedProperties: true });
+  return db;
+}
+
+/** Resolves service account, project id, database id, and client in one call. */
+export function bootstrapFirestoreFromCli() {
+  const serviceAccount = getServiceAccount();
+  const projectId = getProjectId(serviceAccount);
+  const databaseId = getDatabaseId();
+  const db = createFirestoreFromCli(projectId, databaseId, serviceAccount);
+  return { db, projectId, databaseId, serviceAccount };
 }
 
 export async function upsertContests(db: Firestore, payload: { races?: any[]; ballotMeasures?: any[] }) {

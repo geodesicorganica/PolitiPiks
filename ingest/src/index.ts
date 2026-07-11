@@ -3,6 +3,7 @@ import { SourcePayloadSchema } from './schema.js';
 import { getFirestore, requireEnv, upsertContests } from './firestore.js';
 import { loadMedsl2024StatewideContests } from './sources/medsl2024.js';
 import { loadBallotpediaStateElections } from './sources/ballotpedia.js';
+import { loadFecFederalContests } from './sources/fec2026.js';
 
 const app = express();
 app.use(express.json());
@@ -25,16 +26,19 @@ app.post('/tasks/ingest', async (req, res) => {
   const sourceType = (process.env.INGEST_SOURCE_TYPE ?? 'url').toLowerCase();
   const allowMedsl = sourceType === 'medsl2024';
   const allowBallotpedia = sourceType === 'ballotpedia_state';
+  const allowFec = sourceType === 'fec';
 
   const url = process.env.INGEST_SOURCE_URL;
-  if (!allowMedsl && !allowBallotpedia && !url) {
+  if (!allowMedsl && !allowBallotpedia && !allowFec && !url) {
     return res.status(400).json({ ok: false, error: 'Missing INGEST_SOURCE_URL' });
   }
 
   try {
     const json = allowMedsl
       ? await loadMedsl2024StatewideContests()
-      : allowBallotpedia
+      : allowFec
+        ? await loadFecFederalContests()
+        : allowBallotpedia
         ? await (async () => {
             const state = process.env.BALLOTPEDIA_STATE;
             if (!state) throw new Error('Missing BALLOTPEDIA_STATE (e.g. CA)');

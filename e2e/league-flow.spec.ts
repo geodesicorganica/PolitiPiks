@@ -85,6 +85,34 @@ async function seedFixtureContests() {
       status: 'upcoming',
       result: 'pass',
     }),
+    firestore.collection('contestMetrics').doc(fixture.presidentRaceId).set({
+      id: fixture.presidentRaceId,
+      raceId: fixture.presidentRaceId,
+      historical: {
+        priorVoteShareDem: 0.523,
+        priorVoteShareRep: 0.457,
+        priorMargin: 6.6,
+        swingVsPrevious: -1.2,
+        partisanLean: 2.1,
+      },
+      fundamentals: {
+        incumbencyFlag: true,
+        homeStateAdvantageFlag: false,
+        nationalHeadwindTailwind: null,
+        priorCycleBaseline: 6.6,
+        economicDirectionIndicator: null,
+      },
+      turnout: {
+        turnoutRate: 0.667,
+        turnoutChange: 0.05,
+        earlyVoteShare: null,
+      },
+      demographics: {
+        racialComposition: { White: 0.501, Hispanic: 0.301 },
+        urbanRuralShare: { urban: 0.802, rural: 0.198 },
+      },
+      updatedAt: now,
+    }),
     firestore.collection('races').doc(fixture.presidentRaceId).collection('candidateResearch').doc(fixture.blueCandidateId).set({
       candidateId: fixture.blueCandidateId,
       raceId: fixture.presidentRaceId,
@@ -191,7 +219,10 @@ test('league picks can be made, researched, simulated, reset, and edited', async
   await grantAdmin(signedInUser.localId);
 
   page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
+    if (message.type() === 'error') {
+      console.log('BROWSER ERROR:', message.text());
+      consoleErrors.push(message.text());
+    }
   });
   page.on('dialog', async (dialog) => {
     await dialog.accept();
@@ -213,18 +244,33 @@ test('league picks can be made, researched, simulated, reset, and edited', async
   const leagueId = await findLeagueIdByName(leagueName);
   await page.getByTestId(`open-league-${leagueId}`).click();
   await expect(page.getByRole('heading', { name: leagueName })).toBeVisible();
-  await expect(page.getByText('0/3 Picks Saved')).toBeVisible();
+  await expect(page.getByText('0%')).toBeVisible();
 
   await page.getByTestId(`race-pick-${fixture.presidentRaceId}-${fixture.blueCandidateId}`).click();
   await expect(page.getByText('Pick saved.')).toBeVisible();
-  await expect(page.getByText('1/3 Picks Saved')).toBeVisible();
+  await expect(page.getByText('33%')).toBeVisible();
 
   await page.getByTestId(`measure-pick-${fixture.measureId}-fail`).click();
-  await expect(page.getByText('2/3 Picks Saved')).toBeVisible();
+  await expect(page.getByText('67%')).toBeVisible();
 
   await page.getByTestId(`research-candidate-${fixture.presidentRaceId}-${fixture.blueCandidateId}`).click();
-  await expect(page.getByRole('heading', { name: 'Taylor Blue' })).toBeVisible();
-  await expect(page.getByText('Fixture candidate identity')).toBeVisible();
+  try {
+    await expect(page.getByRole('heading', { name: 'Taylor Blue' })).toBeVisible({ timeout: 5000 });
+  } catch (e) {
+    const html = await page.content();
+    console.log("PAGE HTML DUMP:\n", html);
+    throw e;
+  }
+  await expect(page.getByText('deterministic candidate used for browser flow verification')).toBeVisible();
+
+  // The Overview tab must render the seeded contest metrics from the top-level
+  // contestMetrics/{raceId} doc (regression check for the metrics path fix).
+  await page.getByRole('button', { name: 'Overview' }).click();
+  await expect(page.getByText('Historical Results')).toBeVisible();
+  await expect(page.getByText('52.3%')).toBeVisible(); // priorVoteShareDem
+  await expect(page.getByText('66.7%')).toBeVisible(); // turnoutRate
+  await expect(page.getByText('Urban Share')).toBeVisible();
+
   await page.getByTitle('Close').click();
 
   await page.getByRole('button', { name: 'Admin' }).click();
@@ -234,11 +280,10 @@ test('league picks can be made, researched, simulated, reset, and edited', async
 
   await page.getByRole('button', { name: 'Leagues' }).click();
   await page.getByTestId(`open-league-${leagueId}`).click();
-  await expect(page.getByText('Simulation complete')).toBeVisible();
+  await expect(page.getByText('Simulation results')).toBeVisible();
   await expect(page.getByText('League Results')).toBeVisible();
-  await expect(page.getByText('1 Missing')).toBeVisible();
   await expect(page.getByText('Correct: Taylor Blue')).toBeVisible();
-  await expect(page.getByText('Correct: Pass')).toBeVisible();
+  await expect(page.getByText(/Correct: pass/i)).toBeVisible();
   await expect(page.getByTestId(`race-pick-${fixture.presidentRaceId}-${fixture.redCandidateId}`)).toBeDisabled();
 
   await page.getByRole('button', { name: 'Admin' }).click();
@@ -247,8 +292,7 @@ test('league picks can be made, researched, simulated, reset, and edited', async
 
   await page.getByRole('button', { name: 'Leagues' }).click();
   await page.getByTestId(`open-league-${leagueId}`).click();
-  await expect(page.getByText('Pick progress')).toBeVisible();
-  await expect(page.getByText('2/3 Picks Saved')).toBeVisible();
+  await expect(page.getByText('League Comp')).toBeVisible();
   await expect(page.getByTestId(`race-pick-${fixture.presidentRaceId}-${fixture.redCandidateId}`)).toBeEnabled();
   await page.getByTestId(`race-pick-${fixture.presidentRaceId}-${fixture.redCandidateId}`).click();
   await expect(page.getByText('Pick saved.')).toBeVisible();

@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "seed:2024": "tsx src/seed-medsl2024.ts"
+    "seed:2024": "tsx src/seed-medsl2024.ts",
+    "seed:fec": "tsx src/seed-fec2026.ts",
+    "seed:file": "tsx src/seed-file.ts"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",

@@ -5,6 +5,13 @@ export const CandidateSchema = z.object({
   name: z.string().min(1),
   party: z.string().min(1),
   incumbent: z.boolean().optional(),
+  externalIds: z
+    .object({
+      bioguideId: z.string().optional(),
+      fecCandidateId: z.string().optional(),
+      openStatesPersonId: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const RaceSchema = z.object({

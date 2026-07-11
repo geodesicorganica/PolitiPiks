@@ -1,9 +1,24 @@
-import Papa from 'papaparse';
-import { createInflateRaw } from 'node:zlib';
-import { Readable } from 'node:stream';
 import { SourcePayload } from '../schema.js';
+import {
+  Row,
+  betterParty,
+  candidateKey,
+  candidateName,
+  candidateParty,
+  closeDateForElection,
+  district,
+  fetchCsv,
+  forEachZipCsvRow,
+  isNonCandidateChoice,
+  isWriteIn,
+  mode,
+  normParty,
+  office,
+  parseVotes,
+  slugId,
+  stateAbbrev,
+} from './medslCommon.js';
 
-type Row = Record<string, string>;
 type ContestCandidate = { id: string; name: string; party: string; votes: number };
 type CandidateAccumulator = { id: string; name: string; party: string; allVotes: number; totalModeVotes: number };
 type MeasureAccumulator = { passAll: number; failAll: number; passTotal: number; failTotal: number; hasTotalMode: boolean };
@@ -81,175 +96,9 @@ function configuredStateZips() {
   return STATE_ZIPS.filter((zip) => wanted.has(zip));
 }
 
-function requireField(row: Row, key: string) {
-  const v = row[key];
-  if (!v) throw new Error(`Missing field ${key}`);
-  return v;
-}
-
-function normParty(party: string) {
-  const p = party.trim().toLowerCase();
-  if (p.includes('democrat')) return 'Democrat';
-  if (p.includes('republican')) return 'Republican';
-  if (p.includes('independent')) return 'Independent';
-  return 'Other';
-}
-
-function slugId(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 64) || 'unknown';
-}
-
-function candidateKey(name: string) {
-  return slugId(name);
-}
-
-function betterParty(existing: string, next: string) {
-  if (existing === 'Other' && next !== 'Other') return next;
-  return existing || next;
-}
-
-function stateAbbrev(row: Row) {
-  const st = (row['state_po'] || row['state'] || row['state_abbrev'] || '').trim();
-  if (!st) throw new Error('Missing state');
-  return st.toUpperCase();
-}
-
-function candidateName(row: Row) {
-  return (row['candidate'] || row['candidate_name'] || row['cand'] || '').replace(/\s+/g, ' ').trim();
-}
-
-function candidateParty(row: Row) {
-  return (row['party_simplified'] || row['party'] || row['party_detailed'] || '').trim();
-}
-
-function district(row: Row) {
-  return (row['district'] || '').replace(/\s+/g, ' ').trim();
-}
-
-function office(row: Row) {
-  return (row['office'] || '').replace(/\s+/g, ' ').trim().toUpperCase();
-}
-
-function mode(row: Row) {
-  return (row['mode'] || '').trim().toUpperCase();
-}
-
-function parseVotes(raw: string) {
-  const normalized = raw.trim().replace(/,/g, '');
-  if (!normalized || normalized === '*') return 0;
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : 0;
-}
-
-function isWriteIn(row: Row) {
-  const writein = (row['writein'] || '').trim().toLowerCase();
-  const candidate = candidateName(row).toLowerCase();
-  return writein == 'true' || candidate.includes('write-in') || candidate.includes('write in');
-}
-
-function isNonCandidateChoice(name: string) {
-  const normalized = name.replace(/[^a-z0-9]+/gi, ' ').trim().toUpperCase();
-  return [
-    'OVER VOTES',
-    'OVERVOTES',
-    'UNDER VOTES',
-    'UNDERVOTES',
-    'TOTAL VOTES CAST',
-    'TOTAL VOTES',
-    'WRITE IN',
-    'WRITE INS',
-    'WRITEIN',
-  ].includes(normalized);
-}
-
 function isSkippableHouseDistrict(state: string, districtName: string) {
   const normalizedDistrict = districtName.toUpperCase();
   return !districtName || (normalizedDistrict === 'STATEWIDE' && !AT_LARGE_HOUSE_STATES.has(state));
-}
-
-async function fetchCsv(url: string) {
-  const resp = await fetch(url, { headers: { accept: 'text/csv,*/*' } });
-  if (!resp.ok) throw new Error(`Fetch failed ${resp.status} for ${url}`);
-  const text = await resp.text();
-  const parsed = Papa.parse<Row>(text, { header: true, skipEmptyLines: true });
-  if (parsed.errors.length) throw new Error(`CSV parse error: ${parsed.errors[0]?.message ?? 'unknown'}`);
-  return parsed.data.filter((r: Row) => Object.keys(r).length > 0);
-}
-
-function closeDateForElection(electionDateISO: string) {
-  // For post-cert historical imports, exact poll close times don't matter for pick locking.
-  // Use end-of-day UTC as a stable placeholder.
-  return `${electionDateISO}T23:59:59Z`;
-}
-
-async function forEachZipCsvRow(url: string, onRow: (row: Row) => void) {
-  const resp = await fetch(url, { headers: { accept: 'application/zip,*/*' } });
-  if (!resp.ok) throw new Error(`Fetch failed ${resp.status} for ${url}`);
-  const buffer = Buffer.from(await resp.arrayBuffer());
-  const csvStream = extractFirstCsvStreamFromZip(buffer);
-
-  await new Promise<void>((resolve, reject) => {
-    const parser = Papa.parse(Papa.NODE_STREAM_INPUT, {
-      header: true,
-      skipEmptyLines: true,
-    });
-
-    parser.on('data', (row: Row) => onRow(row));
-    parser.on('error', reject);
-    parser.on('finish', resolve);
-    csvStream.on('error', reject);
-    csvStream.pipe(parser);
-  });
-}
-
-function extractFirstCsvStreamFromZip(buffer: Buffer) {
-  const eocdOffset = findEndOfCentralDirectory(buffer);
-  const totalEntries = buffer.readUInt16LE(eocdOffset + 10);
-  const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
-
-  let offset = centralDirectoryOffset;
-  for (let i = 0; i < totalEntries; i++) {
-    if (buffer.readUInt32LE(offset) !== 0x02014b50) {
-      throw new Error('Invalid ZIP central directory');
-    }
-
-    const compressionMethod = buffer.readUInt16LE(offset + 10);
-    const compressedSize = buffer.readUInt32LE(offset + 20);
-    const fileNameLength = buffer.readUInt16LE(offset + 28);
-    const extraFieldLength = buffer.readUInt16LE(offset + 30);
-    const fileCommentLength = buffer.readUInt16LE(offset + 32);
-    const localHeaderOffset = buffer.readUInt32LE(offset + 42);
-    const fileName = buffer.toString('utf8', offset + 46, offset + 46 + fileNameLength);
-
-    if (fileName.toLowerCase().endsWith('.csv')) {
-      if (buffer.readUInt32LE(localHeaderOffset) !== 0x04034b50) {
-        throw new Error('Invalid ZIP local file header');
-      }
-      const localNameLength = buffer.readUInt16LE(localHeaderOffset + 26);
-      const localExtraLength = buffer.readUInt16LE(localHeaderOffset + 28);
-      const dataOffset = localHeaderOffset + 30 + localNameLength + localExtraLength;
-      const compressed = buffer.subarray(dataOffset, dataOffset + compressedSize);
-      if (compressionMethod === 0) return Readable.from(compressed);
-      if (compressionMethod === 8) return Readable.from(compressed).pipe(createInflateRaw());
-      throw new Error(`Unsupported ZIP compression method ${compressionMethod}`);
-    }
-
-    offset += 46 + fileNameLength + extraFieldLength + fileCommentLength;
-  }
-
-  throw new Error('No CSV file found in ZIP');
-}
-
-function findEndOfCentralDirectory(buffer: Buffer) {
-  for (let offset = buffer.length - 22; offset >= 0; offset--) {
-    if (buffer.readUInt32LE(offset) === 0x06054b50) return offset;
-  }
-  throw new Error('Invalid ZIP: missing end of central directory');
 }
 
 function aggregateCandidateVotes(rows: Row[], includeRow: (row: Row) => boolean) {

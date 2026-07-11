@@ -13,7 +13,7 @@ This is a small Cloud Run service intended to be triggered by Cloud Scheduler to
 
 - `PROJECT_ID` (e.g. `politipiks`)
 - `FIRESTORE_DATABASE_ID` (must match your `firebase.json` database)
-- `INGEST_SOURCE_TYPE` (`url`, `medsl2024`, or `ballotpedia_state`)
+- `INGEST_SOURCE_TYPE` (`url`, `medsl2024`, `fec`, or `ballotpedia_state`)
 - `INGEST_SOURCE_URL` (HTTPS URL returning contests JSON; required only when `INGEST_SOURCE_TYPE=url`)
 - `INGEST_TOKEN` (shared secret for the scheduler request header)
 
@@ -56,6 +56,25 @@ Optional flags:
 - `--database <id>` (defaults to `FIRESTORE_DATABASE_ID` or `firebase.json`)
 - `--service-account <path>` and `--project-id <id>` are supported when invoking `tsx src/seed-medsl2024.ts` directly
 - omit service account to use Application Default Credentials
+
+## Free "pre-election contests" option: FEC (2026 federal races)
+
+Loads Senate + House candidate filings for an upcoming cycle from the FEC API
+(free key at https://api.data.gov/signup/). Races are written with `mode: 'live'`.
+
+Set:
+- `INGEST_SOURCE_TYPE=fec`
+- `FEC_API_KEY=...` (DEMO_KEY works for smoke tests, heavily rate-limited)
+- `FEC_ELECTION_YEAR=2026` (default)
+- `FEC_STATES=GA,TX` (optional state filter)
+
+Local one-shot seed (from repo root): `npm run seed-2026-federal` (add `-- --dry-run` to preview).
+Suggested Cloud Scheduler cadence: weekly (candidate filings change often pre-primary).
+
+Governor races and 2026 ballot measures have no free API — they flow through the
+curated file `data/2026/curated-contests.json` (drafted by
+`npm run discover-2026-contests`, human-reviewed, then seeded with
+`npm run seed-2026-curated`). See `docs/data-pipeline.md`.
 
 ## Fastest "pre-election contests" option: Ballotpedia (requires API key)
 

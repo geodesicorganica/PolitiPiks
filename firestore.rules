@@ -269,6 +269,11 @@ service cloud.firestore {
       }
     }
 
+    match /contestMetrics/{raceId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     match /ballotMeasures/{measureId} {
       allow read: if isSignedIn();
       allow create: if isAdmin() && isValidBallotMeasure(incoming());
@@ -344,18 +349,38 @@ service cloud.firestore {
         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'score', 'correctPick', 'scoredAt', 'updatedAt']) &&
         isValidPredictionScore(incoming());
     }
-    // --- PIP-S Data (Development) ---
+    // --- PIP-S Data ---
+    // Written by pipeline scripts via the Admin SDK (which bypasses rules);
+    // clients only ever read.
     match /entities/{entityId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
       match /status_logs/{logId} {
-        allow read, write: if true;
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+      }
+      match /versions/{versionId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
       }
     }
     match /edges/{edgeId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
     match /transactions/{transactionId} {
-      allow read, write: if true;
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    match /hearings/{hearingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // --- Pipeline run ledger (batch scripts write via Admin SDK) ---
+    match /pipelineRuns/{runId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
   }
 }

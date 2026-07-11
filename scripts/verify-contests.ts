@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
 import process from 'node:process';
 import { Firestore } from '@google-cloud/firestore';
+import { bootstrapFirestore } from './lib/firestoreCli.js';
 
 type Candidate = {
   id?: unknown;
@@ -54,6 +54,7 @@ type ResearchCoverage = {
   measureSourceOnlyFallbacks: number;
   bucketCounts: Map<string, number>;
   noResearchOrSourceFallback: string[];
+  boilerplateDocs: number;
 };
 
 const EXPECTED_2024_HOUSE_SEATS: Record<string, number> = {
@@ -109,72 +110,6 @@ const EXPECTED_2024_HOUSE_SEATS: Record<string, number> = {
   WV: 2,
   WY: 1,
 };
-
-function getArg(name: string) {
-  const idx = process.argv.indexOf(name);
-  if (idx === -1) return null;
-  return process.argv[idx + 1] ?? null;
-}
-
-function getServiceAccountPath() {
-  return getArg('--service-account') ?? process.env.FIREBASE_SERVICE_ACCOUNT ?? null;
-}
-
-function getServiceAccount() {
-  const serviceAccountPath = getServiceAccountPath();
-  if (!serviceAccountPath) return null;
-  const raw = readFileSync(serviceAccountPath, 'utf8');
-  return JSON.parse(raw) as Record<string, unknown>;
-}
-
-function getDatabaseId() {
-  const cliDb = getArg('--database') ?? getArg('--database-id');
-  if (cliDb) return cliDb;
-  if (process.env.FIRESTORE_DATABASE_ID) return process.env.FIRESTORE_DATABASE_ID;
-
-  try {
-    const firebaseJsonRaw = readFileSync('firebase.json', 'utf8');
-    const firebaseJson = JSON.parse(firebaseJsonRaw);
-    const db = firebaseJson?.firestore?.[0]?.database;
-    if (typeof db === 'string' && db.length > 0) return db;
-  } catch {
-    // ignore
-  }
-
-  return '(default)';
-}
-
-function getProjectId(serviceAccount: Record<string, unknown> | null) {
-  const cliProject = getArg('--project-id') ?? getArg('--project');
-  if (cliProject) return cliProject;
-  if (process.env.PROJECT_ID) return process.env.PROJECT_ID;
-  if (typeof serviceAccount?.project_id === 'string' && serviceAccount.project_id.length > 0) {
-    return serviceAccount.project_id;
-  }
-
-  throw new Error('Missing project id. Provide --project-id or set PROJECT_ID.');
-}
-
-function createFirestore(projectId: string, databaseId: string, serviceAccount: Record<string, unknown> | null) {
-  if (!serviceAccount) {
-    return new Firestore({ projectId, databaseId });
-  }
-
-  const clientEmail = serviceAccount.client_email;
-  const privateKey = serviceAccount.private_key;
-  if (typeof clientEmail !== 'string' || typeof privateKey !== 'string') {
-    throw new Error('Invalid service account JSON: expected client_email and private_key.');
-  }
-
-  return new Firestore({
-    projectId,
-    databaseId,
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey,
-    },
-  });
-}
 
 function asString(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
@@ -283,6 +218,7 @@ function formatResearchCoverage(coverage: ResearchCoverage) {
     `Measure research docs: ${coverage.measureResearchDocs}`,
     `Measure research missing: ${coverage.measureResearchMissing}`,
     `Measure source-only fallbacks: ${coverage.measureSourceOnlyFallbacks}`,
+    `Candidate research docs still containing template boilerplate: ${coverage.boilerplateDocs}`,
     '',
     'Research buckets present:',
     formatMap(coverage.bucketCounts) || '  none',
@@ -306,12 +242,14 @@ async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures
     db.collectionGroup('research').get(),
   ]);
 
+  let boilerplateDocs = 0;
   candidateResearchSnap.docs.forEach((researchDoc) => {
     const raceId = researchDoc.ref.parent.parent?.id;
     if (!raceId) return;
     const data = researchDoc.data() as ResearchDoc;
     const key = `${raceId}|${researchDoc.id}`;
     candidateResearchDocs.set(key, data);
+    if (containsBoilerplate(data)) boilerplateDocs += 1;
     bucketKeys(data).forEach((bucket) => increment(bucketCounts, `candidate.${bucket}`));
   });
 
@@ -376,14 +314,76 @@ async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures
     measureSourceOnlyFallbacks,
     bucketCounts,
     noResearchOrSourceFallback,
+    boilerplateDocs,
   };
 }
 
+// Phrases from the retired templated-placeholder generator; their presence means a
+// research doc has not been replaced by the hybrid enrichment pipeline yet.
+const BOILERPLATE_MARKERS = [
+  'Aligns with the standard',
+  'has a documented public record in',
+  'No disqualifying public controversies found in preliminary sandbox data',
+  'Verified resident and active participant',
+  'Focuses campaign messaging on key',
+  'Has stated priorities for economic and social development in the region',
+];
+
+function containsBoilerplate(data: ResearchDoc): boolean {
+  const buckets = asObject(data.buckets);
+  if (!buckets) return false;
+  const text = JSON.stringify(buckets);
+  return BOILERPLATE_MARKERS.some((marker) => text.includes(marker));
+}
+
+// Senate Class 2 seats are on the 2026 ballot.
+const SENATE_CLASS_2_STATES = [
+  'AL', 'AK', 'AR', 'CO', 'DE', 'GA', 'ID', 'IL', 'IA', 'KS', 'KY', 'LA', 'ME',
+  'MA', 'MI', 'MN', 'MS', 'MT', 'NE', 'NH', 'NJ', 'NM', 'NC', 'OK', 'OR', 'RI',
+  'SC', 'SD', 'TN', 'TX', 'VA', 'WV', 'WY',
+];
+
+const GOVERNOR_STATES_2026 = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'FL', 'GA', 'HI', 'ID', 'IL', 'IA', 'KS',
+  'ME', 'MD', 'MA', 'MI', 'MN', 'NE', 'NV', 'NH', 'NM', 'NY', 'OH', 'OK', 'OR', 'PA',
+  'RI', 'SC', 'SD', 'TN', 'TX', 'VT', 'WI', 'WY',
+];
+
+async function inspectMetricsCoverage(db: Firestore, races: RaceDoc[]) {
+  const metricsSnap = await db.collection('contestMetrics').get();
+  const metricsById = new Map(metricsSnap.docs.map((doc) => [doc.id, doc.data() as Record<string, unknown>]));
+  let withHistorical = 0;
+  let withDemographics = 0;
+  const missing: string[] = [];
+  for (const race of races) {
+    const metrics = metricsById.get(race.id);
+    if (!metrics) {
+      missing.push(race.id);
+      continue;
+    }
+    if (asObject(metrics.historical)) withHistorical += 1;
+    if (asObject(metrics.demographics)) withDemographics += 1;
+  }
+  return { total: metricsSnap.size, withHistorical, withDemographics, missing };
+}
+
+async function inspectPipsCoverage(db: Firestore) {
+  const [billsSnap, versionsSnap, hearingsSnap] = await Promise.all([
+    db.collection('entities').where('entityType', '==', 'BILL').get(),
+    db.collectionGroup('versions').get(),
+    db.collection('hearings').get(),
+  ]);
+  const billsByState = new Map<string, number>();
+  billsSnap.docs.forEach((doc) => {
+    const state = asString((doc.data() as Record<string, unknown>).jurisdictionState) || 'UNKNOWN';
+    increment(billsByState, state);
+  });
+  const versionsWithText = versionsSnap.docs.filter((doc) => asString((doc.data() as Record<string, unknown>).text).length > 0).length;
+  return { bills: billsSnap.size, billsByState, versions: versionsSnap.size, versionsWithText, hearings: hearingsSnap.size };
+}
+
 async function main() {
-  const serviceAccount = getServiceAccount();
-  const projectId = getProjectId(serviceAccount);
-  const databaseId = getDatabaseId();
-  const db = createFirestore(projectId, databaseId, serviceAccount);
+  const { db, projectId, databaseId } = bootstrapFirestore();
 
   const [raceSnap, measureSnap] = await Promise.all([
     db.collection('races').get(),
@@ -420,7 +420,9 @@ async function main() {
     }
 
     const district = asString(race.district) || 'statewide';
-    const contestKey = `${state}|${office}|${district}`;
+    // Keyed by cycle year so a 2026 live race is not flagged as a duplicate of
+    // the same seat's 2024 sandbox race.
+    const contestKey = `${idYear}|${state}|${office}|${district}`;
     if (contestKeys.has(contestKey)) {
       issues.push(`Duplicate race slot: ${contestKey} (${race.id})`);
     }
@@ -501,7 +503,25 @@ async function main() {
     }
   }
 
-  const researchCoverage = await inspectResearchCoverage(db, races, measures);
+  // 2026 live-cycle coverage (informational until the cycle is fully seeded).
+  const races2026 = races.filter((race) => getYearFromId(race.id) === '2026');
+  const measures2026 = measures.filter((measure) => getYearFromId(measure.id) === '2026');
+  const senate2026States = new Set(races2026.filter((r) => asString(r.office) === 'Senate').map((r) => asString(r.state)));
+  const governor2026States = new Set(races2026.filter((r) => asString(r.office) === 'Governor').map((r) => asString(r.state)));
+  const house2026Count = races2026.filter((r) => asString(r.office) === 'House').length;
+  const missing2026: string[] = [];
+  for (const state of SENATE_CLASS_2_STATES) {
+    if (!senate2026States.has(state)) missing2026.push(`${state}: missing 2026 Senate race`);
+  }
+  for (const state of GOVERNOR_STATES_2026) {
+    if (!governor2026States.has(state)) missing2026.push(`${state}: missing 2026 Governor race`);
+  }
+
+  const [researchCoverage, metricsCoverage, pipsCoverage] = await Promise.all([
+    inspectResearchCoverage(db, races, measures),
+    inspectMetricsCoverage(db, races),
+    inspectPipsCoverage(db),
+  ]);
 
   const output = [
     `Contest verification for project=${projectId}, database=${databaseId}`,
@@ -527,6 +547,18 @@ async function main() {
     `Data quality issues (${issues.length}):`,
     issues.slice(0, 80).map((item) => `  ${item}`).join('\n') || '  none',
     issues.length > 80 ? `  ... ${issues.length - 80} more` : '',
+    '',
+    `2026 live cycle: senate=${senate2026States.size}/${SENATE_CLASS_2_STATES.length} states, governor=${governor2026States.size}/${GOVERNOR_STATES_2026.length} states, house=${house2026Count}, measures=${measures2026.length}`,
+    `2026 coverage gaps (${missing2026.length}, informational until the cycle is seeded):`,
+    missing2026.slice(0, 40).map((item) => `  ${item}`).join('\n') || '  none',
+    missing2026.length > 40 ? `  ... ${missing2026.length - 40} more` : '',
+    '',
+    `Contest metrics: ${metricsCoverage.total} docs, historical=${metricsCoverage.withHistorical}, demographics=${metricsCoverage.withDemographics}, races missing metrics=${metricsCoverage.missing.length}`,
+    metricsCoverage.missing.slice(0, 20).map((item) => `  missing: ${item}`).join('\n'),
+    metricsCoverage.missing.length > 20 ? `  ... ${metricsCoverage.missing.length - 20} more` : '',
+    '',
+    `PIP-S bills: ${pipsCoverage.bills} (versions=${pipsCoverage.versions}, with text=${pipsCoverage.versionsWithText}, hearings=${pipsCoverage.hearings})`,
+    formatMap(pipsCoverage.billsByState),
     '',
     'Research coverage (informational):',
     formatResearchCoverage(researchCoverage),

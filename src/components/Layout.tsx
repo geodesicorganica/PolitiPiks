@@ -26,13 +26,13 @@ export function Layout({ children, activeTab, onTabChange }: LayoutProps) {
       {/* Top Header */}
       <header className="sticky top-0 z-20 border-b border-brand-blue/15 bg-brand-blue text-white backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+          <button onClick={() => onTabChange('leagues')} className="flex items-center gap-3 text-left transition hover:opacity-80">
             <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-red font-black italic shadow-md shadow-brand-red/40">P</div>
             <div>
               <h1 className="font-black italic tracking-tight text-lg sm:text-xl">POLITIPICK</h1>
               <p className="text-[10px] font-mono uppercase tracking-widest text-white/55">Private league sandbox</p>
             </div>
-          </div>
+          </button>
 
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-right hidden sm:block">

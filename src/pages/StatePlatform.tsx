@@ -81,14 +81,6 @@ export function StatePlatform() {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Temporary Debug Button to toggle panel for UI testing */}
-      <button 
-        onClick={() => setSelectedBillId(selectedBillId ? null : 'test-bill')}
-        className="absolute bottom-4 right-4 text-xs font-mono text-black/30 hover:text-black/60"
-      >
-        Toggle Bill Panel
-      </button>
     </div>
   );
 }
