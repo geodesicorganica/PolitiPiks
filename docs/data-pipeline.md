@@ -5,6 +5,16 @@ what order to run the jobs. All sources are free; the required API keys are list
 `.env.example`. Every batch script supports `--dry-run`, writes an audit record to the
 `pipelineRuns` collection, and is idempotent (merge-writes keyed by stable IDs).
 
+> **Windows/PowerShell note:** `npm run <script> -- --flag value` has been observed to
+> silently strip every `--flag`-prefixed token on this machine's npm/PowerShell setup —
+> the script receives bare positional values with no flag names, so filters like
+> `--state`/`--limit`/`--budget` are dropped and the job runs unscoped. Confirmed fix:
+> invoke the script directly instead, e.g.
+> `npx tsx scripts/enrich-research.ts --state GA --limit 10` (env vars from
+> `.env.local` still need to be loaded into the shell first — most of these scripts
+> read `process.env` directly and do not load `.env.local` themselves). Verify flags
+> landed by checking the script's own startup log line before trusting a run.
+
 ## Key environment variables
 
 | Var | Used by | Where to get it |

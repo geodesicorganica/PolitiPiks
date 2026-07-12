@@ -45,6 +45,15 @@ Agent: run Phase A of the dispatch prompt in smoke mode (`--state GA`,
 Overview shows real Historical/Turnout/Demographics and a candidate tab shows real
 legislative activity with sources. This validates all keys and write paths for ~$0.
 
+⚠️ Use `npx tsx scripts/enrich-research.ts --state GA --limit 10` (env vars loaded
+into the shell first) — `npm run enrich-research -- --state GA --limit 10` has been
+observed to drop the flags on this machine and run unscoped. See the Windows note in
+[data-pipeline.md](data-pipeline.md). One attempt on 2026-07-11 burned the Gemini
+free-tier daily quota (20 req/day) running unscoped from AK before reaching GA —
+harmless (7-day freshness skip means it only refreshed already-stale docs, never
+overwrote official-sourced buckets) but wasted the day's quota. Confirm the script's
+own startup log prints `state=GA` before letting it run unattended.
+
 ## Step 4 — Full 2024 backfill · 🤖 · ~3–4 h mostly unattended
 
 In order, each dry-run-first: `seed-2024` (only if gaps) → `enrich-research-2024
