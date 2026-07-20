@@ -9,7 +9,13 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "lint:rules": "eslint firestore.rules"
+    "lint:rules": "eslint firestore.rules",
+    "verify": "npm run lint && npm run build",
+    "smoke": "node scripts/smoke-test.mjs",
+    "verify-deployment-readiness": "tsx scripts/verify-deployment-readiness.ts",
+    "preflight-close-at": "tsx scripts/preflight-close-at.ts",
+    "verify-firestore-league-flow": "firebase emulators:exec --only firestore \"node tests/firestore-league-flow.mjs\"",
+    "verify-browser-league-flow": "playwright test --config=playwright.config.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
@@ -31,11 +37,14 @@
   },
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.61.1",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "eslint": "^10.3.0",
+    "firebase-tools": "^15.24.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",

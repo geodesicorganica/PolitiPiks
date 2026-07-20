@@ -76,8 +76,10 @@ service cloud.firestore {
              data.ownerId == request.auth.uid &&
              data.inviteCode is string && data.inviteCode.size() <= 10 &&
              data.createdAt == request.time &&
-             data.keys().hasAll(['name', 'ownerId', 'inviteCode', 'createdAt']) &&
-             data.keys().size() == 4;
+             data.electionYear == 2026 &&
+             data.mode == 'live' &&
+             data.keys().hasAll(['name', 'ownerId', 'inviteCode', 'createdAt', 'electionYear', 'mode']) &&
+             data.keys().size() == 6;
     }
 
     function isValidMember(data) {
@@ -110,18 +112,34 @@ service cloud.firestore {
 
     match /races/{raceId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
     }
 
-    match /measures/{measureId} {
+    match /ballotMeasures/{measureId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+    }
+
+    function liveTargetIsOpen(data) {
+      return (data.type == 'race' &&
+              exists(/databases/$(database)/documents/races/$(data.targetId)) &&
+              get(/databases/$(database)/documents/races/$(data.targetId)).data.electionYear == 2026 &&
+              get(/databases/$(database)/documents/races/$(data.targetId)).data.mode == 'live' &&
+              get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt is timestamp &&
+              request.time < get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt) ||
+             (data.type == 'measure' &&
+              exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
+              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.electionYear == 2026 &&
+              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.mode == 'live' &&
+              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt is timestamp &&
+              request.time < get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt);
     }
 
     match /predictions/{predictionId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid &&
+        liveTargetIsOpen(request.resource.data);
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid && liveTargetIsOpen(request.resource.data);
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
   }
 }

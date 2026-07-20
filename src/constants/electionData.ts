@@ -1,6 +1,7 @@
+import { Timestamp } from 'firebase/firestore';
 import { Race, BallotMeasure } from '../types';
 
-export const SEED_RACES: Race[] = [
+const seedRaces: Array<Omit<Race, 'closeAt' | 'electionYear' | 'mode'>> = [
   {
     id: 'race-ga-senate-2026',
     state: 'Georgia',
@@ -521,7 +522,7 @@ export const SEED_RACES: Race[] = [
   }
 ];
 
-export const SEED_MEASURES: BallotMeasure[] = [
+const seedMeasures: Array<Omit<BallotMeasure, 'closeAt' | 'electionYear' | 'mode'>> = [
   {
     id: 'measure-fl-legalize-2026',
     state: 'Florida',
@@ -557,3 +558,18 @@ export const SEED_MEASURES: BallotMeasure[] = [
     ballotpediaUrl: 'https://ballotpedia.org/California_Proposition_4,_Climate_Change_Mitigation_Bond_Initiative_(2026)'
   }
 ];
+
+/** Test-only legacy fixture data. It is never imported by production surfaces. */
+export const SEED_RACES: Race[] = seedRaces.map((race) => ({
+  ...race,
+  closeAt: Timestamp.fromDate(new Date(race.closeDate)),
+  electionYear: race.closeDate.startsWith('2028') ? 2028 : 2026,
+  mode: race.closeDate.startsWith('2028') ? 'sandbox' : 'live',
+}));
+
+export const SEED_MEASURES: BallotMeasure[] = seedMeasures.map((measure) => ({
+  ...measure,
+  closeAt: Timestamp.fromDate(new Date(measure.closeDate)),
+  electionYear: 2026,
+  mode: 'live',
+}));

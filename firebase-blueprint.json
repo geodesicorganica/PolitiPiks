@@ -79,6 +79,10 @@
             }
           }
         },
+        "electionYear": { "type": "number" },
+        "mode": { "type": "string", "enum": ["sandbox", "live"] },
+        "closeDate": { "type": "string", "format": "date-time" },
+        "closeAt": { "type": "timestamp", "description": "Canonical Firestore deadline for live picks" },
         "status": { "type": "string", "enum": ["upcoming", "live", "called"] },
         "winnerId": { "type": "string" }
       }
@@ -91,6 +95,10 @@
         "state": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
+        "electionYear": { "type": "number" },
+        "mode": { "type": "string", "enum": ["sandbox", "live"] },
+        "closeDate": { "type": "string", "format": "date-time" },
+        "closeAt": { "type": "timestamp", "description": "Canonical Firestore deadline for live picks" },
         "status": { "type": "string", "enum": ["upcoming", "live", "called"] },
         "result": { "type": "string", "enum": ["pass", "fail"] }
       }
@@ -136,7 +144,7 @@
       "schema": "Race",
       "description": "Data for election races"
     },
-    "measures": {
+    "ballotMeasures": {
       "schema": "BallotMeasure",
       "description": "Data for ballot measures"
     },

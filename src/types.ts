@@ -163,7 +163,12 @@ export interface Race extends SourceMetadata {
   candidates: Candidate[];
   status: 'upcoming' | 'live' | 'called';
   winnerId?: string;
+  /** Canonical Firestore timestamp used by rules to lock live predictions. */
+  closeAt?: import('firebase/firestore').Timestamp;
+  /** Legacy display/migration field; do not use to authorize a pick. */
   closeDate: string;
+  electionYear: number;
+  mode: 'live' | 'sandbox';
   summary?: string;
   ballotpediaUrl?: string;
   newsUrl?: string;
@@ -183,7 +188,12 @@ export interface BallotMeasure extends SourceMetadata {
   status: 'upcoming' | 'live' | 'called';
   qualificationStatus?: 'filed' | 'circulating' | 'qualified' | 'on_ballot' | 'withdrawn' | 'failed';
   result?: 'pass' | 'fail';
+  /** Canonical Firestore timestamp used by rules to lock live predictions. */
+  closeAt?: import('firebase/firestore').Timestamp;
+  /** Legacy display/migration field; do not use to authorize a pick. */
   closeDate: string;
+  electionYear: number;
+  mode: 'live' | 'sandbox';
   electionDate?: string;
   measureNumber?: string;
   yesVotes?: number;
@@ -212,6 +222,8 @@ export interface League {
   ownerId: string;
   inviteCode: string;
   createdAt: string;
+  electionYear: number;
+  mode: 'live' | 'sandbox';
 }
 
 export interface Prediction {

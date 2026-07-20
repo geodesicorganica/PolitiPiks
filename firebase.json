@@ -1,0 +1,10 @@
+{
+  "firestore": [{
+    "database": "ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a",
+    "rules": "firestore.rules"
+  }],
+  "emulators": {
+    "auth": { "port": 9099 },
+    "firestore": { "port": 8080 }
+  }
+}

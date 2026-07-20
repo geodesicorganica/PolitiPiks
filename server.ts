@@ -44,8 +44,27 @@ function emptyCounts(): RefreshJob["counts"] {
 
 async function readRaces(): Promise<Race[]> {
   if (!db) return [];
-  const snapshot = await db.collection("races").get();
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race));
+  try {
+    const snapshot = await db.collection("races").get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race));
+  } catch (error) {
+    console.warn("Failed to load races from Firestore; returning an empty collection.", error);
+    return [];
+  }
+}
+
+async function readActiveRaces(): Promise<Race[]> {
+  if (!db) return [];
+  try {
+    const snapshot = await db.collection("races")
+      .where("electionYear", "==", 2026)
+      .where("mode", "==", "live")
+      .get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race));
+  } catch (error) {
+    console.warn("Failed to load active 2026/live races; returning an empty collection.", error);
+    return [];
+  }
 }
 
 type CongressMemberItem = {
@@ -211,7 +230,11 @@ type BallotMeasureInput = {
   status?: "upcoming" | "live" | "called";
   qualificationStatus?: "filed" | "circulating" | "qualified" | "on_ballot" | "withdrawn" | "failed";
   result?: "pass" | "fail";
+  electionYear?: number;
+  mode?: "sandbox" | "live";
   closeDate: string;
+  /** ISO timestamp accepted from the reviewed ingestion payload. */
+  closeAt?: string;
   electionDate?: string;
   measureNumber?: string;
   yesVotes?: number;
@@ -459,8 +482,18 @@ async function upsertBallotMeasures(measures: BallotMeasureInput[]) {
   if (!db) return 0;
   const batch = db.batch();
   for (const measure of measures) {
-    batch.set(db.collection("measures").doc(measure.id), {
+    const electionYear = measure.electionYear ?? 2026;
+    const mode = measure.mode ?? "live";
+    const closeAtSource = measure.closeAt ?? measure.closeDate;
+    const closeAtDate = new Date(closeAtSource);
+    if (electionYear === 2026 && mode === "live" && Number.isNaN(closeAtDate.getTime())) {
+      throw new Error(`Live 2026 ballot measure ${measure.id} requires a parseable closeAt or closeDate.`);
+    }
+    batch.set(db.collection("ballotMeasures").doc(measure.id), {
       ...measure,
+      electionYear,
+      mode,
+      ...(electionYear === 2026 && mode === "live" ? { closeAt: admin.firestore.Timestamp.fromDate(closeAtDate) } : {}),
       status: measure.status || "upcoming",
       category: "Statewide",
       lastRefreshedAt: new Date().toISOString(),
@@ -510,7 +543,7 @@ async function runGlobalRefresh(jobId: string) {
     }
 
     if (db) {
-      const measures = await db.collection("measures").get();
+      const measures = await db.collection("ballotMeasures").get();
       job.counts.ballotMeasures = measures.size;
     }
 
@@ -528,12 +561,21 @@ async function runGlobalRefresh(jobId: string) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      services: {
+        firebaseAdmin: Boolean(db),
+        congressApiConfigured: Boolean(process.env.CONGRESS_API_KEY),
+        geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+      },
+    });
   });
 
   app.get("/api/data-sources", (_req, res) => {
@@ -542,7 +584,7 @@ async function startServer() {
 
   app.get("/api/races", async (_req, res) => {
     try {
-      res.json(await readRaces());
+      res.json(await readActiveRaces());
     } catch {
       res.status(500).json({ error: "Failed to load races" });
     }
@@ -551,10 +593,14 @@ async function startServer() {
   app.get("/api/ballot-measures", async (_req, res) => {
     try {
       if (!db) return res.json([]);
-      const snapshot = await db.collection("measures").get();
+      const snapshot = await db.collection("ballotMeasures")
+        .where("electionYear", "==", 2026)
+        .where("mode", "==", "live")
+        .get();
       res.json(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    } catch {
-      res.status(500).json({ error: "Failed to load ballot measures" });
+    } catch (error) {
+      console.warn("Failed to load ballot measures from Firestore; returning an empty collection.", error);
+      res.json([]);
     }
   });
 

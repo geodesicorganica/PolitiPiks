@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../App';
-import { collection, onSnapshot, setDoc, doc, query, getDocs, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, getDocs, addDoc, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Race, Prediction, BallotMeasure, Candidate } from '../types';
-import { SEED_RACES, SEED_MEASURES } from '../constants/electionData';
+import { Race, BallotMeasure, Candidate } from '../types';
+import { ACTIVE_ELECTION_MODE, ACTIVE_ELECTION_YEAR, formatCloseAt, isPickClosed } from '../lib/electionCycle';
 import { motion } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { Check, Loader2, ExternalLink, Clock } from 'lucide-react';
@@ -22,30 +22,26 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
       return;
     }
 
-    // 1. Fetch Races & Seed
-    const unsubscribeRaces = onSnapshot(collection(db, 'races'), async (snapshot) => {
-      if (snapshot.empty) {
-        for (const race of SEED_RACES) {
-          await setDoc(doc(db, 'races', race.id), race);
-        }
-      } else {
-        setRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
-      }
+    const activeRaces = query(
+      collection(db, 'races'),
+      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+      where('mode', '==', ACTIVE_ELECTION_MODE),
+    );
+    const unsubscribeRaces = onSnapshot(activeRaces, (snapshot) => {
+      setRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'races');
     });
 
-    // 2. Fetch Measures & Seed
-    const unsubscribeMeasures = onSnapshot(collection(db, 'measures'), async (snapshot) => {
-      if (snapshot.empty) {
-        for (const measure of SEED_MEASURES) {
-          await setDoc(doc(db, 'measures', measure.id), measure);
-        }
-      } else {
-        setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
-      }
+    const activeMeasures = query(
+      collection(db, 'ballotMeasures'),
+      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+      where('mode', '==', ACTIVE_ELECTION_MODE),
+    );
+    const unsubscribeMeasures = onSnapshot(activeMeasures, (snapshot) => {
+      setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'measures');
+      handleFirestoreError(error, OperationType.LIST, 'ballotMeasures');
     });
 
     // 3. Fetch User's current predictions
@@ -76,14 +72,14 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
     };
   }, [profile]);
 
-  const handlePick = async (targetId: string, pick: string, type: 'race' | 'measure') => {
-    if (!profile) return;
-    setSubmitting(targetId);
+  const handlePick = async (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => {
+    if (!profile || isPickClosed(target)) return;
+    setSubmitting(target.id);
     try {
       const q = query(
         collection(db, 'predictions'), 
         where('userId', '==', profile.uid), 
-        where('targetId', '==', targetId)
+        where('targetId', '==', target.id)
       );
       
       let existing;
@@ -103,7 +99,7 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
         } else {
           await addDoc(collection(db, 'predictions'), {
             userId: profile.uid,
-            targetId,
+            targetId: target.id,
             type,
             pick,
             status: 'pending',
@@ -159,12 +155,14 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                   {race.candidates.map((candidate) => {
                     const isSelected = predictions[race.id] === candidate.id;
                     const isSubmitting = submitting === race.id;
+                    const isClosed = isPickClosed(race);
 
                     return (
                       <button
                         key={candidate.id}
-                        disabled={isSubmitting}
-                        onClick={() => handlePick(race.id, candidate.id, 'race')}
+                        disabled={isSubmitting || isClosed}
+                        aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : `Pick ${candidate.name}`}
+                        onClick={() => handlePick(race, candidate.id, 'race')}
                         className={cn(
                           "w-full p-5 flex items-center justify-between border transition-all brutalist-card",
                           isSelected 
@@ -190,6 +188,9 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                     );
                   })}
                 </div>
+                <p className="text-[10px] font-mono uppercase text-slate-500" data-testid={`close-at-${race.id}`}>
+                  {isPickClosed(race) ? 'Picking closed' : 'Pick by'}: {formatCloseAt(race)}
+                </p>
               </div>
             </div>
           ))}
@@ -219,10 +220,13 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                 <div className="grid grid-cols-2 gap-4">
                   {['pass', 'fail'].map((option) => {
                     const isSelected = predictions[measure.id] === option;
+                    const isClosed = isPickClosed(measure);
                     return (
                       <button
                         key={option}
-                        onClick={() => handlePick(measure.id, option, 'measure')}
+                        disabled={isClosed || submitting === measure.id}
+                        aria-label={isClosed ? `Picking is closed: ${formatCloseAt(measure)}` : `Pick ${option}`}
+                        onClick={() => handlePick(measure, option, 'measure')}
                         className={cn(
                           "p-4 border font-black uppercase text-xs tracking-[0.2em] transition-all brutalist-card shadow-none",
                           isSelected ? "bg-brand-red text-white border-brand-red translate-y-1 translate-x-1" : "bg-black/40 border-slate-800 text-slate-500 hover:text-white"
@@ -233,6 +237,9 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                     );
                   })}
                 </div>
+                <p className="text-[10px] font-mono uppercase text-slate-500" data-testid={`close-at-${measure.id}`}>
+                  {isPickClosed(measure) ? 'Picking closed' : 'Pick by'}: {formatCloseAt(measure)}
+                </p>
               </div>
             </div>
           ))}

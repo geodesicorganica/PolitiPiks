@@ -5,6 +5,7 @@ import { db } from '../lib/firebase';
 import { League, LeagueMember } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType, formatDate } from '../lib/utils';
+import { ACTIVE_ELECTION_MODE, ACTIVE_ELECTION_YEAR } from '../lib/electionCycle';
 import { Plus, Users, Copy, Check, ArrowRight } from 'lucide-react';
 
 interface LeaguesProps {
@@ -24,7 +25,12 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
     if (!profile) return;
 
     // Fetch my leagues
-    const q = query(collection(db, 'leagues'), where('ownerId', '==', profile.uid));
+    const q = query(
+      collection(db, 'leagues'),
+      where('ownerId', '==', profile.uid),
+      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+      where('mode', '==', ACTIVE_ELECTION_MODE),
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setLeagues(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as League)));
     }, (error) => {
@@ -52,7 +58,9 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
         name: newLeagueName,
         ownerId: profile.uid,
         inviteCode: code,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        electionYear: ACTIVE_ELECTION_YEAR,
+        mode: ACTIVE_ELECTION_MODE,
       });
       
       // Add owner as member
@@ -91,7 +99,12 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
     if (!profile || !inviteCode) return;
     setIsSubmitting(true);
     try {
-      const q = query(collection(db, 'leagues'), where('inviteCode', '==', inviteCode));
+      const q = query(
+        collection(db, 'leagues'),
+        where('inviteCode', '==', inviteCode),
+        where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+        where('mode', '==', ACTIVE_ELECTION_MODE),
+      );
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
@@ -127,7 +140,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
       <div className="border-b-4 border-slate-800 pb-6 flex justify-between items-end">
         <div>
           <h1 className="text-5xl font-black italic tracking-tighter uppercase italic text-white flex items-center gap-4">
-             Leagues <span className="bg-brand-red text-white text-[10px] not-italic px-2 py-0.5 font-mono">SEASON 1</span>
+             Leagues <span className="bg-brand-red text-white text-[10px] not-italic px-2 py-0.5 font-mono">2026 LIVE</span>
           </h1>
           <p className="text-xs font-mono uppercase text-slate-500 mt-2">Compete in exclusive circles. Win big, lose face.</p>
         </div>

@@ -3,7 +3,7 @@ import { useAuth } from '../App';
 import { collection, onSnapshot, query, where, getDocs, doc, setDoc, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { League, LeagueMember, Race, BallotMeasure, Candidate } from '../types';
-import { SEED_RACES, SEED_MEASURES } from '../constants/electionData';
+import { ACTIVE_ELECTION_MODE, ACTIVE_ELECTION_YEAR, formatCloseAt, isPickClosed } from '../lib/electionCycle';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from '../lib/dataPlatform';
@@ -55,51 +55,27 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       setMembers(snapshot.docs.map(doc => doc.data() as LeagueMember));
     }, (error) => handleFirestoreError(error, OperationType.LIST, `leagues/${leagueId}/members`));
 
-    const unsubscribeRaces = onSnapshot(collection(db, 'races'), async (snapshot) => {
-      if (snapshot.empty) {
-        for (const race of SEED_RACES) {
-          await setDoc(doc(db, 'races', race.id), race);
-        }
-      } else {
-        const raceData = snapshot.docs.map(doc => {
-          const race = { id: doc.id, ...doc.data() } as Race;
-          return { ...race, candidates: race.candidates.map(candidate => normalizeCandidateRecords(candidate, race)) };
-        });
-        setRaces(raceData);
-        
-        // Ensure new fields are synced (for demo purposes)
-        for (const seedRace of SEED_RACES) {
-          const existing = raceData.find(r => r.id === seedRace.id);
-          // Backfill seed fields only when records are materially incomplete.
-          const needsSync = existing && existing.candidates.some(c => 
-            !c.sentimentData || 
-            !c.biography || 
-            ((!c.votes || c.votes.length === 0) && (!c.activities || c.activities.length === 0))
-          );
-          if (needsSync) {
-            await setDoc(doc(db, 'races', seedRace.id), seedRace, { merge: true });
-          }
-        }
-      }
+    const activeRaces = query(
+      collection(db, 'races'),
+      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+      where('mode', '==', ACTIVE_ELECTION_MODE),
+    );
+    const unsubscribeRaces = onSnapshot(activeRaces, (snapshot) => {
+      const raceData = snapshot.docs.map(doc => {
+        const race = { id: doc.id, ...doc.data() } as Race;
+        return { ...race, candidates: race.candidates.map(candidate => normalizeCandidateRecords(candidate, race)) };
+      });
+      setRaces(raceData);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'races'));
 
-    const unsubscribeMeasures = onSnapshot(collection(db, 'measures'), async (snapshot) => {
-      if (snapshot.empty) {
-        for (const measure of SEED_MEASURES) {
-          await setDoc(doc(db, 'measures', measure.id), measure);
-        }
-      } else {
-        const measureData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure));
-        setMeasures(measureData);
-
-        for (const seedMeasure of SEED_MEASURES) {
-          const existing = measureData.find(m => m.id === seedMeasure.id);
-          if (existing && !existing.ballotpediaUrl) {
-            await setDoc(doc(db, 'measures', seedMeasure.id), seedMeasure, { merge: true });
-          }
-        }
-      }
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'measures'));
+    const activeMeasures = query(
+      collection(db, 'ballotMeasures'),
+      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
+      where('mode', '==', ACTIVE_ELECTION_MODE),
+    );
+    const unsubscribeMeasures = onSnapshot(activeMeasures, (snapshot) => {
+      setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'ballotMeasures'));
 
     if (profile) {
       const pQuery = query(collection(db, 'predictions'), where('userId', '==', profile.uid));
@@ -142,14 +118,14 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
     }
   };
 
-  const handlePick = async (targetId: string, pick: string, type: 'race' | 'measure') => {
-    if (!profile) return;
-    setSubmitting(targetId);
+  const handlePick = async (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => {
+    if (!profile || isPickClosed(target)) return;
+    setSubmitting(target.id);
     try {
       const q = query(
         collection(db, 'predictions'), 
         where('userId', '==', profile.uid), 
-        where('targetId', '==', targetId)
+        where('targetId', '==', target.id)
       );
       
       const existing = await getDocs(q);
@@ -160,7 +136,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       } else {
         await addDoc(collection(db, 'predictions'), {
           userId: profile.uid,
-          targetId,
+          targetId: target.id,
           type,
           pick,
           status: 'pending',
@@ -602,7 +578,7 @@ function DecisionModule({
   measure: BallotMeasure | null, 
   onClose: () => void,
   prediction?: string,
-  onPick: (id: string, pick: string, type: 'race' | 'measure') => void,
+  onPick: (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => void,
   onRemoveCandidate: (raceId: string, candidateId: string) => void,
   onSyncCandidate: (candidate: Candidate, race: Race) => void,
   isSubmitting: boolean,
@@ -613,6 +589,7 @@ function DecisionModule({
   const item = race || measure;
   const [canonicalVoteCounts, setCanonicalVoteCounts] = useState<Record<string, number>>({});
   if (!item) return null;
+  const isClosed = isPickClosed(item);
 
   return (
     <motion.div 
@@ -654,6 +631,9 @@ function DecisionModule({
                  <Shield size={10} /> Verified Source Data
                </div>
                <span className="font-mono text-slate-600 uppercase">REFRESH JOB: {refreshJobId ? refreshStatus : 'idle'}</span>
+               <span className="font-mono text-slate-400 uppercase" data-testid={`close-at-${item.id}`}>
+                 {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(item)}
+               </span>
             </div>
         </div>
 
@@ -915,8 +895,9 @@ function DecisionModule({
 
                      <div className="pt-10 mt-auto">
                         <button 
-                          disabled={prediction === candidate.id || isSubmitting}
-                          onClick={() => onPick(race.id, candidate.id, 'race')}
+                          disabled={isClosed || prediction === candidate.id || isSubmitting}
+                          aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : `Pick ${candidate.name}`}
+                          onClick={() => onPick(race, candidate.id, 'race')}
                           className={cn(
                              "w-full py-6 font-black uppercase tracking-[0.2em] text-sm transition-all border-2 shadow-[8px_8px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none",
                              prediction === candidate.id 
@@ -924,7 +905,7 @@ function DecisionModule({
                               : "bg-white text-black border-white hover:bg-slate-200"
                           )}
                         >
-                           {isSubmitting && prediction === candidate.id ? 'ENCRYPTING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
+                           {isClosed ? 'PICKING CLOSED' : isSubmitting && prediction === candidate.id ? 'ENCRYPTING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
                         </button>
                      </div>
                   </div>
@@ -955,8 +936,9 @@ function DecisionModule({
                           {['pass', 'fail'].map(opt => (
                             <button
                               key={opt}
-                              disabled={isSubmitting}
-                              onClick={() => onPick(measure!.id, opt, 'measure')}
+                              disabled={isClosed || isSubmitting}
+                              aria-label={isClosed ? `Picking is closed: ${formatCloseAt(measure!)}` : `Pick ${opt}`}
+                              onClick={() => onPick(measure!, opt, 'measure')}
                               className={cn(
                                 "py-6 font-black uppercase tracking-widest text-sm border-2 transition-all",
                                 prediction === opt 
@@ -964,7 +946,7 @@ function DecisionModule({
                                   : "bg-white text-black border-white hover:bg-slate-200"
                               )}
                             >
-                               PREDICT INITIAL {opt}
+                               {isClosed ? 'PICKING CLOSED' : `PREDICT INITIAL ${opt}`}
                             </button>
                           ))}
                        </div>
