@@ -142,8 +142,8 @@ Use `--force` to refresh existing generated docs.
 
 The deterministic 2024 docs above are a baseline. The full pipeline replaces them with
 real contest metrics (MEDSL prior-cycle returns + Census demographics), official
-Congress.gov facts, Gemini-grounded narratives, the 2026 live cycle (FEC + curated
-governors/measures), and real OpenStates bill data for the State Tab.
+FEC finance and Congress.gov/roll-call facts, the 2026 live cycle (FEC + curated
+official-source governors/measures), and real OpenStates bill data for the State Tab.
 
 See **[docs/data-pipeline.md](docs/data-pipeline.md)** for the ordered runbook, the
 free API keys required, refresh cadences, and verification steps.

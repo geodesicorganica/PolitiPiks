@@ -27,7 +27,7 @@
  * Env: PROJECT_ID / FIREBASE_SERVICE_ACCOUNT / FIRESTORE_DATABASE_ID, CENSUS_API_KEY (optional)
  */
 import { FieldValue, Firestore } from '@google-cloud/firestore';
-import { ContestMetrics, Race } from '../src/types';
+import { ContestMetrics, Race, ResearchSource } from '../src/types';
 import {
   Row,
   fetchCsv,
@@ -45,6 +45,13 @@ import {
   isNonCandidateChoice,
 } from '../ingest/src/sources/medslCommon.js';
 import { getArg, hasFlag, bootstrapFirestore } from './lib/firestoreCli.js';
+import {
+  buildMetricsForRace,
+  DemographicsRecord,
+  getHistoricalPlan,
+  marginPct,
+  PartyTotals,
+} from './lib/contestMetrics.js';
 
 // -----------------------------------------------------------------------------
 // Static reference data
@@ -75,28 +82,26 @@ const STATE_FIPS_TO_PO: Record<string, string> = {
   '55': 'WI', '56': 'WY',
 };
 
-// 2024 presidential home states (Trump: FL, Harris: CA).
-const PRESIDENT_HOME_STATES_2024 = new Set(['FL', 'CA']);
-
 const TONMCG_BASE = 'https://raw.githubusercontent.com/tonmcg/US_County_Level_Election_Results_08-24/master';
-const CONSTITUENCY_RETURNS_SENATE_URL = 'https://raw.githubusercontent.com/MEDSL/constituency-returns/master/1976-2018-senate.csv';
 const MEDSL_2024_BASE = 'https://raw.githubusercontent.com/MEDSL/2024-elections-official/main';
 const MEDSL_2022_BASE = 'https://raw.githubusercontent.com/MEDSL/2022-elections-official/main';
+const MEDSL_SENATE_DATASET_DOI = 'doi:10.7910/DVN/PEJ5QU';
+const MEDSL_SENATE_FILENAME = '1976-2024-senate-state.tab';
+const DATAVERSE_API = 'https://dataverse.harvard.edu/api';
+
+const SOURCE_URLS = {
+  president: 'https://github.com/tonmcg/US_County_Level_Election_Results_08-24',
+  house2022: 'https://github.com/MEDSL/2022-elections-official',
+  house2024: 'https://github.com/MEDSL/2024-elections-official',
+  senate: 'https://doi.org/10.7910/DVN/PEJ5QU',
+  senateGa2020: 'https://www.fec.gov/resources/cms-content/documents/federalelections2020.pdf',
+  censusAcs: 'https://api.census.gov/data/2023/acs/acs5/profile.html',
+  censusDhc: 'https://api.census.gov/data/2020/dec/dhc.html',
+} as const;
 
 // -----------------------------------------------------------------------------
 // Historical results loaders
 // -----------------------------------------------------------------------------
-
-type PartyTotals = { dem: number; rep: number; total: number };
-
-function marginPct(t: PartyTotals): number | null {
-  if (t.total <= 0) return null;
-  return round1(((t.dem - t.rep) / t.total) * 100);
-}
-
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}
 
 function round3(n: number) {
   return Math.round(n * 1000) / 1000;
@@ -117,55 +122,64 @@ async function loadPresidentStateTotals(year: 2020 | 2024): Promise<Map<string, 
   return byState;
 }
 
-async function loadSenate2018Totals(): Promise<Map<string, PartyTotals>> {
-  const rows = await fetchCsv(CONSTITUENCY_RETURNS_SENATE_URL);
-  const byState = new Map<string, PartyTotals>();
-  const totalVotesByState = new Map<string, number>();
+async function loadSenateTotals(years: Set<number>): Promise<Map<number, Map<string, PartyTotals>>> {
+  const byYear = new Map<number, Map<string, PartyTotals>>();
+  if (years.size === 0) return byYear;
+
+  const metadataUrl = `${DATAVERSE_API}/datasets/:persistentId/?persistentId=${encodeURIComponent(MEDSL_SENATE_DATASET_DOI)}`;
+  const metadataResponse = await fetch(metadataUrl);
+  if (!metadataResponse.ok) throw new Error(`Dataverse metadata fetch failed ${metadataResponse.status}`);
+  const metadata = await metadataResponse.json() as {
+    data?: { latestVersion?: { files?: Array<{ label?: string; dataFile?: { id?: number } }> } };
+  };
+  const file = metadata.data?.latestVersion?.files?.find((item) => item.label === MEDSL_SENATE_FILENAME);
+  if (!file?.dataFile?.id) throw new Error(`Dataverse file not found: ${MEDSL_SENATE_FILENAME}`);
+
+  const rows = await fetchCsv(`${DATAVERSE_API}/access/datafile/${file.dataFile.id}?format=original`);
+  const totalVotes = new Map<string, number>();
   for (const row of rows) {
-    if ((row['year'] || '').trim() !== '2018') continue;
+    const year = Number((row['year'] || '').trim());
+    if (!years.has(year)) continue;
     if ((row['stage'] || '').trim().toLowerCase() !== 'gen') continue;
     if ((row['special'] || '').trim().toUpperCase() === 'TRUE') continue;
+    if ((row['unofficial'] || '').trim().toUpperCase() === 'TRUE') continue;
     const po = stateAbbrev(row);
-    const entry = byState.get(po) ?? { dem: 0, rep: 0, total: 0 };
+    const yearMap = byYear.get(year) ?? new Map<string, PartyTotals>();
+    const entry = yearMap.get(po) ?? { dem: 0, rep: 0, total: 0 };
     const party = normParty(candidateParty(row));
     const votes = parseVotes(row['candidatevotes'] || '');
     if (party === 'Democrat') entry.dem += votes;
     if (party === 'Republican') entry.rep += votes;
-    byState.set(po, entry);
-    const tv = parseVotes(row['totalvotes'] || '');
-    if (tv > (totalVotesByState.get(po) ?? 0)) totalVotesByState.set(po, tv);
+    yearMap.set(po, entry);
+    byYear.set(year, yearMap);
+    const totalKey = `${year}|${po}`;
+    const reportedTotal = parseVotes(row['totalvotes'] || '');
+    if (reportedTotal > (totalVotes.get(totalKey) ?? 0)) totalVotes.set(totalKey, reportedTotal);
   }
-  for (const [po, entry] of byState.entries()) {
-    entry.total = totalVotesByState.get(po) ?? entry.dem + entry.rep;
+  for (const [year, yearMap] of byYear.entries()) {
+    for (const [po, entry] of yearMap.entries()) {
+      entry.total = totalVotes.get(`${year}|${po}`) ?? entry.dem + entry.rep;
+    }
   }
-  return byState;
+
+  // The MEDSL statewide file records Georgia's November 2020 general round.
+  // The regular Class 2 contest was decided in the January 2021 runoff, so use
+  // the FEC's certified final totals for the comparable prior election.
+  if (years.has(2020)) {
+    const map2020 = byYear.get(2020) ?? new Map<string, PartyTotals>();
+    map2020.set('GA', { dem: 2_269_923, rep: 2_214_979, total: 4_484_902 });
+    byYear.set(2020, map2020);
+  }
+
+  return byYear;
 }
 
-async function loadSenate2024Totals(): Promise<Map<string, PartyTotals>> {
-  const rows = await fetchCsv(`${MEDSL_2024_BASE}/2024-senate-state.csv`);
-  const byState = new Map<string, PartyTotals>();
-  const scoped = rows.filter((row) => rowOffice(row) === 'US SENATE');
-  const statesWithTotalMode = new Set(scoped.filter((row) => rowMode(row) === 'TOTAL').map((row) => stateAbbrev(row)));
-  for (const row of scoped) {
-    const po = stateAbbrev(row);
-    if (statesWithTotalMode.has(po) && rowMode(row) !== 'TOTAL') continue;
-    const name = candidateName(row);
-    if (!name || isWriteIn(row) || isNonCandidateChoice(name)) continue;
-    const entry = byState.get(po) ?? { dem: 0, rep: 0, total: 0 };
-    const party = normParty(candidateParty(row));
-    const votes = parseVotes(row['votes'] || '');
-    if (party === 'Democrat') entry.dem += votes;
-    if (party === 'Republican') entry.rep += votes;
-    entry.total += votes;
-    byState.set(po, entry);
-  }
-  return byState;
-}
-
-async function loadHouse2022Totals(states: Set<string>): Promise<Map<string, PartyTotals>> {
+async function loadHouseTotals(states: Set<string>, year: 2022 | 2024): Promise<Map<string, PartyTotals>> {
   const byDistrict = new Map<string, PartyTotals>();
   for (const st of states) {
-    const zipUrl = `${MEDSL_2022_BASE}/individual_states/2022-${st.toLowerCase()}-local-precinct-general.zip`;
+    const zipUrl = year === 2022
+      ? `${MEDSL_2022_BASE}/individual_states/2022-${st.toLowerCase()}-local-precinct-general.zip`
+      : `${MEDSL_2024_BASE}/individual_states/${st.toLowerCase()}24.zip`;
     const districtHasTotalMode = new Set<string>();
     const rowsAll: { key: string; party: string; votes: number; isTotal: boolean }[] = [];
     try {
@@ -181,7 +195,7 @@ async function loadHouse2022Totals(states: Set<string>): Promise<Map<string, Par
         rowsAll.push({ key, party: normParty(candidateParty(row)), votes: parseVotes(row['votes'] || ''), isTotal });
       });
     } catch (err) {
-      console.warn(`[house-2022] Skipping ${st}: ${err instanceof Error ? err.message : err}`);
+      console.warn(`[house-${year}] Skipping ${st}: ${err instanceof Error ? err.message : err}`);
       continue;
     }
     for (const item of rowsAll) {
@@ -192,7 +206,7 @@ async function loadHouse2022Totals(states: Set<string>): Promise<Map<string, Par
       entry.total += item.votes;
       byDistrict.set(item.key, entry);
     }
-    console.log(`[house-2022] ${st}: aggregated ${[...byDistrict.keys()].filter((k) => k.startsWith(`${st}|`)).length} districts.`);
+    console.log(`[house-${year}] ${st}: aggregated ${[...byDistrict.keys()].filter((k) => k.startsWith(`${st}|`)).length} districts.`);
   }
   return byDistrict;
 }
@@ -200,8 +214,6 @@ async function loadHouse2022Totals(states: Set<string>): Promise<Map<string, Par
 // -----------------------------------------------------------------------------
 // Census (ACS 2023 5-year profile + 2020 Decennial urban/rural)
 // -----------------------------------------------------------------------------
-
-type DemographicsRecord = NonNullable<ContestMetrics['demographics']> & { vap?: number | null };
 
 const ACS_VARS = [
   'DP05_0001E',  // total population
@@ -329,75 +341,12 @@ async function loadDistrictDemographics(censusKey: string): Promise<Map<string, 
   return byDistrict;
 }
 
-// -----------------------------------------------------------------------------
-// Metrics assembly
-// -----------------------------------------------------------------------------
-
-function stripVap(demo: DemographicsRecord | undefined): ContestMetrics['demographics'] | undefined {
-  if (!demo) return undefined;
-  const { vap: _vap, ...rest } = demo;
-  return rest;
+function source(id: string, label: string, url: string, retrievedAt: string): ResearchSource {
+  return { id, label, url, type: 'civic-data', retrievedAt };
 }
 
-function winnerParty(race: Race): string | null {
-  if (!race.winnerId) return null;
-  const winner = (race.candidates || []).find((c) => c.id === race.winnerId);
-  return winner?.party ?? null;
-}
-
-function buildMetricsForRace(
-  race: Race,
-  prior: PartyTotals | undefined,
-  current: PartyTotals | undefined,
-  nationalPriorMarginPct: number | null,
-  demo: DemographicsRecord | undefined,
-): ContestMetrics {
-  const metrics: ContestMetrics = { id: race.id, raceId: race.id };
-
-  if (prior && prior.total > 0) {
-    const priorMargin = marginPct(prior);
-    const currentMargin = current && current.total > 0 ? marginPct(current) : null;
-    metrics.historical = {
-      priorVoteShareDem: round3(prior.dem / prior.total),
-      priorVoteShareRep: round3(prior.rep / prior.total),
-      priorMargin,
-      swingVsPrevious: priorMargin !== null && currentMargin !== null ? round1(currentMargin - priorMargin) : null,
-      partisanLean: priorMargin !== null && nationalPriorMarginPct !== null ? round1(priorMargin - nationalPriorMarginPct) : null,
-    };
-  }
-
-  const priorMarginForFundamentals = metrics.historical?.priorMargin ?? null;
-  const winner = winnerParty(race);
-  metrics.fundamentals = {
-    incumbencyFlag: (race.candidates || []).some((c) => c.incumbent === true),
-    homeStateAdvantageFlag: race.office === 'President' && race.electionYear === 2024
-      ? PRESIDENT_HOME_STATES_2024.has(race.state)
-      : false,
-    nationalHeadwindTailwind: null,
-    priorCycleBaseline: priorMarginForFundamentals,
-    partyContinuity: winner && priorMarginForFundamentals !== null
-      ? (winner === 'Democrat') === (priorMarginForFundamentals > 0)
-      : undefined,
-    economicDirectionIndicator: null,
-  };
-
-  const turnout: NonNullable<ContestMetrics['turnout']> = {
-    turnoutRate: current && current.total > 0 && demo?.vap ? round3(Math.min(1, current.total / demo.vap)) : null,
-    turnoutChange: current && current.total > 0 && prior && prior.total > 0
-      ? round3((current.total - prior.total) / prior.total)
-      : null,
-    earlyVoteShare: null,
-  };
-  if (turnout.turnoutRate !== null || turnout.turnoutChange !== null) {
-    metrics.turnout = turnout;
-  }
-
-  const demographics = stripVap(demo);
-  if (demographics) metrics.demographics = demographics;
-
-  // Polling is intentionally absent: there is no free polling API. The drawer's
-  // confidence model treats the missing section honestly.
-  return metrics;
+function dedupeSources(sources: ResearchSource[]) {
+  return Array.from(new Map(sources.map((item) => [item.id ?? item.url, item])).values());
 }
 
 // -----------------------------------------------------------------------------
@@ -436,23 +385,44 @@ async function main() {
   const hasSenate = races.some((r) => r.office === 'Senate');
   const houseStates = new Set(races.filter((r) => r.office === 'House').map((r) => r.state));
 
-  // Historical loaders only apply to the 2024 sandbox cycle; other cycles (e.g.
-  // 2026 live) still get fundamentals/demographics.
-  const isHistorical2024 = targetYear === 2024;
-  const [pres2020, pres2024, sen2018, sen2024, house2022] = await Promise.all([
-    isHistorical2024 && hasPresident ? loadPresidentStateTotals(2020) : Promise.resolve(new Map<string, PartyTotals>()),
-    isHistorical2024 && hasPresident ? loadPresidentStateTotals(2024) : Promise.resolve(new Map<string, PartyTotals>()),
-    isHistorical2024 && hasSenate ? loadSenate2018Totals() : Promise.resolve(new Map<string, PartyTotals>()),
-    isHistorical2024 && hasSenate ? loadSenate2024Totals() : Promise.resolve(new Map<string, PartyTotals>()),
-    isHistorical2024 && houseStates.size > 0 && !skipHouseHistorical
-      ? loadHouse2022Totals(houseStates)
+  const supportsHistorical = targetYear === 2024 || targetYear === 2026;
+  const senateYears = new Set<number>();
+  if (hasSenate && targetYear === 2024) {
+    senateYears.add(2018);
+    senateYears.add(2024);
+  } else if (hasSenate && targetYear === 2026) {
+    senateYears.add(2020);
+  }
+
+  // The national presidential prior is loaded even for House-only runs because
+  // partisanLean must not silently become a state-filtered pseudo-national value.
+  const [pres2020, pres2024, senateByYear, house2022, house2024] = await Promise.all([
+    supportsHistorical && (targetYear === 2024 || hasPresident)
+      ? loadPresidentStateTotals(2020)
+      : Promise.resolve(new Map<string, PartyTotals>()),
+    supportsHistorical && (targetYear === 2026 || hasPresident)
+      ? loadPresidentStateTotals(2024)
+      : Promise.resolve(new Map<string, PartyTotals>()),
+    loadSenateTotals(senateYears),
+    supportsHistorical && houseStates.size > 0 && !skipHouseHistorical
+      ? loadHouseTotals(houseStates, 2022)
+      : Promise.resolve(new Map<string, PartyTotals>()),
+    targetYear === 2026 && houseStates.size > 0 && !skipHouseHistorical
+      ? loadHouseTotals(houseStates, 2024)
       : Promise.resolve(new Map<string, PartyTotals>()),
   ]);
-  console.log(`Loaded historical: pres2020=${pres2020.size} states, pres2024=${pres2024.size}, senate2018=${sen2018.size}, senate2024=${sen2024.size}, house2022=${house2022.size} districts.`);
+  const sen2018 = senateByYear.get(2018) ?? new Map<string, PartyTotals>();
+  const sen2020 = senateByYear.get(2020) ?? new Map<string, PartyTotals>();
+  const sen2024 = senateByYear.get(2024) ?? new Map<string, PartyTotals>();
+  console.log(
+    `Loaded historical: pres2020=${pres2020.size} states, pres2024=${pres2024.size}, `
+      + `senate2018=${sen2018.size}, senate2020=${sen2020.size}, senate2024=${sen2024.size}, `
+      + `house2022=${house2022.size}, house2024=${house2024.size} districts.`,
+  );
 
-  // National 2020 presidential margin, for partisanLean.
+  const nationalPresidentialPrior = targetYear === 2026 ? pres2024 : pres2020;
   let nationalPrior: PartyTotals = { dem: 0, rep: 0, total: 0 };
-  for (const t of pres2020.values()) {
+  for (const t of nationalPresidentialPrior.values()) {
     nationalPrior.dem += t.dem;
     nationalPrior.rep += t.rep;
     nationalPrior.total += t.total;
@@ -473,32 +443,111 @@ async function main() {
   let pending = 0;
   let written = 0;
   let withHistorical = 0;
+  let withTurnout = 0;
+  const retrievedAt = new Date().toISOString();
 
   for (const race of races) {
     let prior: PartyTotals | undefined;
     let current: PartyTotals | undefined;
+    let turnoutBasis: PartyTotals | undefined;
+    let turnoutComparison: PartyTotals | undefined;
     let demo: DemographicsRecord | undefined = stateDemo.get(race.state);
+    const plan = getHistoricalPlan(targetYear, race.office, race.state);
+    const metricSources: ResearchSource[] = [];
 
-    if (race.office === 'President') {
+    if (plan && targetYear === 2024 && race.office === 'President') {
       prior = pres2020.get(race.state);
       current = pres2024.get(race.state);
-    } else if (race.office === 'Senate') {
+      turnoutBasis = current;
+      turnoutComparison = prior;
+    } else if (plan && targetYear === 2024 && race.office === 'Senate') {
       prior = sen2018.get(race.state);
       current = sen2024.get(race.state);
-    } else if (race.office === 'House') {
+      turnoutBasis = current;
+      turnoutComparison = prior;
+    } else if (plan && targetYear === 2024 && race.office === 'House') {
       const districtKey = normDistrictKey(race.district);
       if (districtKey) {
         prior = house2022.get(`${race.state}|${districtKey}`);
+        turnoutBasis = prior;
+        demo = districtDemo.get(`${race.state}|${districtKey}`) ?? demo;
+      }
+    } else if (plan && targetYear === 2026 && race.office === 'President') {
+      prior = pres2024.get(race.state);
+      turnoutBasis = prior;
+      turnoutComparison = pres2020.get(race.state);
+    } else if (plan && targetYear === 2026 && race.office === 'Senate') {
+      prior = sen2020.get(race.state);
+      turnoutBasis = prior;
+    } else if (plan && targetYear === 2026 && race.office === 'House') {
+      const districtKey = normDistrictKey(race.district);
+      if (districtKey) {
+        prior = house2024.get(`${race.state}|${districtKey}`);
+        turnoutBasis = prior;
+        turnoutComparison = house2022.get(`${race.state}|${districtKey}`);
         demo = districtDemo.get(`${race.state}|${districtKey}`) ?? demo;
       }
     }
 
-    const metrics = buildMetricsForRace(race, prior, current, nationalPriorMarginPct, demo);
+    const metrics = buildMetricsForRace(race, {
+      prior,
+      current,
+      nationalPriorMarginPct,
+      demo,
+      historicalElectionYear: plan?.historicalElectionYear,
+      turnoutBasis,
+      turnoutElectionYear: plan?.turnoutElectionYear,
+      turnoutComparison,
+      turnoutComparisonElectionYear: plan?.turnoutComparisonElectionYear,
+    });
     if (metrics.historical) withHistorical += 1;
+    if (metrics.turnout) withTurnout += 1;
+
+    if (metrics.historical && plan) {
+      if (race.office === 'President') {
+        metricSources.push(source(
+          `tonmcg-president-${plan.historicalElectionYear}`,
+          `${plan.historicalElectionYear} county presidential returns`,
+          SOURCE_URLS.president,
+          retrievedAt,
+        ));
+      } else if (race.office === 'House') {
+        const url = plan.historicalElectionYear === 2024 ? SOURCE_URLS.house2024 : SOURCE_URLS.house2022;
+        metricSources.push(source(
+          `medsl-house-${plan.historicalElectionYear}`,
+          `MEDSL ${plan.historicalElectionYear} official House returns`,
+          url,
+          retrievedAt,
+        ));
+      } else if (race.office === 'Senate') {
+        const isGeorgiaRunoff = plan.historicalElectionYear === 2020 && race.state === 'GA';
+        metricSources.push(source(
+          isGeorgiaRunoff ? 'fec-senate-ga-2020-runoff' : `medsl-senate-${plan.historicalElectionYear}`,
+          isGeorgiaRunoff
+            ? 'FEC certified 2020 Georgia Senate runoff results'
+            : `MEDSL ${plan.historicalElectionYear} statewide Senate returns`,
+          isGeorgiaRunoff ? SOURCE_URLS.senateGa2020 : SOURCE_URLS.senate,
+          retrievedAt,
+        ));
+      }
+    }
+    if (metrics.demographics) {
+      metricSources.push(
+        source('census-acs-2023-profile', 'Census ACS 2023 5-year profile', SOURCE_URLS.censusAcs, retrievedAt),
+        source('census-dhc-2020', 'Census 2020 Decennial DHC', SOURCE_URLS.censusDhc, retrievedAt),
+      );
+    }
+    metrics.sources = dedupeSources(metricSources);
 
     batch.set(
       db.doc(`contestMetrics/${race.id}`),
-      { ...metrics, updatedAt: FieldValue.serverTimestamp() },
+      {
+        ...metrics,
+        historical: metrics.historical ?? FieldValue.delete(),
+        turnout: metrics.turnout ?? FieldValue.delete(),
+        demographics: metrics.demographics ?? FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
       { merge: true },
     );
     pending += 1;
@@ -514,7 +563,7 @@ async function main() {
   if (!dryRun && pending > 0) await batch.commit();
 
   console.log(
-    `${dryRun ? 'Planned' : 'Wrote'} ${written} contestMetrics docs (${withHistorical} with historical data) to project=${projectId}, database=${databaseId}.`,
+    `${dryRun ? 'Planned' : 'Wrote'} ${written} contestMetrics docs (${withHistorical} historical, ${withTurnout} prior-turnout) to project=${projectId}, database=${databaseId}.`,
   );
   await writePipelineRun(db, dryRun, {
     year: targetYear,
@@ -522,6 +571,7 @@ async function main() {
     office: targetOffice,
     written,
     withHistorical,
+    withTurnout,
     demographics: stateDemo.size > 0,
   });
 }

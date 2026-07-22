@@ -5,9 +5,18 @@
  * `body: undefined` field (meaning "not applicable" in our research/metrics
  * shapes) is silently omitted instead of throwing at write time.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import process from 'node:process';
 import { Firestore } from '@google-cloud/firestore';
+import dotenv from 'dotenv';
+
+// Preserve explicit shell/CI values, but make local batch scripts work from the
+// documented .env.local file without a separate PowerShell export step.
+if (existsSync('.env.local')) {
+  dotenv.config({ path: '.env.local', override: false, quiet: true });
+} else {
+  dotenv.config({ override: false, quiet: true });
+}
 
 export type ServiceAccount = Record<string, unknown>;
 

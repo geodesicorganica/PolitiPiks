@@ -19,6 +19,7 @@ This is a small Cloud Run service intended to be triggered by Cloud Scheduler to
 
 Optional:
 - `PORT` (default `8080`)
+- `GOOGLE_CIVIC_API_KEY` (only for the non-persistent Civic lookup endpoint)
 
 ## Source JSON format
 
@@ -59,7 +60,10 @@ Optional flags:
 
 ## Free "pre-election contests" option: FEC (2026 federal races)
 
-Loads Senate + House candidate filings for an upcoming cycle from the FEC API
+Loads Senate + House candidate filings for an upcoming cycle from the FEC API and
+attaches them only to the canonical voting-seat registry. A filing does not create a
+race, prove ballot access, or make a candidate pick-eligible. See
+`../docs/canonical-2026-federal-registry.md` for the shadow-cutover contract.
 (free key at https://api.data.gov/signup/). Races are written with `mode: 'live'`.
 
 Set:
@@ -67,14 +71,31 @@ Set:
 - `FEC_API_KEY=...` (DEMO_KEY works for smoke tests, heavily rate-limited)
 - `FEC_ELECTION_YEAR=2026` (default)
 - `FEC_STATES=GA,TX` (optional state filter)
+- `FEC_CANDIDATE_SCOPE=funded` (default) or `all-filed` for the broad review set
 
-Local one-shot seed (from repo root): `npm run seed-2026-federal` (add `-- --dry-run` to preview).
+Local one-shot seed from the repo root:
+
+```powershell
+npx tsx ingest/src/seed-fec2026.ts --state GA --candidate-scope all-filed --dry-run
+npx tsx ingest/src/seed-fec2026.ts --state GA --candidate-scope funded
+```
+
 Suggested Cloud Scheduler cadence: weekly (candidate filings change often pre-primary).
 
-Governor races and 2026 ballot measures have no free API — they flow through the
-curated file `data/2026/curated-contests.json` (drafted by
-`npm run discover-2026-contests`, human-reviewed, then seeded with
-`npm run seed-2026-curated`). See `docs/data-pipeline.md`.
+Governor races and 2026 ballot measures have no uniform nationwide free API. They
+flow through `data/2026/curated-contests.json`, assembled from official state
+election endpoints and reviewed before `npm run seed-2026-curated`. The seed command
+refuses an empty file. See `docs/free-source-data-plan.md`.
+
+## Google Civic lookup (non-persistent)
+
+`POST /tasks/civic-lookup` uses the same `X-Ingest-Token` as the ingest task. Send
+`{"listElections":true}` to list elections or `{"address":"..."}` to request an
+address-specific ballot lookup. Official-only results are the default; set
+`"officialOnly":false` only when the caller explicitly wants partner-sourced data.
+The service passes the address to Google for that request but does not log it or
+write it to Firestore. This endpoint supplements the contest catalog; it is not a
+bulk-ingest source.
 
 ## Fastest "pre-election contests" option: Ballotpedia (requires API key)
 

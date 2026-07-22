@@ -11,10 +11,10 @@ This document tracks future features, technical debt, and required enhancements 
 - **Real contest metrics** — `scripts/build-contest-metrics.ts` writes historical
   prior-cycle results (MEDSL), Census demographics, and turnout to
   `contestMetrics/{raceId}` (the path the research drawer actually reads).
-- **Hybrid research enrichment** — `link-external-ids` → `enrich-structured`
-  (Congress.gov, official) → `enrich-research` (Gemini + search grounding, narratives)
-  replaces the templated placeholder research at full scale.
-- **2026 live cycle** — FEC ingest source for federal races; Gemini-drafted,
+- **Free-source research enrichment** — FEC finance, Congress.gov member and
+  legislation records, and official House/Senate roll-call feeds populate the
+  research drawer without generated narratives.
+- **2026 live cycle** — FEC ingest source for federal races; official-source,
   human-reviewed curated file for governors and ballot measures; leagues and the
   browse page are now cycle-scoped.
 

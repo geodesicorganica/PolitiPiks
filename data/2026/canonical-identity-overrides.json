@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "candidateOverrides": [
+    { "legacyRaceId": "2026-CA-house-040", "legacyCandidateId": "esther-kim-varet-democrat", "fecCandidateId": "H6CA40309", "sourceUrl": "https://www.fec.gov/data/candidate/H6CA40309/" },
+    { "legacyRaceId": "2026-CA-house-040", "legacyCandidateId": "young-kim-republican", "fecCandidateId": "H8CA39240", "sourceUrl": "https://www.fec.gov/data/candidate/H8CA39240/" },
+    { "legacyRaceId": "2026-FL-house-011", "legacyCandidateId": "daniel-webster-republican", "fecCandidateId": "H0FL08208", "sourceUrl": "https://www.fec.gov/data/candidate/H0FL08208/" },
+    { "legacyRaceId": "2026-FL-house-011", "legacyCandidateId": "royal-mr-webster-democrat", "fecCandidateId": "H6FL11241", "sourceUrl": "https://www.fec.gov/data/candidate/H6FL11241/" },
+    { "legacyRaceId": "2026-NJ-house-008", "legacyCandidateId": "robert-j-menendez-democrat", "fecCandidateId": "H2NJ08232", "sourceUrl": "https://www.fec.gov/data/candidate/H2NJ08232/", "approvedManyToOneMerge": "2026-NJ-house-008-robert-menendez" },
+    { "legacyRaceId": "2026-NJ-house-008", "legacyCandidateId": "robert-menendez-democrat", "fecCandidateId": "H2NJ08232", "sourceUrl": "https://www.fec.gov/data/candidate/H2NJ08232/", "approvedManyToOneMerge": "2026-NJ-house-008-robert-menendez" },
+    { "legacyRaceId": "2026-TX-house-022", "legacyCandidateId": "troy-nehls-republican", "fecCandidateId": "H0TX22302", "sourceUrl": "https://www.fec.gov/data/candidate/H0TX22302/" },
+    { "legacyRaceId": "2026-TX-house-022", "legacyCandidateId": "trever-nehls-republican", "fecCandidateId": "H6TX22283", "sourceUrl": "https://www.fec.gov/data/candidate/H6TX22283/" }
+  ],
+  "contestDispositions": [
+    { "legacyRaceId": "2026-GA-house-023", "disposition": "retire_invalid", "sourceUrl": "https://www.house.gov/representatives" },
+    { "legacyRaceId": "2026-NM-house-066", "disposition": "retire_invalid", "sourceUrl": "https://www.house.gov/representatives" },
+    { "legacyRaceId": "2026-MP-house-001", "disposition": "retire_nonvoting", "auditAlias": "2026-MP-delegate", "sourceUrl": "https://www.house.gov/representatives" }
+  ]
+}

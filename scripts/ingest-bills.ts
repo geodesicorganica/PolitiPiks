@@ -4,7 +4,7 @@
  * Ingests real state legislative bills from the OpenStates v3 API into the
  * PIP-S Firestore collections that the State Tab reads:
  *
- *   entities/{billNodeId}                — BILL NodeEntity (+ tldr/fiscal via --summarize)
+ *   entities/{billNodeId}                — BILL NodeEntity (+ official abstract/title)
  *   entities/{billNodeId}/status_logs/*  — standardized status history from actions
  *   entities/{billNodeId}/versions/*     — bill text versions (extracted where the
  *                                          state publishes HTML/plain text; PDF-only
@@ -14,10 +14,9 @@
  *   hearings/*                           — upcoming committee hearings from events
  *
  * Usage:
- *   npm run ingest-bills -- [--states CA,TX,NY,FL,GA] [--max-bills 25] [--summarize]
+ *   npm run ingest-bills -- [--states CA,TX,NY,FL,GA] [--max-bills 25]
  *     [--skip-events] [--dry-run]
  * Env: OPENSTATES_API_KEY (required; free at https://openstates.org/accounts/signup/),
- *      GEMINI_API_KEY + GEMINI_MODEL (only with --summarize),
  *      PROJECT_ID / FIREBASE_SERVICE_ACCOUNT / FIRESTORE_DATABASE_ID
  *
  * The free OpenStates tier is rate-limited (~1 req/sec with a daily cap), so this
@@ -26,7 +25,6 @@
  */
 import process from 'node:process';
 import { FieldValue } from '@google-cloud/firestore';
-import { GoogleGenAI } from '@google/genai';
 import { NodeEntity, StandardizedStatus } from '../src/types';
 import { getArg, hasFlag, bootstrapFirestore } from './lib/firestoreCli.js';
 
@@ -195,53 +193,6 @@ async function extractVersionText(links: Array<{ url?: string; media_type?: stri
 }
 
 // -----------------------------------------------------------------------------
-// Gemini L1 summarization (optional)
-// -----------------------------------------------------------------------------
-
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
-const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
-
-async function summarizeBill(bill: OsBill, versionText: string | null): Promise<{ tldr: NodeEntity['tldr']; fiscalSummary: NodeEntity['fiscalSummary'] } | null> {
-  if (!ai) return null;
-  const abstract = bill.abstracts?.[0]?.abstract ?? '';
-  const textExcerpt = versionText ? versionText.slice(0, 8000) : '';
-  const prompt = `You are summarizing a state legislative bill for a civic research tool.
-Bill: ${bill.identifier} (${bill.session}) — ${bill.title}
-${abstract ? `Official abstract: ${abstract}` : ''}
-${textExcerpt ? `Bill text excerpt:\n${textExcerpt}` : ''}
-
-Respond with ONLY a raw JSON object (no markdown fences) in this exact format:
-{
-  "whatChanges": "1-2 sentences: what the bill actually changes in law.",
-  "whoImpacted": "1 sentence: who is affected.",
-  "fiscalHeadline": "Short fiscal headline like '$45.2M projected agency costs' or 'No fiscal note available'.",
-  "fiscalDetail": "1-2 sentences on fiscal/implementation effects, or empty string if unknown."
-}`;
-  try {
-    const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: prompt, config: { temperature: 0.2 } });
-    if (!response.text) return null;
-    let raw = response.text.trim();
-    if (raw.startsWith('```json')) raw = raw.replace(/^```json\n/, '').replace(/\n```$/, '');
-    if (raw.startsWith('```')) raw = raw.replace(/^```\n/, '').replace(/\n```$/, '');
-    const parsed = JSON.parse(raw);
-    await new Promise((r) => setTimeout(r, 4000));
-    return {
-      tldr: {
-        whatChanges: typeof parsed.whatChanges === 'string' ? parsed.whatChanges : undefined,
-        whoImpacted: typeof parsed.whoImpacted === 'string' ? parsed.whoImpacted : undefined,
-      },
-      fiscalSummary: {
-        headline: typeof parsed.fiscalHeadline === 'string' ? parsed.fiscalHeadline : undefined,
-        detail: typeof parsed.fiscalDetail === 'string' ? parsed.fiscalDetail : undefined,
-      },
-    };
-  } catch (err) {
-    console.warn(`[summarize] ${bill.identifier}: ${err instanceof Error ? err.message : err}`);
-    return null;
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Main
 // -----------------------------------------------------------------------------
 
@@ -249,7 +200,7 @@ const DEFAULT_PILOT_STATES = ['CA', 'TX', 'NY', 'FL', 'GA'];
 
 async function main() {
   const dryRun = hasFlag('--dry-run');
-  const summarize = hasFlag('--summarize');
+  const legacySummarize = hasFlag('--summarize');
   const skipEvents = hasFlag('--skip-events');
   const states = (getArg('--states') ?? DEFAULT_PILOT_STATES.join(','))
     .split(',')
@@ -261,9 +212,7 @@ async function main() {
   if (!apiKey) {
     throw new Error('OPENSTATES_API_KEY is required. Get a free key at https://openstates.org/accounts/signup/');
   }
-  if (summarize && !ai) {
-    throw new Error('--summarize requires GEMINI_API_KEY.');
-  }
+  if (legacySummarize) console.warn('--summarize is deprecated and ignored; only source-provided text is stored.');
 
   const { db } = bootstrapFirestore();
 
@@ -273,12 +222,14 @@ async function main() {
   let hearingsWritten = 0;
 
   for (const state of states) {
+    const billNodeIdsByIdentifier = new Map<string, string>();
     console.log(`[${state}] Fetching up to ${maxBills} bills...`);
     const bills = await fetchBills(state, maxBills, apiKey);
     console.log(`[${state}] Got ${bills.length} bills.`);
 
     for (const bill of bills) {
       const billNodeId = slugId(`${state}-${bill.session}-${bill.identifier}`);
+      billNodeIdsByIdentifier.set(bill.identifier.toUpperCase().replace(/\s+/g, ''), billNodeId);
       const actions = bill.actions ?? [];
 
       // Standardized status history.
@@ -320,9 +271,7 @@ async function main() {
         });
       }
 
-      const summary = summarize
-        ? await summarizeBill(bill, (versionDocs[versionDocs.length - 1]?.text as string | undefined) ?? null)
-        : null;
+      const officialAbstract = bill.abstracts?.find((entry) => entry.abstract?.trim())?.abstract?.trim() ?? null;
 
       const entity: Record<string, unknown> = {
         name: `${bill.identifier}: ${bill.title}`.slice(0, 300),
@@ -334,10 +283,10 @@ async function main() {
         sourceUrl: bill.openstates_url ?? null,
         latestActionAt: bill.latest_action_date ?? null,
         latestActionDescription: bill.latest_action_description ?? null,
+        officialAbstract,
         createdAt: bill.latest_action_date ? `${bill.latest_action_date}T00:00:00Z` : new Date().toISOString(),
         telemetry: { survivalProbability: survivalProbabilityFor(latestStatus) },
-        ...(summary?.tldr ? { tldr: summary.tldr } : {}),
-        ...(summary?.fiscalSummary ? { fiscalSummary: summary.fiscalSummary } : {}),
+        tldr: { whatChanges: officialAbstract ?? bill.title },
         updatedAt: new Date().toISOString(),
       };
 
@@ -359,6 +308,9 @@ async function main() {
             name: sponsorName,
             entityType: 'POLITICIAN',
             jurisdictionState: state,
+            ...(sponsorship.person?.id ? { openStatesPersonId: sponsorship.person.id } : {}),
+            source: 'openstates',
+            verificationLevel: 'derived',
             createdAt: new Date().toISOString(),
           }, { merge: true });
           batch.set(db.doc(`edges/${slugId(`${sponsorId}-sponsors-${billNodeId}`)}`), {
@@ -390,6 +342,9 @@ async function main() {
           date: event.start_date,
           ...(event.location?.name ? { room: event.location.name } : {}),
           ...(relatedBill?.name ? { billId: `${state}-${relatedBill.name}` } : {}),
+          ...(relatedBill?.name && billNodeIdsByIdentifier.get(relatedBill.name.toUpperCase().replace(/\s+/g, ''))
+            ? { billNodeId: billNodeIdsByIdentifier.get(relatedBill.name.toUpperCase().replace(/\s+/g, '')) }
+            : {}),
           status: event.status && event.status !== 'confirmed' ? capitalize(event.status) : 'Scheduled',
         };
         if (!dryRun) {
@@ -408,7 +363,7 @@ async function main() {
       script: 'ingest-bills',
       states,
       maxBills,
-      summarize,
+      sourceOnly: true,
       billsWritten,
       versionsWithText,
       sponsorsWritten,

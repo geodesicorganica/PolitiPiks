@@ -51,7 +51,7 @@ export function normDistrictKey(raw: string | number | null | undefined): string
   const digits = value.replace(/[^0-9]/g, '');
   if (digits && Number(digits) > 0) return String(Number(digits)).padStart(3, '0');
   const upper = value.toUpperCase();
-  if (digits === '0' || upper.includes('STATEWIDE') || upper.includes('AT LARGE') || upper.includes('AT-LARGE') || upper === 'AL') {
+  if ((digits && /^0+$/.test(digits)) || upper.includes('STATEWIDE') || upper.includes('AT LARGE') || upper.includes('AT-LARGE') || upper === 'AL') {
     return 'AL';
   }
   return null;

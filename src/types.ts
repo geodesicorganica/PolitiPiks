@@ -122,6 +122,12 @@ export interface Candidate extends SourceMetadata {
   party: Party;
   photoURL?: string;
   incumbent?: boolean;
+  qualificationStatus?: 'filed' | 'qualified' | 'on_ballot' | 'withdrawn' | 'inactive' | 'unresolved';
+  candidateState?: 'active' | 'withdrawn' | 'inactive';
+  visibility?: 'hidden' | 'visible';
+  pickEligibility?: 'ineligible' | 'eligible';
+  ballotVerifiedAt?: string;
+  ballotSourceUrl?: string;
   summary?: string;
   biography?: string;
   campaignPromises?: string[];
@@ -166,6 +172,8 @@ export interface Race extends SourceMetadata {
   district?: string;
   electionYear?: number;
   mode?: ContestMode;
+  seatKind?: 'voting_house' | 'senate_regular' | 'senate_special' | 'non_voting';
+  senateClass?: 1 | 2 | 3;
   candidates: Candidate[];
   status: ContestStatus;
   winnerId?: string;
@@ -303,8 +311,10 @@ export interface ResearchSection {
 export type CandidateResearchBucket =
   | 'identity'
   | 'campaign'
+  | 'campaignFinance'
   | 'publicRecord'
   | 'legislativeActivity'
+  | 'voteRecord'
   | 'policyPositions'
   | 'electionsHistory'
   | 'provenance';
@@ -371,6 +381,8 @@ export interface NodeEntity {
   sourceUrl?: string;
   latestActionAt?: string;
   latestActionDescription?: string;
+  /** Source-provided bill abstract; never model-generated. */
+  officialAbstract?: string | null;
   tldr?: { whatChanges?: string; whoImpacted?: string };
   fiscalSummary?: { headline?: string; detail?: string };
   updatedAt?: string;
@@ -455,6 +467,7 @@ export interface ContestMetrics {
   id: string;
   raceId: string;
   historical?: {
+    electionYear?: number;
     priorVoteShareDem?: number | null;
     priorVoteShareRep?: number | null;
     priorMargin?: number | null;
@@ -479,6 +492,8 @@ export interface ContestMetrics {
     economicDirectionIndicator?: number | null;
   };
   turnout?: {
+    electionYear?: number;
+    comparisonElectionYear?: number | null;
     turnoutRate?: number | null;
     turnoutChange?: number | null;
     earlyVoteShare?: number | null;
@@ -491,6 +506,7 @@ export interface ContestMetrics {
     incomeProxy?: { medianIncome?: number | null; };
     populationChange?: number | null;
   };
+  sources?: ResearchSource[];
 }
 
 export type CandidateResearchCard = {
@@ -498,12 +514,16 @@ export type CandidateResearchCard = {
   name: string;
   party: string;
   incumbency?: 'incumbent' | 'challenger' | 'open-seat' | null;
+  fecCandidateId?: string | null;
+  hasCongressionalServiceRecord: boolean;
   identitySummary?: string;
   contestContext?: string | null;
+  campaignFinanceBullets?: string[];
   publicRecordBullets?: string[];
   electionsHistorySummary?: string | null;
   policyPositionsBullets?: string[];
   legislativeActivityBullets?: string[];
+  voteRecordBullets?: string[];
   pollingDelta?: number | null;
   fundamentalsAdjustment?: number | null;
   sourceIds: string[];

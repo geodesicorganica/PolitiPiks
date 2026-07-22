@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.0",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "papaparse": "^5.4.1",
     "react-example": "file:..",

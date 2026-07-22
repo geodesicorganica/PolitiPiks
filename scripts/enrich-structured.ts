@@ -77,6 +77,14 @@ async function fetchSponsoredBills(bioguideId: string, apiKey: string): Promise<
   return { bills: json?.sponsoredLegislation ?? [], total: json?.pagination?.count ?? 0 };
 }
 
+async function fetchCosponsoredBills(bioguideId: string, apiKey: string): Promise<{ bills: SponsoredBill[]; total: number }> {
+  const json = await congressGet<{ cosponsoredLegislation?: SponsoredBill[]; pagination?: { count?: number } }>(
+    `/member/${bioguideId}/cosponsored-legislation?limit=5`,
+    apiKey,
+  );
+  return { bills: json?.cosponsoredLegislation ?? [], total: json?.pagination?.count ?? 0 };
+}
+
 // -----------------------------------------------------------------------------
 // Bucket construction
 // -----------------------------------------------------------------------------
@@ -93,6 +101,7 @@ function buildBuckets(
   candidate: Candidate,
   member: MemberDetails,
   sponsored: { bills: SponsoredBill[]; total: number },
+  cosponsored: { bills: SponsoredBill[]; total: number },
 ): { buckets: Partial<Record<string, ResearchSection[]>>; sources: ResearchSource[] } {
   const bioguideId = candidate.externalIds!.bioguideId!;
   const sourceId = memberSourceId(bioguideId);
@@ -131,12 +140,18 @@ function buildBuckets(
       const action = b.latestAction?.text ? ` Latest action: ${b.latestAction.text}` : '';
       return `Sponsored ${label}: ${b.title}.${action}`;
     });
-  const legislativeActivity: ResearchSection[] = billBullets.length > 0 ? [{
-    title: 'Recent Sponsored Legislation',
-    body: sponsored.total > sponsored.bills.length
-      ? `${sponsored.total} bills sponsored in total; the most recent are listed below.`
-      : undefined,
-    bullets: billBullets,
+  const cosponsoredBullets = cosponsored.bills
+    .filter((b) => b.title)
+    .map((b) => {
+      const label = b.type && b.number ? `${b.type.toUpperCase()} ${b.number} (${b.congress}th Congress)` : 'Bill';
+      const action = b.latestAction?.text ? ` Latest action: ${b.latestAction.text}` : '';
+      return `Cosponsored ${label}: ${b.title}.${action}`;
+    });
+  const activityBullets = [...billBullets, ...cosponsoredBullets];
+  const legislativeActivity: ResearchSection[] = activityBullets.length > 0 ? [{
+    title: 'Recent Sponsored and Cosponsored Legislation',
+    body: `${sponsored.total} bills sponsored and ${cosponsored.total} bills cosponsored in total; recent items are listed below.`,
+    bullets: activityBullets,
     sourceIds: [sourceId],
   }] : [];
 
@@ -197,7 +212,11 @@ async function main() {
   let skippedFresh = 0;
   let noBioguide = 0;
   let failures = 0;
-  const memberCache = new Map<string, { member: MemberDetails; sponsored: { bills: SponsoredBill[]; total: number } } | null>();
+  const memberCache = new Map<string, {
+    member: MemberDetails;
+    sponsored: { bills: SponsoredBill[]; total: number };
+    cosponsored: { bills: SponsoredBill[]; total: number };
+  } | null>();
 
   outer: for (const raceDoc of racesSnap.docs) {
     const race = { id: raceDoc.id, ...raceDoc.data() } as Race;
@@ -227,15 +246,18 @@ async function main() {
             memberCache.set(bioguideId, null);
             continue;
           }
-          const sponsored = await fetchSponsoredBills(bioguideId, apiKey);
-          data = { member, sponsored };
+          const [sponsored, cosponsored] = await Promise.all([
+            fetchSponsoredBills(bioguideId, apiKey),
+            fetchCosponsoredBills(bioguideId, apiKey),
+          ]);
+          data = { member, sponsored, cosponsored };
           memberCache.set(bioguideId, data);
           // Congress.gov allows 5000 req/hour; stay well under it.
           await new Promise((resolve) => setTimeout(resolve, 800));
         }
         if (!data) continue;
 
-        const { buckets, sources } = buildBuckets(candidate, data.member, data.sponsored);
+        const { buckets, sources } = buildBuckets(candidate, data.member, data.sponsored, data.cosponsored);
         const update: Record<string, unknown> = {
           candidateId: candidate.id,
           raceId: race.id,

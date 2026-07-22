@@ -1,5 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 import { Firestore, FieldValue } from '@google-cloud/firestore';
+import dotenv from 'dotenv';
+import { reconcileCandidates, type CandidateRecord } from './reconcile.js';
+
+for (const candidate of [path.resolve(process.cwd(), '.env.local'), path.resolve(process.cwd(), '..', '.env.local')]) {
+  if (existsSync(candidate)) {
+    dotenv.config({ path: candidate, override: false, quiet: true });
+    break;
+  }
+}
 
 export function requireEnv(name: string) {
   const v = process.env[name];
@@ -97,6 +107,7 @@ export function bootstrapFirestoreFromCli() {
 export async function upsertContests(db: Firestore, payload: { races?: any[]; ballotMeasures?: any[] }) {
   let batch = db.batch();
   let writes = 0;
+  const identityConflicts: Array<{ raceId: string; existingId: string; incomingId: string; fecCandidateId: string }> = [];
 
   async function queueSet(ref: FirebaseFirestore.DocumentReference, data: Record<string, unknown>) {
     batch.set(ref, data, { merge: true });
@@ -116,11 +127,22 @@ export async function upsertContests(db: Firestore, payload: { races?: any[]; ba
     const preserved: Record<string, unknown> = {};
     if (existing && typeof r.status === 'undefined' && typeof existing.status !== 'undefined') preserved.status = existing.status;
     if (existing && typeof r.winnerId === 'undefined' && typeof existing.winnerId !== 'undefined') preserved.winnerId = existing.winnerId;
+    const predictionRefs = await db.collection('predictions').where('targetId', '==', r.id).get();
+    const protectedCandidateIds = new Set(predictionRefs.docs
+      .map((prediction) => prediction.get('pick'))
+      .filter((pick): pick is string => typeof pick === 'string' && pick.length > 0));
+    const reconciliation = reconcileCandidates(
+      Array.isArray(existing?.candidates) ? existing.candidates as CandidateRecord[] : [],
+      Array.isArray(r.candidates) ? r.candidates as CandidateRecord[] : [],
+      protectedCandidateIds,
+    );
+    identityConflicts.push(...reconciliation.identityConflicts.map((conflict) => ({ raceId: r.id, ...conflict })));
     await queueSet(
       ref,
       {
         ...r,
         ...preserved,
+        candidates: reconciliation.candidates,
         updatedAt: FieldValue.serverTimestamp(),
       },
     );
@@ -146,4 +168,5 @@ export async function upsertContests(db: Firestore, payload: { races?: any[]; ba
   if (writes > 0) {
     await batch.commit();
   }
+  return { identityConflicts };
 }

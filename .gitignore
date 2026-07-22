@@ -24,3 +24,4 @@ politipiks-firebase-adminsdk-*.json
 
 # Scaffold/metadata (not part of app source)
 .remote-source/
+.artifacts/private/canonical-migration/

@@ -1,11 +1,21 @@
 import process from 'node:process';
 import { Firestore } from '@google-cloud/firestore';
 import { bootstrapFirestore } from './lib/firestoreCli.js';
+import { isValidFecHouseDistrict } from '../ingest/src/sources/fec2026.js';
+import {
+  findMissing2024StateViewSlots,
+  findCanonical2026Issues,
+  getStateCoverage,
+  getYearStateCoverage,
+  recordUnidentifiedCandidateName,
+  type StateCoverage,
+} from './verify-contests-logic.js';
 
 type Candidate = {
   id?: unknown;
   name?: unknown;
   party?: unknown;
+  externalIds?: unknown;
 };
 
 type RaceDoc = {
@@ -16,7 +26,11 @@ type RaceDoc = {
   closeDate?: unknown;
   candidates?: unknown;
   winnerId?: unknown;
+  electionYear?: unknown;
+  mode?: unknown;
 };
+
+type PredictionDoc = { id: string; targetId?: unknown; pick?: unknown };
 
 type MeasureDoc = {
   id: string;
@@ -35,19 +49,13 @@ type ResearchDoc = {
   updatedAt?: unknown;
 };
 
-type StateCoverage = {
-  President: number;
-  Governor: number;
-  Senate: number;
-  House: number;
-  ballotMeasures: number;
-  houseDistricts: Set<string>;
-};
-
 type ResearchCoverage = {
   candidateCount: number;
   candidateResearchDocs: number;
   candidateResearchMissing: number;
+  candidateWithFecId: number;
+  candidateWithBioguideId: number;
+  candidateWithOpenStatesId: number;
   candidateSourceOnlyFallbacks: number;
   measureResearchDocs: number;
   measureResearchMissing: number;
@@ -146,22 +154,6 @@ function increment(map: Map<string, number>, key: string, amount = 1) {
   map.set(key, (map.get(key) ?? 0) + amount);
 }
 
-function getStateCoverage(coverageByState: Map<string, StateCoverage>, state: string) {
-  const existing = coverageByState.get(state);
-  if (existing) return existing;
-
-  const next: StateCoverage = {
-    President: 0,
-    Governor: 0,
-    Senate: 0,
-    House: 0,
-    ballotMeasures: 0,
-    houseDistricts: new Set<string>(),
-  };
-  coverageByState.set(state, next);
-  return next;
-}
-
 function formatMap(map: Map<string, number>) {
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -214,6 +206,7 @@ function formatResearchCoverage(coverage: ResearchCoverage) {
   const lines = [
     `Candidate research docs: ${coverage.candidateResearchDocs}/${coverage.candidateCount}`,
     `Candidate research missing: ${coverage.candidateResearchMissing}`,
+    `Candidate external IDs: FEC=${coverage.candidateWithFecId}, Bioguide=${coverage.candidateWithBioguideId}, OpenStates=${coverage.candidateWithOpenStatesId}`,
     `Candidate source-only fallbacks: ${coverage.candidateSourceOnlyFallbacks}`,
     `Measure research docs: ${coverage.measureResearchDocs}`,
     `Measure research missing: ${coverage.measureResearchMissing}`,
@@ -265,6 +258,9 @@ async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures
 
   let candidateCount = 0;
   let candidateResearchMissing = 0;
+  let candidateWithFecId = 0;
+  let candidateWithBioguideId = 0;
+  let candidateWithOpenStatesId = 0;
   let candidateSourceOnlyFallbacks = 0;
   let measureResearchMissing = 0;
   let measureSourceOnlyFallbacks = 0;
@@ -277,6 +273,10 @@ async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures
       const candidateName = asString(candidate.name) || candidateId || 'UNKNOWN_CANDIDATE';
       if (!candidateId) continue;
       candidateCount += 1;
+      const externalIds = asObject(candidate.externalIds);
+      if (asString(externalIds?.fecCandidateId)) candidateWithFecId += 1;
+      if (asString(externalIds?.bioguideId)) candidateWithBioguideId += 1;
+      if (asString(externalIds?.openStatesPersonId)) candidateWithOpenStatesId += 1;
 
       const doc = candidateResearchDocs.get(`${race.id}|${candidateId}`);
       if (!doc) {
@@ -308,6 +308,9 @@ async function inspectResearchCoverage(db: Firestore, races: RaceDoc[], measures
     candidateCount,
     candidateResearchDocs: candidateResearchDocs.size,
     candidateResearchMissing,
+    candidateWithFecId,
+    candidateWithBioguideId,
+    candidateWithOpenStatesId,
     candidateSourceOnlyFallbacks,
     measureResearchDocs: Array.from(measureResearchDocs.values()).reduce((sum, docs) => sum + docs.length, 0),
     measureResearchMissing,
@@ -385,18 +388,21 @@ async function inspectPipsCoverage(db: Firestore) {
 async function main() {
   const { db, projectId, databaseId } = bootstrapFirestore();
 
-  const [raceSnap, measureSnap] = await Promise.all([
+  const [raceSnap, measureSnap, predictionSnap] = await Promise.all([
     db.collection('races').get(),
     db.collection('ballotMeasures').get(),
+    db.collection('predictions').get(),
   ]);
 
   const races = raceSnap.docs.map((raceDoc) => ({ id: raceDoc.id, ...raceDoc.data() } as RaceDoc));
   const measures = measureSnap.docs.map((measureDoc) => ({ id: measureDoc.id, ...measureDoc.data() } as MeasureDoc));
+  const predictions = predictionSnap.docs.map((predictionDoc) => ({ id: predictionDoc.id, ...predictionDoc.data() } as PredictionDoc));
 
   const countsByOffice = new Map<string, number>();
   const countsByDateYear = new Map<string, number>();
   const countsByIdYear = new Map<string, number>();
   const coverageByState = new Map<string, StateCoverage>();
+  const coverageByYearState = new Map<string, Map<string, StateCoverage>>();
   const contestKeys = new Set<string>();
   const issues: string[] = [];
 
@@ -412,11 +418,21 @@ async function main() {
     increment(countsByDateYear, dateYear ?? 'malformed');
 
     const coverage = getStateCoverage(coverageByState, state);
+    const yearCoverage = getYearStateCoverage(coverageByYearState, idYear, state);
     if (office === 'President' || office === 'Governor' || office === 'Senate' || office === 'House') {
       coverage[office] += 1;
+      yearCoverage[office] += 1;
     }
     if (office === 'House') {
       coverage.houseDistricts.add(asString(race.district) || 'statewide');
+      yearCoverage.houseDistricts.add(asString(race.district) || 'statewide');
+      const hasFecCandidate = candidates.some((candidate) => {
+        const externalIds = asObject(candidate.externalIds);
+        return Boolean(asString(externalIds?.fecCandidateId));
+      });
+      if (hasFecCandidate && !isValidFecHouseDistrict(state, asString(race.district))) {
+        issues.push(`Invalid FEC House district: ${race.id} (${state} district=${asString(race.district) || 'missing'})`);
+      }
     }
 
     const district = asString(race.district) || 'statewide';
@@ -435,7 +451,7 @@ async function main() {
     if (candidates.length === 0) issues.push(`Race ${race.id} has no candidates`);
 
     const candidateIds = new Set<string>();
-    const candidateNames = new Set<string>();
+    const unidentifiedCandidateNameParties = new Set<string>();
     for (const candidate of candidates) {
       const candidateId = asString(candidate.id);
       const candidateName = asString(candidate.name);
@@ -447,12 +463,8 @@ async function main() {
       if (candidateId && candidateIds.has(candidateId)) {
         issues.push(`Race ${race.id} has duplicate candidate id ${candidateId}`);
       }
-      if (candidateName) {
-        const normalizedName = candidateName.toUpperCase();
-        if (candidateNames.has(normalizedName)) {
-          issues.push(`Race ${race.id} has duplicate candidate name ${candidateName}`);
-        }
-        candidateNames.add(normalizedName);
+      if (candidateName && recordUnidentifiedCandidateName(candidateName, candidate.party, candidateId, unidentifiedCandidateNameParties)) {
+        issues.push(`Race ${race.id} has duplicate candidate name ${candidateName}`);
       }
       if (candidateId) candidateIds.add(candidateId);
     }
@@ -474,6 +486,7 @@ async function main() {
     increment(countsByIdYear, idYear);
     increment(countsByDateYear, dateYear ?? 'malformed');
     getStateCoverage(coverageByState, state).ballotMeasures += 1;
+    getYearStateCoverage(coverageByYearState, idYear, state).ballotMeasures += 1;
 
     if (!asString(measure.state)) issues.push(`Measure ${measure.id} missing state`);
     if (!asString(measure.title)) issues.push(`Measure ${measure.id} missing title`);
@@ -483,25 +496,9 @@ async function main() {
     }
   }
 
-  const missingStateViewSlots: string[] = [];
-  const allStates = new Set([...Object.keys(EXPECTED_2024_HOUSE_SEATS), ...coverageByState.keys()]);
-  for (const state of Array.from(allStates).sort((a, b) => a.localeCompare(b))) {
-    const coverage = coverageByState.get(state);
-    const expectedHouseSeats = EXPECTED_2024_HOUSE_SEATS[state];
+  issues.push(...findCanonical2026Issues(races, predictions));
 
-    if (!coverage) {
-      missingStateViewSlots.push(`${state}: missing all contests`);
-      continue;
-    }
-
-    if (coverage.President === 0) {
-      missingStateViewSlots.push(`${state}: missing President`);
-    }
-
-    if (typeof expectedHouseSeats === 'number' && coverage.House !== expectedHouseSeats) {
-      missingStateViewSlots.push(`${state}: expected ${expectedHouseSeats} House contests, found ${coverage.House}`);
-    }
-  }
+  const missingStateViewSlots = findMissing2024StateViewSlots(coverageByYearState, EXPECTED_2024_HOUSE_SEATS);
 
   // 2026 live-cycle coverage (informational until the cycle is fully seeded).
   const races2026 = races.filter((race) => getYearFromId(race.id) === '2026');
@@ -526,7 +523,7 @@ async function main() {
   const output = [
     `Contest verification for project=${projectId}, database=${databaseId}`,
     '',
-    `Totals: races=${races.length}, ballotMeasures=${measures.length}, states=${coverageByState.size}`,
+    `Totals: races=${races.length}, ballotMeasures=${measures.length}, predictions=${predictions.length}, states=${coverageByState.size}`,
     '',
     'Races by office:',
     formatMap(countsByOffice) || '  none',
@@ -539,6 +536,9 @@ async function main() {
     '',
     'State coverage:',
     formatCoverage(coverageByState) || '  none',
+    '',
+    '2024 state coverage:',
+    formatCoverage(coverageByYearState.get('2024') ?? new Map<string, StateCoverage>()) || '  none',
     '',
     `Actionable 2024 coverage gaps (${missingStateViewSlots.length}):`,
     missingStateViewSlots.slice(0, 80).map((item) => `  ${item}`).join('\n') || '  none',
