@@ -1,6 +1,6 @@
 # G2.5 canonical shadow executor readiness
 
-Status: local release candidate verified and ready for the required local commit. This executor has no cutover,
+Status: local release candidate committed and verified. This executor has no cutover,
 alias-retirement, prediction-migration, active-collection write, or deletion
 behavior.
 
@@ -84,7 +84,17 @@ npm run apply-canonical-shadow -- --snapshot-in .artifacts/private/canonical-mig
 
 The final command reports `operation=dry-run`, `applied=false`, `writes=0`,
 and the certified 470/537/35 plan. The implementation commit hash and final
-branch status are appended after Git creates the release commit.
+branch status are recorded below after Git creates the release commit.
+
+## Release record
+
+- Implementation commit: `d1d3cb5` (`feat: prepare canonical 2026 shadow migration`).
+- Branch: `codex/politipiks-canonical-shadow-release`.
+- Final release scope is committed. Unrelated pre-existing work remains unstaged:
+  `.env.example`, `ingest/package-lock.json`, the research-drawer/data-platform
+  UI files, and `scripts/prune-invalid-federal-races.ts`.
+- No private snapshot, credential, service-account, generated artifact, or
+  production data is tracked by this release candidate.
 
 ## Remaining production gates
 
