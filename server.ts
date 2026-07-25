@@ -7,6 +7,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { Candidate, Jurisdiction, Office, Race, RefreshCursor, RefreshJob, UnmatchedVoteRow } from "./src/types";
 import { DATA_SOURCES, normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from "./src/lib/dataPlatform";
+import { selectContestCatalog, type ContestCatalogActivation } from "./src/lib/contestCatalog";
 
 dotenv.config();
 
@@ -56,11 +57,19 @@ async function readRaces(): Promise<Race[]> {
 async function readActiveRaces(): Promise<Race[]> {
   if (!db) return [];
   try {
-    const snapshot = await db.collection("races")
-      .where("electionYear", "==", 2026)
-      .where("mode", "==", "live")
-      .get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race));
+    const [snapshot, activation] = await Promise.all([
+      db.collection("races")
+        .where("electionYear", "==", 2026)
+        .where("mode", "==", "live")
+        .get(),
+      db.collection("catalogActivations").doc("canonical-2026").get(),
+    ]);
+    const catalog = selectContestCatalog({
+      races: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Race)),
+      measures: [],
+      activation: activation.exists ? activation.data() as ContestCatalogActivation : null,
+    });
+    return catalog.status === "ready" ? catalog.races : [];
   } catch (error) {
     console.warn("Failed to load active 2026/live races; returning an empty collection.", error);
     return [];

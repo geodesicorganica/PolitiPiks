@@ -14,7 +14,10 @@
     "smoke": "node scripts/smoke-test.mjs",
     "verify-deployment-readiness": "tsx scripts/verify-deployment-readiness.ts",
     "preflight-close-at": "tsx scripts/preflight-close-at.ts",
-    "verify-firestore-league-flow": "firebase emulators:exec --only firestore \"node tests/firestore-league-flow.mjs\"",
+    "migrate-close-at": "tsx scripts/migrate-close-at.ts",
+    "verify-close-at-migration": "tsx tests/close-at-migration.test.ts",
+    "test-contest-catalog": "tsx src/lib/contestCatalog.test.ts",
+    "verify-firestore-league-flow": "firebase emulators:exec --config scripts/firebase.emulator-test.json --only firestore \"node tests/firestore-league-flow.mjs\"",
     "verify-browser-league-flow": "playwright test --config=playwright.config.ts"
   },
   "dependencies": {

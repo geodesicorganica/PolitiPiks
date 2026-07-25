@@ -22,9 +22,14 @@ assert(firebaseJson.firestore?.[0]?.database === DATABASE_ID, `Rules database mi
 
 for (const [file, required] of [
   ['firestore.rules', 'match /ballotMeasures/{measureId}'],
-  ['src/pages/Races.tsx', "collection(db, 'ballotMeasures')"],
-  ['src/pages/LeagueDetail.tsx', "collection(db, 'ballotMeasures')"],
-  ['server.ts', 'db.collection("ballotMeasures")'],
+  ['src/pages/Races.tsx', "useContestCatalog"],
+  ['src/pages/LeagueDetail.tsx', "useContestCatalog"],
+  ['server.ts', 'selectContestCatalog'],
+  ['src/lib/useContestCatalog.ts', "doc(db, 'catalogActivations', 'canonical-2026')"],
+  ['src/lib/contestCatalog.ts', 'selectContestCatalog'],
+  ['src/lib/useCanonicalContestEvidence.ts', "'candidateResearch'"],
+  ['firestore.rules', "match /catalogActivations/{activationId}"],
+  ['firestore.rules', 'activeFederalRaceTarget'],
 ] as const) {
   assert(readFileSync(file, 'utf8').includes(required), `${file} is missing canonical collection contract ${required}.`);
 }

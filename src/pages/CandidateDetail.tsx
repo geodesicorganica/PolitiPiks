@@ -3,9 +3,11 @@ import { motion } from 'motion/react';
 import { Candidate } from '../types';
 import { cn } from '../lib/utils';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { useCanonicalContestEvidence } from '../lib/useCanonicalContestEvidence';
 
-export function CandidateDetail({ candidate, onBack }: { candidate: Candidate; onBack: () => void }) {
+export function CandidateDetail({ candidate, raceId, onBack }: { candidate: Candidate; raceId: string; onBack: () => void }) {
   const sortedVotes = [...(candidate.keyVotes || [])].sort((a, b) => new Date(b.date || '1970-01-01').getTime() - new Date(a.date || '1970-01-01').getTime());
+  const { research, metrics, loading, error } = useCanonicalContestEvidence(raceId, candidate.id);
 
   return (
     <motion.div 
@@ -44,6 +46,11 @@ export function CandidateDetail({ candidate, onBack }: { candidate: Candidate; o
             <p className="text-sm text-slate-400 leading-relaxed">{candidate.biography || 'Biography not available.'}</p>
           </section>
 
+          <section className="bg-black/40 p-6 brutalist-card" data-testid="canonical-research-panel">
+            <h2 className="text-lg font-black uppercase italic text-white mb-4">Canonical Research</h2>
+            {loading ? <p className="text-sm text-slate-500">Loading research coverage…</p> : error ? <p role="alert" className="text-sm text-brand-red">{error}</p> : research ? <p className="text-sm text-slate-400">Canonical research available for this candidate.</p> : <p className="text-sm text-slate-500">No canonical research is available yet.</p>}
+          </section>
+
           <section className="bg-black/40 p-6 brutalist-card">
             <h2 className="text-lg font-black uppercase italic text-white mb-4">Voting Record ({sortedVotes.length})</h2>
             <div className="space-y-4">
@@ -67,6 +74,10 @@ export function CandidateDetail({ candidate, onBack }: { candidate: Candidate; o
         </div>
 
         <aside className="space-y-6">
+          <section className="bg-black/40 p-6 brutalist-card" data-testid="canonical-metrics-panel">
+            <h2 className="text-sm font-black uppercase italic text-white mb-4">Contest Metrics</h2>
+            {metrics ? <p className="text-sm text-slate-400">Canonical contest metrics available.</p> : <p className="text-sm text-slate-500">No contest metrics are available yet.</p>}
+          </section>
           {candidate.campaignPromises && candidate.campaignPromises.length > 0 && (
             <section className="bg-black/40 p-6 brutalist-card">
               <h2 className="text-sm font-black uppercase italic text-white mb-4">Campaign Promises</h2>

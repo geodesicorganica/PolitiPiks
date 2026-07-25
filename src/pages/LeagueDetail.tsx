@@ -3,7 +3,8 @@ import { useAuth } from '../App';
 import { collection, onSnapshot, query, where, getDocs, doc, setDoc, addDoc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { League, LeagueMember, Race, BallotMeasure, Candidate } from '../types';
-import { ACTIVE_ELECTION_MODE, ACTIVE_ELECTION_YEAR, formatCloseAt, isPickClosed } from '../lib/electionCycle';
+import { formatCloseAt, isPickClosed } from '../lib/electionCycle';
+import { useContestCatalog } from '../lib/useContestCatalog';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from '../lib/dataPlatform';
@@ -27,10 +28,9 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const { profile } = useAuth();
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<LeagueMember[]>([]);
-  const [races, setRaces] = useState<Race[]>([]);
-  const [measures, setMeasures] = useState<BallotMeasure[]>([]);
+  const { races, measures, loading: catalogLoading, error: catalogError } = useContestCatalog();
   const [predictions, setPredictions] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
+  const [predictionLoading, setPredictionLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<CategoryType>('Senate');
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [selectedMeasure, setSelectedMeasure] = useState<BallotMeasure | null>(null);
@@ -55,30 +55,12 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       setMembers(snapshot.docs.map(doc => doc.data() as LeagueMember));
     }, (error) => handleFirestoreError(error, OperationType.LIST, `leagues/${leagueId}/members`));
 
-    const activeRaces = query(
-      collection(db, 'races'),
-      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
-      where('mode', '==', ACTIVE_ELECTION_MODE),
-    );
-    const unsubscribeRaces = onSnapshot(activeRaces, (snapshot) => {
-      const raceData = snapshot.docs.map(doc => {
-        const race = { id: doc.id, ...doc.data() } as Race;
-        return { ...race, candidates: race.candidates.map(candidate => normalizeCandidateRecords(candidate, race)) };
-      });
-      setRaces(raceData);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'races'));
-
-    const activeMeasures = query(
-      collection(db, 'ballotMeasures'),
-      where('electionYear', '==', ACTIVE_ELECTION_YEAR),
-      where('mode', '==', ACTIVE_ELECTION_MODE),
-    );
-    const unsubscribeMeasures = onSnapshot(activeMeasures, (snapshot) => {
-      setMeasures(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BallotMeasure)));
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'ballotMeasures'));
-
     if (profile) {
-      const pQuery = query(collection(db, 'predictions'), where('userId', '==', profile.uid));
+      const pQuery = query(
+        collection(db, 'predictions'),
+        where('userId', '==', profile.uid),
+        where('leagueId', '==', leagueId),
+      );
       const unsubscribePicks = onSnapshot(pQuery, (snapshot) => {
         const picks: Record<string, string> = {};
         snapshot.docs.forEach(doc => {
@@ -86,14 +68,12 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
           picks[data.targetId] = data.pick;
         });
         setPredictions(picks);
-        setLoading(false);
+        setPredictionLoading(false);
       }, (error) => handleFirestoreError(error, OperationType.LIST, 'predictions'));
 
       return () => {
         unsubscribeLeague();
         unsubscribeMembers();
-        unsubscribeRaces();
-        unsubscribeMeasures();
         unsubscribePicks();
       };
     }
@@ -101,13 +81,14 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
     return () => {
       unsubscribeLeague();
       unsubscribeMembers();
-      unsubscribeRaces();
-      unsubscribeMeasures();
     };
   }, [leagueId, profile]);
 
+  const normalizedRaces = races.map((race) => ({ ...race, candidates: race.candidates.map((candidate) => normalizeCandidateRecords(candidate, race)) }));
+  const loading = catalogLoading || predictionLoading;
+
   const handleRemoveCandidate = async (raceId: string, candidateId: string) => {
-    const race = races.find(r => r.id === raceId);
+    const race = normalizedRaces.find(r => r.id === raceId);
     if (!race || race.candidates.length <= 2) return; 
     
     try {
@@ -125,6 +106,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       const q = query(
         collection(db, 'predictions'), 
         where('userId', '==', profile.uid), 
+        where('leagueId', '==', leagueId),
         where('targetId', '==', target.id)
       );
       
@@ -136,6 +118,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
       } else {
         await addDoc(collection(db, 'predictions'), {
           userId: profile.uid,
+          leagueId,
           targetId: target.id,
           type,
           pick,
@@ -225,16 +208,18 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
 
   const getDataForCategory = () => {
     switch (activeCategory) {
-      case 'Senate': return { items: races.filter(r => r.office === 'Senate'), type: 'race' };
-      case 'Gubernatorial': return { items: races.filter(r => r.office === 'Governor'), type: 'race' };
-      case 'Presidential': return { items: races.filter(r => r.office === 'President'), type: 'race' };
-      case 'Congress': return { items: races.filter(r => r.office === 'Senate' || r.office === 'House'), type: 'race' }; 
+      case 'Senate': return { items: normalizedRaces.filter(r => r.office === 'Senate'), type: 'race' };
+      case 'Gubernatorial': return { items: normalizedRaces.filter(r => r.office === 'Governor'), type: 'race' };
+      case 'Presidential': return { items: normalizedRaces.filter(r => r.office === 'President'), type: 'race' };
+      case 'Congress': return { items: normalizedRaces.filter(r => r.office === 'Senate' || r.office === 'House'), type: 'race' };
       case 'Ballot Initiatives': return { items: measures, type: 'measure' };
       default: return { items: [], type: 'race' };
     }
   };
 
   const { items, type } = getDataForCategory();
+
+  if (catalogError) return <div role="alert" className="p-8 border border-brand-red text-brand-red font-mono uppercase">Catalog unavailable: {catalogError}</div>;
 
   if (loading || !league) return (
     <div className="flex h-screen items-center justify-center bg-brand-dark">
@@ -500,6 +485,7 @@ function ActivityRecord({ activities }: { activities: Candidate['activities'] })
       ))}
     </div>
   );
+
 }
 
 function CandidateVotingSection({ candidate, onResolved }: { candidate: Candidate; onResolved?: (count: number) => void }) {

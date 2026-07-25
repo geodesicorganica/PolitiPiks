@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../App';
 import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Prediction, Race, BallotMeasure } from '../types';
+import { Prediction } from '../types';
 import { motion } from 'motion/react';
 import { TrendingUp, AlertCircle, Clock } from 'lucide-react';
 import { formatDate, cn, handleFirestoreError, OperationType } from '../lib/utils';
+import { useContestCatalog } from '../lib/useContestCatalog';
 
 export function Dashboard() {
   const { profile } = useAuth();
   const [recentPicks, setRecentPicks] = useState<Prediction[]>([]);
-  const [activeRaces, setActiveRaces] = useState<Race[]>([]);
-  const [upcomingMeasures, setUpcomingMeasures] = useState<BallotMeasure[]>([]);
+  const { races: activeRaces } = useContestCatalog();
 
   useEffect(() => {
     if (!profile) return;
@@ -30,17 +30,8 @@ export function Dashboard() {
       handleFirestoreError(error, OperationType.LIST, 'predictions');
     });
 
-    // Active races
-    const qRaces = query(collection(db, 'races'), limit(3));
-    const unsubscribeRaces = onSnapshot(qRaces, (snapshot) => {
-      setActiveRaces(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Race)));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'races');
-    });
-
     return () => {
       unsubscribePicks();
-      unsubscribeRaces();
     };
   }, [profile]);
 

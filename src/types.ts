@@ -169,6 +169,9 @@ export interface Race extends SourceMetadata {
   closeDate: string;
   electionYear: number;
   mode: 'live' | 'sandbox';
+  /** Canonical-catalog metadata; absent records are legacy or non-federal compatibility records. */
+  catalogScope?: 'federal' | 'nonfederal';
+  registryGeneration?: string;
   summary?: string;
   ballotpediaUrl?: string;
   newsUrl?: string;

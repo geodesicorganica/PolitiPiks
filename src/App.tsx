@@ -40,7 +40,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [selectedLeagueId, setSelectedLeagueId] = useState<string | null>(null);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<{ candidate: Candidate; raceId: string } | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -127,7 +127,7 @@ export default function App() {
           </button>
           
           <p className="text-xs text-slate-500 font-mono">
-            Picks are locked 1 hour before polls close in each respective state.
+            Picks lock before Election Day under the current league safety policy.
           </p>
         </motion.div>
       </div>
@@ -149,8 +149,8 @@ export default function App() {
             {currentTab === 'dashboard' && <Dashboard />}
             {currentTab === 'races' && (
               selectedCandidate 
-                ? <CandidateDetail candidate={selectedCandidate} onBack={() => setSelectedCandidate(null)} />
-                : <Races onSelectCandidate={setSelectedCandidate} />
+                ? <CandidateDetail candidate={selectedCandidate.candidate} raceId={selectedCandidate.raceId} onBack={() => setSelectedCandidate(null)} />
+                : <Races onSelectCandidate={(candidate, race) => setSelectedCandidate({ candidate, raceId: race.id })} />
             )}
             {currentTab === 'leagues' && (
               selectedLeagueId 

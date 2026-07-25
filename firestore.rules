@@ -58,12 +58,15 @@ service cloud.firestore {
     match /users/{userId} {
       allow get: if isOwner(userId);
       allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoURL']);
     }
 
     match /users_public/{userId} {
       allow read: if isSignedIn();
-      allow create, update: if isOwner(userId) && isValidUserPublic(incoming());
+      allow create: if isOwner(userId) && isValidUserPublic(incoming());
+      allow update: if isOwner(userId) && isValidUserPublic(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
     }
 
     match /users_private/{userId} {
@@ -86,36 +89,99 @@ service cloud.firestore {
       return data.userId == request.auth.uid &&
              data.displayName is string && data.displayName.size() <= 100 &&
              data.photoURL is string && data.photoURL.size() <= 500 &&
-             data.points is number && data.joinedAt == request.time &&
+             data.points == 0 && data.joinedAt == request.time &&
              data.keys().hasAll(['userId', 'displayName', 'photoURL', 'points', 'joinedAt']) &&
              data.keys().size() == 5;
+    }
+
+    function isLiveLeague(leagueId) {
+      return isValidId(leagueId) &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)) &&
+             get(/databases/$(database)/documents/leagues/$(leagueId)).data.electionYear == 2026 &&
+             get(/databases/$(database)/documents/leagues/$(leagueId)).data.mode == 'live';
+    }
+
+    function isLeagueMember(leagueId) {
+      return isLiveLeague(leagueId) &&
+             exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid));
+    }
+
+    function hasOnlyEditableLeagueFields() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['name', 'inviteCode']) &&
+             incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100 &&
+             incoming().inviteCode is string && incoming().inviteCode.size() > 0 && incoming().inviteCode.size() <= 10;
     }
 
     match /leagues/{leagueId} {
       allow get: if isSignedIn() && isValidId(leagueId);
       allow list: if isSignedIn(); // Broad list needed for joining by invite code
       allow create: if isSignedIn() && isValidLeague(incoming());
-      allow update: if isSignedIn() && isValidId(leagueId) && (
-        resource.data.ownerId == request.auth.uid || 
-        exists(/databases/$(database)/documents/leagues/$(leagueId)/members/$(request.auth.uid))
-      );
+      allow update: if isSignedIn() && isValidId(leagueId) &&
+        resource.data.ownerId == request.auth.uid && hasOnlyEditableLeagueFields();
       
       match /members/{memberId} {
         allow get: if isSignedIn() && isValidId(memberId);
         allow list: if isSignedIn();
-        allow create: if isOwner(memberId) && isValidMember(incoming());
-        allow update: if isOwner(memberId) && isValidId(memberId) && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['points'])
-        );
+        allow create: if isOwner(memberId) && isValidId(memberId) &&
+          incoming().userId == memberId && isLiveLeague(leagueId) && isValidMember(incoming());
+        allow update, delete: if false;
       }
     }
 
     match /races/{raceId} {
       allow read: if isSignedIn();
+
+      match /candidateResearch/{candidateId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
     }
 
     match /ballotMeasures/{measureId} {
       allow read: if isSignedIn();
+    }
+
+    match /contestMetrics/{raceId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /catalogActivations/{activationId} {
+      allow read: if isSignedIn() && activationId == 'canonical-2026';
+      allow write: if false;
+    }
+
+    function isFederalRaceId(targetId) {
+      return targetId is string &&
+        targetId.matches('^2026-[A-Z]{2}-(senate(-(special-)?class-[123])?|house-[0-9]{3})$');
+    }
+
+    function catalogSelectorExists() {
+      return exists(/databases/$(database)/documents/catalogActivations/canonical-2026);
+    }
+
+    function activeFederalGeneration() {
+      return get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.activeFederalGeneration;
+    }
+
+    function catalogSelectorIsUsable() {
+      return catalogSelectorExists() &&
+        (get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.state == 'active' ||
+         get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.state == 'rollback') &&
+        activeFederalGeneration() is string;
+    }
+
+    function activeFederalRaceTarget(targetId) {
+      return exists(/databases/$(database)/documents/races/$(targetId)) &&
+        (
+          (!catalogSelectorExists() &&
+            get(/databases/$(database)/documents/races/$(targetId)).data.get('registryGeneration', null) == null) ||
+          (catalogSelectorIsUsable() && activeFederalGeneration() == 'legacy-2026' &&
+            get(/databases/$(database)/documents/races/$(targetId)).data.get('registryGeneration', null) == null) ||
+          (catalogSelectorIsUsable() && activeFederalGeneration() != 'legacy-2026' &&
+            get(/databases/$(database)/documents/races/$(targetId)).data.get('catalogScope', null) == 'federal' &&
+            get(/databases/$(database)/documents/races/$(targetId)).data.get('registryGeneration', null) == activeFederalGeneration())
+        );
     }
 
     function liveTargetIsOpen(data) {
@@ -124,6 +190,7 @@ service cloud.firestore {
               get(/databases/$(database)/documents/races/$(data.targetId)).data.electionYear == 2026 &&
               get(/databases/$(database)/documents/races/$(data.targetId)).data.mode == 'live' &&
               get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt is timestamp &&
+              (!isFederalRaceId(data.targetId) || activeFederalRaceTarget(data.targetId)) &&
               request.time < get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt) ||
              (data.type == 'measure' &&
               exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
@@ -133,13 +200,34 @@ service cloud.firestore {
               request.time < get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt);
     }
 
+    function isValidPredictionCreate(data) {
+      return data.keys().hasAll(['userId', 'leagueId', 'targetId', 'type', 'pick', 'status', 'createdAt']) &&
+             data.keys().hasOnly(['userId', 'leagueId', 'targetId', 'type', 'pick', 'status', 'createdAt', 'updatedAt']) &&
+             data.userId == request.auth.uid &&
+             data.leagueId is string && isValidId(data.leagueId) &&
+             data.targetId is string && isValidId(data.targetId) &&
+             data.type in ['race', 'measure'] &&
+             data.pick is string && data.pick.size() > 0 && data.pick.size() <= 128 &&
+             data.status == 'pending' &&
+             data.createdAt == request.time &&
+             (!data.keys().hasAny(['updatedAt']) || data.updatedAt == request.time);
+    }
+
+    function isValidPredictionUpdate() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['pick', 'updatedAt']) &&
+             incoming().pick is string && incoming().pick.size() > 0 && incoming().pick.size() <= 128 &&
+             incoming().keys().hasAll(['updatedAt']) && incoming().updatedAt == request.time;
+    }
+
     match /predictions/{predictionId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid &&
-        liveTargetIsOpen(request.resource.data);
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        isLeagueMember(resource.data.leagueId);
+      allow create: if isSignedIn() && isValidPredictionCreate(incoming()) &&
+        isLeagueMember(incoming().leagueId) && liveTargetIsOpen(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
-        request.resource.data.userId == request.auth.uid && liveTargetIsOpen(request.resource.data);
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+        isLeagueMember(resource.data.leagueId) && liveTargetIsOpen(resource.data) && isValidPredictionUpdate();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid &&
+        isLeagueMember(resource.data.leagueId) && liveTargetIsOpen(resource.data);
     }
   }
 }

@@ -68,7 +68,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
         userId: profile.uid,
         displayName: profile.displayName,
         photoURL: profile.photoURL || '',
-        points: profile.totalPoints || 0,
+        points: 0,
         joinedAt: serverTimestamp()
       });
 
@@ -120,7 +120,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
         userId: profile.uid,
         displayName: profile.displayName,
         photoURL: profile.photoURL || '',
-        points: profile.totalPoints || 0,
+        points: 0,
         joinedAt: serverTimestamp()
       });
 
@@ -253,7 +253,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
               
               <div className="p-6 bg-brand-red/5 border border-brand-red/20 space-y-3">
                  <p className="text-[10px] font-mono text-brand-red uppercase font-black">System Note:</p>
-                 <p className="text-[11px] text-slate-400 font-medium">By creating a league, you will be designated as the <span className="text-white italic">Commissioner</span>. All prediction windows follow official state poll closing times.</p>
+                 <p className="text-[11px] text-slate-400 font-medium">By creating a league, you will be designated as the <span className="text-white italic">Commissioner</span>. Picks lock before Election Day under the current league safety policy.</p>
               </div>
 
               <div className="pt-4 space-y-4">
