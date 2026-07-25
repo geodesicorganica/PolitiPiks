@@ -1,0 +1,178 @@
+{
+  "schemaVersion": 3,
+  "productLockPolicy": {
+    "id": "canonical-2026-pre-election-lock-v1",
+    "version": 1,
+    "electionDate": "2026-11-03",
+    "closeAt": { "__firestoreType": "timestamp/v1", "seconds": 1793664000, "nanoseconds": 0 },
+    "scope": "all-canonical-2026-federal-contests",
+    "rationale": "Locks before Election Day begins in every covered U.S. timezone, preventing partial-results leakage under fixed, variable, local-option, and conditional-close regimes.",
+    "status": "approved_product_policy",
+    "supersession": "A future policy may move individual locks later only after complete official evidence and a separately reviewed release.",
+    "electionDateSourceUrl": "https://www.fec.gov/help-candidates-and-committees/dates-and-deadlines/",
+    "reviewedAt": "2026-07-24T00:00:00.000Z"
+  },
+  "authorityRules": [
+    {
+      "id": "ga-2026-general-poll-hours",
+      "jurisdiction": "GA",
+      "electionDate": "2026-11-03",
+      "scope": "uniform-statewide",
+      "closingTimes": [
+        { "id": "eastern-1900", "localPollClosingTime": "19:00", "timeZone": "America/New_York" }
+      ],
+      "sourceName": "Georgia Secretary of State",
+      "sourceUrl": "https://sos.ga.gov/2026-elections-calendar-1",
+      "citation": "2026 Elections Calendar; polls open 7:00 a.m. to 7:00 p.m.",
+      "applicabilityBasis": "Current Secretary of State 2026 calendar covers the November 3, 2026 general election; reviewed for a superseding poll-hours notice on 2026-07-24.",
+      "retrievedAt": "2026-07-24T00:00:00.000Z",
+      "reviewedAt": "2026-07-24T00:00:00.000Z",
+      "researcher": "g3-2-2-primary-research-pass",
+      "reviewer": "g3-2-2-independent-review-pass",
+      "reviewStatus": "reviewed",
+      "conflictDisposition": "none",
+      "notes": "Uniform Eastern Time statewide general-election rule. Voters in line at closing may vote; that does not extend closeAt."
+    },
+    {
+      "id": "ny-2026-general-poll-hours",
+      "jurisdiction": "NY",
+      "electionDate": "2026-11-03",
+      "scope": "uniform-statewide",
+      "closingTimes": [
+        { "id": "eastern-2100", "localPollClosingTime": "21:00", "timeZone": "America/New_York" }
+      ],
+      "sourceName": "New York State Board of Elections",
+      "sourceUrl": "https://elections.ny.gov/election-information",
+      "citation": "Upcoming November 3, 2026 General Election; polls open 6:00 a.m. to 9:00 p.m.",
+      "applicabilityBasis": "Current State Board of Elections 2026 election-information page states the general-election date and statewide poll hours; independently checked against the official 2026 political calendar on 2026-07-24.",
+      "retrievedAt": "2026-07-24T00:00:00.000Z",
+      "reviewedAt": "2026-07-24T00:00:00.000Z",
+      "researcher": "g3-2-2-primary-research-pass",
+      "reviewer": "g3-2-2-independent-review-pass",
+      "reviewStatus": "reviewed",
+      "conflictDisposition": "none",
+      "notes": "Uniform Eastern Time statewide general-election rule; early-voting hours are not used for Election Day closeAt."
+    },
+    {
+      "id": "nc-2026-general-poll-hours",
+      "jurisdiction": "NC",
+      "electionDate": "2026-11-03",
+      "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1930", "localPollClosingTime": "19:30", "timeZone": "America/New_York" }],
+      "sourceName": "North Carolina State Board of Elections",
+      "sourceUrl": "https://www.ncsbe.gov/news/events/election-day-2026-general-election",
+      "citation": "Election Day | 2026 General Election: November 3, 2026; polling places open 6:30 a.m. to 7:30 p.m.",
+      "applicabilityBasis": "Current State Board 2026 general-election event; independently reopened and reviewed on 2026-07-24.",
+      "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none",
+      "notes": "Uniform Eastern Time. In-line voting is contextual and does not extend closeAt."
+    },
+    {
+      "id": "oh-2026-general-poll-hours",
+      "jurisdiction": "OH",
+      "electionDate": "2026-11-03",
+      "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1930", "localPollClosingTime": "19:30", "timeZone": "America/New_York" }],
+      "sourceName": "Ohio Secretary of State",
+      "sourceUrl": "https://www.ohiosos.gov/elections/voting-schedule-text-only",
+      "citation": "2026 General/Special Election: November 3; polls open 6:30 a.m. to 7:30 p.m.",
+      "applicabilityBasis": "Current Ohio Secretary of State 2026 schedule; independently reopened and reviewed on 2026-07-24.",
+      "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none",
+      "notes": "Uniform Eastern Time; includes the declared Ohio special Senate seat."
+    },
+    {
+      "id": "ri-2026-general-poll-hours",
+      "jurisdiction": "RI",
+      "electionDate": "2026-11-03",
+      "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-2000", "localPollClosingTime": "20:00", "timeZone": "America/New_York" }],
+      "sourceName": "Rhode Island Department of State",
+      "sourceUrl": "https://vote.sos.ri.gov/Forms/Elections/Guides/2026ElecCal.pdf",
+      "citation": "Rhode Island 2026 Election Calendar, page 5: General Election November 3, 2026; polls remain open until 8 p.m.",
+      "applicabilityBasis": "Current Department of State 2026 election calendar; independently reopened and reviewed on 2026-07-24.",
+      "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none",
+      "notes": "Uniform Eastern Time. New Shoreham opening exception does not alter the uniform 8 p.m. close."
+    },
+    {
+      "id": "sc-2026-general-poll-hours", "jurisdiction": "SC", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1900", "localPollClosingTime": "19:00", "timeZone": "America/New_York" }], "sourceName": "South Carolina Election Commission", "sourceUrl": "https://scvotes.gov/event/statewide-general-election-4/",
+      "citation": "Statewide General Election event, November 3, 2026; Election Commission voter guidance states polls close at 7 p.m.", "applicabilityBasis": "Current Election Commission 2026 general-election event and independently reviewed poll-hours guidance.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "Uniform Eastern Time."
+    },
+    {
+      "id": "vt-standing-general-poll-hours", "jurisdiction": "VT", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1900", "localPollClosingTime": "19:00", "timeZone": "America/New_York" }], "sourceName": "Vermont General Assembly", "sourceUrl": "https://legislature.vermont.gov/statutes/section/17/051/02561",
+      "citation": "17 V.S.A. §2561: polls close at 7:00 p.m.; general election timing follows the first Tuesday after the first Monday in an even year.", "applicabilityBasis": "Current codified standing statute reviewed with official Vermont election-law publication; no 2026 superseding rule located.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "Uniform Eastern Time at-large contest."
+    },
+    {
+      "id": "va-2026-general-poll-hours", "jurisdiction": "VA", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1900", "localPollClosingTime": "19:00", "timeZone": "America/New_York" }], "sourceName": "Virginia Department of Elections", "sourceUrl": "https://www.elections.virginia.gov/casting-a-ballot/voter-rights/",
+      "citation": "Virginia voter-rights guidance: polls are open 6:00 a.m. to 7:00 p.m.; official 2026 candidate bulletins establish November 3 election context.", "applicabilityBasis": "Current Department guidance and 2026 candidate bulletin independently reviewed.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "Uniform Eastern Time."
+    },
+    {
+      "id": "wa-2026-general-ballot-deadline", "jurisdiction": "WA", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "pacific-2000", "localPollClosingTime": "20:00", "timeZone": "America/Los_Angeles" }], "sourceName": "Washington Secretary of State", "sourceUrl": "https://www.sos.wa.gov/elections/elections-calendar/dates-and-deadlines",
+      "citation": "Washington 2026 Elections Calendar: November 3 general election and 8:00 p.m. ballot return deadline.", "applicabilityBasis": "Current Secretary of State 2026 calendar independently reviewed.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "All-mail election; the official ballot-return deadline is the contest closeAt."
+    },
+    {
+      "id": "wv-2026-general-poll-hours", "jurisdiction": "WV", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "eastern-1930", "localPollClosingTime": "19:30", "timeZone": "America/New_York" }], "sourceName": "West Virginia Secretary of State", "sourceUrl": "https://sos.wv.gov/media/467/download?inline=",
+      "citation": "2026 election calendar: November 3 general election; W. Va. Code §3-1-31 poll-hours rule confirmed in the election-official manual.", "applicabilityBasis": "Current 2026 Secretary calendar and official manual independently reviewed.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "Uniform Eastern Time."
+    },
+    {
+      "id": "wy-standing-general-poll-hours", "jurisdiction": "WY", "electionDate": "2026-11-03", "scope": "uniform-statewide",
+      "closingTimes": [{ "id": "mountain-1900", "localPollClosingTime": "19:00", "timeZone": "America/Denver" }], "sourceName": "Wyoming Secretary of State", "sourceUrl": "https://sos.wyo.gov/faqs.aspx?root=ELEC",
+      "citation": "Secretary of State election FAQ and official Election Code: general elections in even years; polls open 7:00 a.m. to 7:00 p.m.", "applicabilityBasis": "Current Secretary FAQ and Election Code independently reviewed; no 2026 exception located.", "retrievedAt": "2026-07-24T00:00:00.000Z", "reviewedAt": "2026-07-24T00:00:00.000Z", "researcher": "batch-7-10-research", "reviewer": "g3-2-2-primary-independent-review", "reviewStatus": "reviewed", "conflictDisposition": "none", "notes": "Uniform Mountain Time at-large contest."
+    }
+  ],
+  "seatAssignments": [
+    { "electionId": "2026-GA-house-001", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-002", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-003", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-004", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-005", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-006", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-007", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-008", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-009", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-010", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-011", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-012", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-013", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-house-014", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-GA-senate-class-2", "ruleIds": ["ga-2026-general-poll-hours"], "closingTimeIds": ["ga-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Georgia is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-001", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-002", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-003", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-004", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-005", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-006", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-007", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-008", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-009", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-010", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-011", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-012", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-013", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-014", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-015", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-016", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-017", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-018", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-019", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-020", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-021", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-022", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-023", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-024", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-025", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionId": "2026-NY-house-026", "ruleIds": ["ny-2026-general-poll-hours"], "closingTimeIds": ["ny-2026-general-poll-hours/eastern-2100"], "policy": "uniform-statewide", "assignmentBasis": "New York is wholly in Eastern Time; statewide poll-hours rule." },
+    { "electionIds": ["2026-NC-house-001", "2026-NC-house-002", "2026-NC-house-003", "2026-NC-house-004", "2026-NC-house-005", "2026-NC-house-006", "2026-NC-house-007", "2026-NC-house-008", "2026-NC-house-009", "2026-NC-house-010", "2026-NC-house-011", "2026-NC-house-012", "2026-NC-house-013", "2026-NC-house-014", "2026-NC-senate-class-2"], "ruleIds": ["nc-2026-general-poll-hours"], "closingTimeIds": ["nc-2026-general-poll-hours/eastern-1930"], "policy": "uniform-statewide", "assignmentBasis": "North Carolina is wholly in Eastern Time; current statewide 2026 rule." },
+    { "electionIds": ["2026-OH-house-001", "2026-OH-house-002", "2026-OH-house-003", "2026-OH-house-004", "2026-OH-house-005", "2026-OH-house-006", "2026-OH-house-007", "2026-OH-house-008", "2026-OH-house-009", "2026-OH-house-010", "2026-OH-house-011", "2026-OH-house-012", "2026-OH-house-013", "2026-OH-house-014", "2026-OH-house-015", "2026-OH-senate-special-class-3"], "ruleIds": ["oh-2026-general-poll-hours"], "closingTimeIds": ["oh-2026-general-poll-hours/eastern-1930"], "policy": "uniform-statewide", "assignmentBasis": "Ohio is wholly in Eastern Time; current statewide 2026 rule." },
+    { "electionIds": ["2026-RI-house-001", "2026-RI-house-002", "2026-RI-senate-class-2"], "ruleIds": ["ri-2026-general-poll-hours"], "closingTimeIds": ["ri-2026-general-poll-hours/eastern-2000"], "policy": "uniform-statewide", "assignmentBasis": "Rhode Island is wholly in Eastern Time; current statewide 2026 rule." }
+    ,{ "electionIds": ["2026-SC-house-001", "2026-SC-house-002", "2026-SC-house-003", "2026-SC-house-004", "2026-SC-house-005", "2026-SC-house-006", "2026-SC-house-007", "2026-SC-senate-class-2"], "ruleIds": ["sc-2026-general-poll-hours"], "closingTimeIds": ["sc-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "South Carolina is wholly in Eastern Time; reviewed statewide rule." }
+    ,{ "electionIds": ["2026-VT-house-al"], "ruleIds": ["vt-standing-general-poll-hours"], "closingTimeIds": ["vt-standing-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Vermont is wholly in Eastern Time; reviewed standing rule." }
+    ,{ "electionIds": ["2026-VA-house-001", "2026-VA-house-002", "2026-VA-house-003", "2026-VA-house-004", "2026-VA-house-005", "2026-VA-house-006", "2026-VA-house-007", "2026-VA-house-008", "2026-VA-house-009", "2026-VA-house-010", "2026-VA-house-011", "2026-VA-senate-class-2"], "ruleIds": ["va-2026-general-poll-hours"], "closingTimeIds": ["va-2026-general-poll-hours/eastern-1900"], "policy": "uniform-statewide", "assignmentBasis": "Virginia is wholly in Eastern Time; reviewed statewide rule." }
+    ,{ "electionIds": ["2026-WA-house-001", "2026-WA-house-002", "2026-WA-house-003", "2026-WA-house-004", "2026-WA-house-005", "2026-WA-house-006", "2026-WA-house-007", "2026-WA-house-008", "2026-WA-house-009", "2026-WA-house-010"], "ruleIds": ["wa-2026-general-ballot-deadline"], "closingTimeIds": ["wa-2026-general-ballot-deadline/pacific-2000"], "policy": "uniform-statewide", "assignmentBasis": "Washington is wholly in Pacific Time; reviewed statewide ballot-return rule." }
+    ,{ "electionIds": ["2026-WV-house-001", "2026-WV-house-002", "2026-WV-senate-class-2"], "ruleIds": ["wv-2026-general-poll-hours"], "closingTimeIds": ["wv-2026-general-poll-hours/eastern-1930"], "policy": "uniform-statewide", "assignmentBasis": "West Virginia is wholly in Eastern Time; reviewed statewide rule." }
+    ,{ "electionIds": ["2026-WY-house-al", "2026-WY-senate-class-2"], "ruleIds": ["wy-standing-general-poll-hours"], "closingTimeIds": ["wy-standing-general-poll-hours/mountain-1900"], "policy": "uniform-statewide", "assignmentBasis": "Wyoming is wholly in Mountain Time; reviewed standing rule." }
+  ]
+}

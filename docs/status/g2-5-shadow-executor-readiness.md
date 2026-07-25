@@ -62,10 +62,16 @@ be an ignored `.json` file below `.artifacts/private/canonical-migration/`.
 ## Commands and evidence
 
 ```powershell
-npm run apply-canonical-shadow -- --snapshot-in .artifacts/private/canonical-migration/approved.json
-npm run test-canonical-shadow-executor
-npm run test-canonical-shadow-executor-emulator
+npx tsx scripts/apply-canonical-shadow.ts --snapshot-in <private-snapshot>
+npx tsx scripts/apply-canonical-shadow.ts --apply --snapshot-in <private-snapshot> <all-required-guards>
+npx tsx scripts/apply-canonical-shadow.ts --verify-only --snapshot-in <private-snapshot> <all-required-guards>
 ```
+
+On this Windows PowerShell workstation, do **not** invoke production apply or
+verification through `npm run`: its wrapper can strip named `--flag` arguments
+and pass their values positionally. Direct `npx tsx` preserves the guards. The
+package script remains suitable only for the simple local dry-run shown in the
+test evidence below.
 
 The following final verification commands exited `0`:
 

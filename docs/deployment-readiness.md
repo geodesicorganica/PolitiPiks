@@ -15,6 +15,8 @@ npm run verify-deployment-readiness
 npm run verify-league-flow
 npm run verify-firestore-league-flow
 npm run verify-browser-league-flow
+npm run test-canonical-activation
+npm run test-canonical-activation-emulator
 ```
 
 Run contest verification against the target Firestore database after seeding or ingesting:
@@ -45,6 +47,24 @@ npm run verify-deployment-readiness -- --env-file .env.production
 - `admins/<uid>` documents grant admin access; create them deliberately and audit them before public use.
 - Contest data should be written by ingest or controlled scripts, not by browser clients.
 - Research coverage is a public-readiness gate. Run `npm run verify-contests` after ingest/enrichment and confirm no actionable coverage gaps.
+- Canonical federal activation is selector-driven. Do not deploy a client that can
+  see canonical documents until the separately approved `catalogActivations/canonical-2026`
+  operation, exact active verification, rules deployment, and client deployment
+  have been completed in that order.
+- Future guarded activation commands must use direct `npx tsx`, never `npm run`;
+  the Windows npm/PowerShell wrapper has previously stripped named safety guards.
+- A rollback changes only the catalog selector and does not delete either federal
+  generation. Closed targets remain closed because `closeAt` remains rule-enforced.
+- Deployment order is rules, selector-aware application while the selector is
+  absent and legacy remains active, deployed legacy smoke verification, separately
+  authorized fresh v2 capture/certification, v2 shadow verification, separately
+  authorized activation, and post-activation smoke verification. Do not activate
+  canonical data before the selector-aware application is deployed.
+- The v2 publication capture requires the approved
+  `canonical-2026-pre-election-lock-v1` policy on all 470 canonical races. Its
+  Timestamp is `2026-11-03T00:00:00.000Z`; it is a product safety lock, not an
+  official poll-close claim. Reviewed official poll-close research is supplemental:
+  incomplete coverage is reported but does not bypass the server-enforced lock.
 
 ## Version Control Flow
 
