@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { CANONICAL_2026_FEDERAL_CONTESTS } from '../../ingest/src/federalRegistry.js';
 import {
   buildCanonicalShadowPlan,
+  mergeCandidateResearchDocuments,
   type FirestoreTimestampTag,
 } from './canonicalMigration.js';
 import { CANONICAL_2026_PRE_ELECTION_LOCK_POLICY, PRODUCT_LOCK_CLOSE_AT, PRODUCT_LOCK_POLICY_ID, generateProductLockRecords, validateGeneratedDeadlineRecords, validateProductLockPolicy, type JurisdictionDeadline, type ProductLockPolicy } from './deadlineRegistry.js';
@@ -18,9 +19,18 @@ export type CanonicalPublicationPlan = {
   mappingDigest: string;
   planDigest: string;
   lockPolicyDigest: string;
-  mapping: ReturnType<typeof buildCanonicalShadowPlan> & { publicationCandidateConflicts: Array<{ target: string; fields: string[] }>; activeCandidates: Set<string> };
+  mapping: ReturnType<typeof buildCanonicalShadowPlan> & {
+    publicationCandidateConflicts: Array<{ target: string; fields: string[] }>;
+    publicationResearchConflicts: Array<{ target: string; field: string; values: unknown[] }>;
+    publicationMetricConflicts: Array<{ target: string; sourceMetricIds: string[] }>;
+    activeCandidates: Set<string>;
+  };
   sourceCandidateCount: number;
   expectedCounts: { races: number; research: number; metrics: number };
+  excludedSourceDocuments: {
+    candidateResearch: { nonCanonicalRace: number; unmappedCandidate: number };
+    contestMetrics: { nonCanonicalRace: number };
+  };
 };
 export type CanonicalPublicationInput = {
   generation: 'canonical-2026-shadow-v2';
@@ -65,8 +75,29 @@ function canonicalCandidateId(candidate: PublicationCandidate) {
   return fec ? `fec-${fec}` : text(candidate.id);
 }
 
+/** FEC filings establish that a candidate filed, not that they are active or ballot-qualified. */
+function normalizeFecCandidate(candidate: Json, targetId: string): Json {
+  // The canonical mapping (including approved aliases) is authoritative over a legacy embedded FEC field.
+  const fecCandidateId = targetId.replace(/^fec-/, '');
+  if (!/^[HS]\d[A-Z]{2}\d{5}$/.test(fecCandidateId) || targetId !== `fec-${fecCandidateId}`) {
+    throw new Error(`canonical candidate lacks a valid FEC identity: ${targetId || 'missing-id'}`);
+  }
+  const { candidateState: _candidateState, ballotVerifiedAt: _ballotVerifiedAt, ballotSourceUrl: _ballotSourceUrl, ...preserved } = candidate;
+  return {
+    ...preserved,
+    id: targetId,
+    externalIds: { ...(isRecord(candidate.externalIds) ? candidate.externalIds : {}), fecCandidateId },
+    qualificationStatus: 'filed',
+    pickEligibility: 'ineligible',
+    visibility: 'visible',
+    source: 'Federal Election Commission',
+    sourceUrl: `https://www.fec.gov/data/candidate/${fecCandidateId}/`,
+    verificationLevel: 'official',
+  };
+}
+
 /** Merges approved aliases without dropping sourced fields; differing non-empty scalar values are blockers. */
-function mergeCandidates(candidates: PublicationCandidate[], targetId: string) {
+function mergeCandidates(candidates: PublicationCandidate[], targetId: string, approvedManyToOneMerge: boolean) {
   const result: Json = { id: targetId };
   const conflictingFields: string[] = [];
   const externalIds: Json = {};
@@ -75,12 +106,18 @@ function mergeCandidates(candidates: PublicationCandidate[], targetId: string) {
       if (key === 'id' || value === undefined || value === null || value === '') continue;
       if (key === 'externalIds' && isRecord(value)) {
         for (const [externalKey, externalValue] of Object.entries(value)) {
-          if (externalIds[externalKey] !== undefined && canonicalJson(externalIds[externalKey]) !== canonicalJson(externalValue)) conflictingFields.push(`externalIds.${externalKey}`);
+          if (externalIds[externalKey] !== undefined && canonicalJson(externalIds[externalKey]) !== canonicalJson(externalValue)) {
+            if (!approvedManyToOneMerge) conflictingFields.push(`externalIds.${externalKey}`);
+          }
           else externalIds[externalKey] = externalValue;
         }
         continue;
       }
-      if (result[key] !== undefined && canonicalJson(result[key]) !== canonicalJson(value)) conflictingFields.push(key);
+      if (result[key] !== undefined && canonicalJson(result[key]) !== canonicalJson(value)) {
+        // Identity aliases are explicitly approved by the immutable override artifact. Keep the first
+        // canonical-sort value deterministically; FEC normalization below replaces identity/status fields.
+        if (!approvedManyToOneMerge) conflictingFields.push(key);
+      }
       else result[key] = value;
     }
   }
@@ -122,6 +159,7 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
     }
   }
   const candidateConflicts: Array<{ target: string; fields: string[] }> = [];
+  const approvedMergeTargets = new Set(mapping.approvedCandidateMerges.map((merge) => merge.target));
   const raceDocuments: PublicationDocument[] = CANONICAL_2026_FEDERAL_CONTESTS.map((seat) => {
     const deadline = deadlines.get(seat.id);
     const lock = locks.get(seat.id);
@@ -130,9 +168,9 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
       .filter(([key]) => key.startsWith(`${seat.id}/`))
       .map(([key, sources]) => {
         const targetId = key.slice(seat.id.length + 1);
-        const merged = mergeCandidates(sources, targetId);
+        const merged = mergeCandidates(sources, targetId, approvedMergeTargets.has(key));
         if (merged.conflicts.length) candidateConflicts.push({ target: key, fields: merged.conflicts });
-        return merged.candidate;
+        return normalizeFecCandidate(merged.candidate, targetId);
       }), (candidate) => text(candidate.id));
     return {
       path: `races/${seat.id}`,
@@ -158,29 +196,66 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
           },
         } : { officialPollCloseKind: 'unknown' }),
         candidates,
+        eligibleCandidateIds: candidates.filter((candidate) => candidate.pickEligibility === 'eligible').map((candidate) => text(candidate.id)),
         catalogScope: 'federal', registryGeneration: input.generation,
         canonicalPublication: { schemaVersion: 3, generation: input.generation },
       },
     };
   });
   const activeCandidates = new Set(raceDocuments.flatMap((document) => (document.data.candidates as Json[]).map((candidate) => `${document.path.slice('races/'.length)}/${text(candidate.id)}`)));
-  const researchDocuments = sort(normalizedInput.candidateResearch.flatMap((research) => {
+  const excludedSourceDocuments = {
+    candidateResearch: { nonCanonicalRace: 0, unmappedCandidate: 0 },
+    contestMetrics: { nonCanonicalRace: 0 },
+  };
+  const researchInputs = normalizedInput.candidateResearch.flatMap((research) => {
     const raceId = raceMap.get(research.raceId) ?? research.raceId;
     const candidateId = candidateMap.get(`${research.raceId}/${research.candidateId}`) ?? research.candidateId;
-    return [{ path: `races/${raceId}/candidateResearch/${candidateId}`, data: { ...research.data, raceId, candidateId, canonicalPublication: { generation: input.generation } } }];
-  }), (document) => document.path);
-  const metricDocuments = sort(normalizedInput.contestMetrics.flatMap((metric) => {
+    if (!CANONICAL_2026_FEDERAL_CONTESTS.some((seat) => seat.id === raceId)) {
+      excludedSourceDocuments.candidateResearch.nonCanonicalRace += 1;
+      return [];
+    }
+    if (!activeCandidates.has(`${raceId}/${candidateId}`)) {
+      excludedSourceDocuments.candidateResearch.unmappedCandidate += 1;
+      return [];
+    }
+    return [{ raceId, candidateId, data: research.data }];
+  });
+  const researchMerge = mergeCandidateResearchDocuments(researchInputs);
+  const researchDocuments = researchMerge.documents.map((research) => ({
+    path: `races/${research.raceId}/candidateResearch/${research.candidateId}`,
+    data: { ...research.data, canonicalPublication: { generation: input.generation } },
+  }));
+  const metricInputs = normalizedInput.contestMetrics.flatMap((metric) => {
     const raceId = raceMap.get(metric.raceId) ?? metric.raceId;
-    return [{ path: `contestMetrics/${raceId}`, data: { ...metric.data, raceId, canonicalPublication: { generation: input.generation, sourceMetricId: metric.id ?? metric.raceId } } }];
-  }), (document) => document.path);
+    if (!CANONICAL_2026_FEDERAL_CONTESTS.some((seat) => seat.id === raceId)) {
+      excludedSourceDocuments.contestMetrics.nonCanonicalRace += 1;
+      return [];
+    }
+    return [{ raceId, id: metric.id ?? metric.raceId, data: metric.data }];
+  });
+  const metricsByRace = new Map<string, typeof metricInputs>();
+  for (const metric of metricInputs) metricsByRace.set(metric.raceId, [...(metricsByRace.get(metric.raceId) ?? []), metric]);
+  const publicationMetricConflicts: Array<{ target: string; sourceMetricIds: string[] }> = [];
+  const metricDocuments: PublicationDocument[] = [];
+  for (const [raceId, metrics] of metricsByRace) {
+    if (metrics.length !== 1) {
+      publicationMetricConflicts.push({ target: raceId, sourceMetricIds: metrics.map((metric) => metric.id).sort((left, right) => left.localeCompare(right)) });
+      continue;
+    }
+    const metric = metrics[0]!;
+    metricDocuments.push({ path: `contestMetrics/${raceId}`, data: { ...metric.data, raceId, canonicalPublication: { generation: input.generation, sourceMetricId: metric.id } } });
+  }
+  metricDocuments.sort((left, right) => left.path.localeCompare(right.path));
   const documents = sort([...raceDocuments, ...researchDocuments, ...metricDocuments], (document) => document.path);
   const lockPolicyDigest = digest(normalizedInput.lockPolicy);
-  const planDigest = digest({ generation: input.generation, lockPolicyDigest, documents, mappingDigest: mapping.mappingDigest, candidateConflicts });
+  const planDigest = digest({ generation: input.generation, lockPolicyDigest, documents, mappingDigest: mapping.mappingDigest, candidateConflicts,
+    researchConflicts: researchMerge.conflicts, metricConflicts: publicationMetricConflicts, excludedSourceDocuments });
   return {
     schemaVersion: 3, generation: input.generation, documents,
-    inputDigest: digest({ races: normalizedInput.races, lockPolicy: normalizedInput.lockPolicy, deadlines: normalizedInput.deadlines, predictions: normalizedInput.predictions, candidateResearch: normalizedInput.candidateResearch, contestMetrics: normalizedInput.contestMetrics, overrides: normalizedInput.overrides }),
-    mappingDigest: mapping.mappingDigest, planDigest, mapping: { ...mapping, publicationCandidateConflicts: candidateConflicts, activeCandidates }, sourceCandidateCount: normalizedInput.races.reduce((count, race) => count + race.candidates.length, 0),
-    lockPolicyDigest, expectedCounts: { races: raceDocuments.length, research: researchDocuments.length, metrics: metricDocuments.length },
+    inputDigest: publicationInputDigest(normalizedInput),
+    mappingDigest: mapping.mappingDigest, planDigest, mapping: { ...mapping, publicationCandidateConflicts: candidateConflicts,
+      publicationResearchConflicts: researchMerge.conflicts, publicationMetricConflicts, activeCandidates }, sourceCandidateCount: normalizedInput.races.reduce((count, race) => count + race.candidates.length, 0),
+    lockPolicyDigest, expectedCounts: { races: raceDocuments.length, research: researchDocuments.length, metrics: metricDocuments.length }, excludedSourceDocuments,
   };
 }
 
@@ -193,7 +268,7 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
   const candidateKeys = new Set<string>();
   let racesMissingCloseAt = 0; let invalidCloseAt = 0; let racesMissingLockPolicy = 0; let locksLaterThanPolicy = 0; let officialResearchRecords = 0; let racesMissingRequiredLiveFields = 0; let racesWithNoCandidates = 0;
   let totalCandidates = 0; let candidatesWithNoEligible = 0; let candidatesMissingName = 0; let candidatesMissingParty = 0; let candidatesMissingFecIdentity = 0;
-  let candidatesMissingQualification = 0; let candidatesMissingProvenance = 0; let duplicateCanonicalCandidateIds = 0; let invalidCandidateIds = 0; let eligibleWithoutBallotEvidence = 0;
+  let candidatesMissingQualification = 0; let candidatesMissingProvenance = 0; let duplicateCanonicalCandidateIds = 0; let invalidCandidateIds = 0; let eligibleWithoutBallotEvidence = 0; let invalidEligibleCandidateIds = 0;
   for (const race of races) {
     const data = race.data;
     if (data.closeAt === undefined) racesMissingCloseAt += 1;
@@ -203,6 +278,8 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
     if (isTimestamp(data.officialPollCloseAt)) officialResearchRecords += 1;
     if (data.electionYear !== 2026 || data.mode !== 'live' || !text(data.state) || !text(data.office) || !text(data.status) || !text(data.source) || !text(data.sourceUrl) || !text(data.verificationLevel)) racesMissingRequiredLiveFields += 1;
     const candidates = Array.isArray(data.candidates) ? data.candidates.filter(isRecord) : [];
+    const eligibleCandidateIds = Array.isArray(data.eligibleCandidateIds) ? data.eligibleCandidateIds.map(text) : [];
+    if (!Array.isArray(data.eligibleCandidateIds) || new Set(eligibleCandidateIds).size !== eligibleCandidateIds.length) invalidEligibleCandidateIds += 1;
     if (candidates.length === 0) racesWithNoCandidates += 1;
     let eligible = 0;
     for (const candidate of candidates) {
@@ -213,13 +290,15 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
       if (!text(candidate.name)) candidatesMissingName += 1;
       if (!text(candidate.party)) candidatesMissingParty += 1;
       if (!text(isRecord(candidate.externalIds) ? candidate.externalIds.fecCandidateId : undefined)) candidatesMissingFecIdentity += 1;
-      if (!text(candidate.qualificationStatus) || !text(candidate.candidateState) || !text(candidate.visibility) || !text(candidate.pickEligibility)) candidatesMissingQualification += 1;
+      if (!text(candidate.qualificationStatus) || !text(candidate.visibility) || !text(candidate.pickEligibility)) candidatesMissingQualification += 1;
       if (!text(candidate.source) || !text(candidate.sourceUrl) || !text(candidate.verificationLevel)) candidatesMissingProvenance += 1;
       if (candidate.pickEligibility === 'eligible') {
         eligible += 1;
         if (candidate.qualificationStatus !== 'on_ballot' || !text(candidate.ballotVerifiedAt) || !/^https:\/\//.test(text(candidate.ballotSourceUrl))) eligibleWithoutBallotEvidence += 1;
       }
     }
+    const candidateIds = new Set(candidates.map((candidate) => text(candidate.id)));
+    if (eligibleCandidateIds.some((candidateId) => !candidateIds.has(candidateId) || !candidates.some((candidate) => text(candidate.id) === candidateId && candidate.pickEligibility === 'eligible'))) invalidEligibleCandidateIds += 1;
     if (candidates.length > 0 && eligible === 0) candidatesWithNoEligible += 1;
   }
   const researchMissingCandidate = research.filter((document) => {
@@ -229,17 +308,27 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
   const metricsMissingRace = metrics.filter((document) => !raceIds.has(text(document.data.raceId))).length;
   const unresolvedPredictions = plan.mapping.orphanedPredictions.length + plan.mapping.retiredContestPredictions.length + plan.mapping.ambiguousReferences.length + plan.mapping.unresolvedCandidates.length + plan.mapping.unresolvedRaces.length;
   const publicationLockReady = plan.generation === 'canonical-2026-shadow-v2' && races.length === 470 && racesMissingCloseAt === 0 && invalidCloseAt === 0 && racesMissingLockPolicy === 0 && locksLaterThanPolicy === 0;
-  const publicationReady = publicationLockReady
-    && racesMissingRequiredLiveFields === 0 && racesWithNoCandidates === 0 && candidatesMissingName === 0 && candidatesMissingParty === 0
+  const catalogReady = publicationLockReady
+    && racesMissingRequiredLiveFields === 0 && candidatesMissingName === 0 && candidatesMissingParty === 0
     && candidatesMissingFecIdentity === 0 && candidatesMissingQualification === 0 && candidatesMissingProvenance === 0 && duplicateCanonicalCandidateIds === 0
-    && invalidCandidateIds === 0 && eligibleWithoutBallotEvidence === 0 && researchMissingCandidate === 0 && metricsMissingRace === 0
-    && unresolvedPredictions === 0 && plan.mapping.publicationCandidateConflicts.length === 0;
+    && invalidCandidateIds === 0 && invalidEligibleCandidateIds === 0 && researchMissingCandidate === 0 && metricsMissingRace === 0
+    && unresolvedPredictions === 0 && plan.mapping.publicationCandidateConflicts.length === 0 && plan.mapping.publicationResearchConflicts.length === 0
+    && plan.mapping.publicationMetricConflicts.length === 0;
+  const predictionReady = catalogReady && racesWithNoCandidates === 0 && candidatesWithNoEligible === 0 && eligibleWithoutBallotEvidence === 0;
+  const publicationReady = catalogReady && predictionReady;
   return { generation: plan.generation, totalFederalRaces: races.length, racesMissingCloseAt, invalidCloseAt, racesMissingLockPolicy, locksLaterThanPolicy, federalLockCoverage: races.length - racesMissingCloseAt - invalidCloseAt, lockPolicyId: PRODUCT_LOCK_POLICY_ID, lockPolicyDigest: plan.lockPolicyDigest, publicationLockReady, officialResearchRecords, unresolvedOfficialResearch: 470 - officialResearchRecords, officialResearchComplete: officialResearchRecords === 470, racesMissingRequiredLiveFields,
     totalSourceCandidates: plan.sourceCandidateCount, totalCanonicalCandidates: totalCandidates, mappedCandidates: plan.mapping.candidateMappings.length,
     mergedCandidates: plan.mapping.approvedCandidateMerges.length, retiredCandidates: 0, unresolvedCandidates: plan.mapping.unresolvedCandidates.length,
     racesWithNoCandidates, racesWithCandidatesButNoEligible: candidatesWithNoEligible, candidatesMissingName, candidatesMissingParty,
     candidatesMissingFecIdentity, candidatesMissingQualification, candidatesMissingProvenance, duplicateCanonicalCandidateIds, invalidCandidateIds,
-    eligibleWithoutBallotEvidence, researchMissingCandidate, metricsMissingRace, unresolvedPredictions, publicationReady };
+    eligibleWithoutBallotEvidence, invalidEligibleCandidateIds, researchMissingCandidate, metricsMissingRace, unresolvedPredictions,
+    excludedSourceDocuments: plan.excludedSourceDocuments, catalogReady, predictionReady, publicationReady };
+}
+
+export function assertCatalogReady(plan: CanonicalPublicationPlan) {
+  const audit = auditCanonicalPublicationPlan(plan);
+  if (!audit.catalogReady) throw new Error(`canonical catalog is not ready: ${canonicalJson(audit)}`);
+  return audit;
 }
 
 export function assertPublicationReady(plan: CanonicalPublicationPlan) {
@@ -258,7 +347,17 @@ export function certifyCanonicalPublicationPlan(plan: CanonicalPublicationPlan, 
   };
 }
 
-const raceFields = ['id', 'state', 'jurisdiction', 'office', 'district', 'seatKind', 'senateClass', 'electionYear', 'mode', 'status', 'closeAt', 'closeDate', 'deadlineKind', 'lockPolicyId', 'lockPolicyVersion', 'lockReason', 'electionDate', 'electionDateSourceUrl', 'officialPollCloseAt', 'officialPollCloseKind', 'officialPollCloseProvenance', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'candidates'] as const;
+/** Immutable catalog certification deliberately excludes pick eligibility and cannot authorize activation. */
+export function certifyCanonicalCatalogPlan(plan: CanonicalPublicationPlan, sourceCommit: string) {
+  if (!/^[a-f0-9]{7,64}$/i.test(sourceCommit)) throw new Error('catalog source commit must be a git hash');
+  const audit = assertCatalogReady(plan);
+  return {
+    schemaVersion: 3 as const, generation: plan.generation, sourceCommit, inputDigest: plan.inputDigest, mappingDigest: plan.mappingDigest,
+    planDigest: plan.planDigest, lockPolicyDigest: plan.lockPolicyDigest, namespaceDigest: digest({ generation: plan.generation, documents: plan.documents }), expectedCounts: plan.expectedCounts, audit,
+  };
+}
+
+const raceFields = ['id', 'state', 'jurisdiction', 'office', 'district', 'seatKind', 'senateClass', 'electionYear', 'mode', 'status', 'closeAt', 'closeDate', 'deadlineKind', 'lockPolicyId', 'lockPolicyVersion', 'lockReason', 'electionDate', 'electionDateSourceUrl', 'officialPollCloseAt', 'officialPollCloseKind', 'officialPollCloseProvenance', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'candidates', 'eligibleCandidateIds'] as const;
 const candidateFields = ['id', 'name', 'party', 'incumbent', 'challenger', 'externalIds', 'candidateState', 'visibility', 'qualificationStatus', 'pickEligibility', 'ballotVerifiedAt', 'ballotSourceUrl', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'websiteUrl', 'ballotpediaUrl', 'biography', 'keyVotes', 'campaignPromises'] as const;
 function projectFields(value: Json, fields: readonly string[]) { return Object.fromEntries(fields.filter((field) => value[field] !== undefined).map((field) => [field, value[field]])); }
 
@@ -311,6 +410,7 @@ export function validateCanonicalPublicationSnapshot(value: unknown): CanonicalP
     if (!isRecord(raceValue)) throw new Error(`malformed publication race ${index}`);
     assertOnlyKeys(raceValue, raceFields, `races[${index}]`);
     if (!text(raceValue.id) || !Array.isArray(raceValue.candidates)) throw new Error(`malformed publication race ${index}`);
+    if (raceValue.eligibleCandidateIds !== undefined && (!Array.isArray(raceValue.eligibleCandidateIds) || (raceValue.eligibleCandidateIds as unknown[]).some((candidateId) => !text(candidateId)))) throw new Error(`malformed publication race eligibility ${index}`);
     for (const [candidateIndex, candidate] of raceValue.candidates.entries()) {
       if (!isRecord(candidate)) throw new Error(`malformed publication candidate ${index}/${candidateIndex}`);
       assertOnlyKeys(candidate, candidateFields, `races[${index}].candidates[${candidateIndex}]`);
@@ -358,7 +458,7 @@ export function assertPublicationActivationDocuments(generation: string, documen
   const races = documents.filter((document) => /^races\/[^/]+$/.test(document.path));
   const candidateKeys = new Set<string>();
   for (const race of races) {
-    if (!isTimestamp(race.data.closeAt) || race.data.closeAt.seconds !== PRODUCT_LOCK_CLOSE_AT.seconds || race.data.closeAt.nanoseconds !== PRODUCT_LOCK_CLOSE_AT.nanoseconds || race.data.deadlineKind !== 'product_safety_lock' || race.data.lockPolicyId !== PRODUCT_LOCK_POLICY_ID || race.data.lockPolicyVersion !== 1 || !text(race.data.lockReason) || race.data.electionYear !== 2026 || race.data.mode !== 'live' || !Array.isArray(race.data.candidates) || race.data.candidates.length === 0) {
+    if (!isTimestamp(race.data.closeAt) || race.data.closeAt.seconds !== PRODUCT_LOCK_CLOSE_AT.seconds || race.data.closeAt.nanoseconds !== PRODUCT_LOCK_CLOSE_AT.nanoseconds || race.data.deadlineKind !== 'product_safety_lock' || race.data.lockPolicyId !== PRODUCT_LOCK_POLICY_ID || race.data.lockPolicyVersion !== 1 || !text(race.data.lockReason) || race.data.electionYear !== 2026 || race.data.mode !== 'live' || !Array.isArray(race.data.candidates) || !Array.isArray(race.data.eligibleCandidateIds)) {
       throw new Error(`publication race contract failed: ${race.path}`);
     }
     for (const candidate of race.data.candidates.filter(isRecord)) {
@@ -368,6 +468,14 @@ export function assertPublicationActivationDocuments(generation: string, documen
       if (candidate.pickEligibility === 'eligible' && (candidate.qualificationStatus !== 'on_ballot' || !text(candidate.ballotVerifiedAt) || !/^https:\/\//.test(text(candidate.ballotSourceUrl)))) {
         throw new Error(`eligible candidate lacks official-ballot evidence: ${race.path}/${id}`);
       }
+    }
+    const eligibleCandidateIds = race.data.eligibleCandidateIds.map(text);
+    const raceCandidates = race.data.candidates as Json[];
+    if (new Set(eligibleCandidateIds).size !== eligibleCandidateIds.length || eligibleCandidateIds.some((candidateId) => {
+      const candidate = raceCandidates.find((item) => isRecord(item) && text(item.id) === candidateId);
+      return !candidate || candidate.pickEligibility !== 'eligible';
+    })) {
+      throw new Error(`publication eligible candidate IDs failed: ${race.path}`);
     }
   }
   for (const document of documents.filter((item) => /^races\/[^/]+\/candidateResearch\/[^/]+$/.test(item.path))) {

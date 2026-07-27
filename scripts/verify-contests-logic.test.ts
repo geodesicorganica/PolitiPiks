@@ -23,6 +23,7 @@ const canonicalRaces = CANONICAL_2026_FEDERAL_CONTESTS.map((race) => ({
   electionYear: 2026,
   mode: 'live',
   candidates: [],
+  eligibleCandidateIds: [],
 }));
 assert.deepEqual(findCanonical2026Issues(canonicalRaces), [], 'complete canonical seat registry activates cleanly');
 
@@ -31,6 +32,7 @@ badCanonicalRaces[0] = {
   ...badCanonicalRaces[0],
   id: '2026-AL-house-99',
   candidates: [{ id: 'legacy-candidate', externalIds: { fecCandidateId: 'H6AL00001' }, qualificationStatus: 'on_ballot', pickEligibility: 'eligible' }],
+  eligibleCandidateIds: ['legacy-candidate'],
 };
 const canonicalIssues = findCanonical2026Issues(badCanonicalRaces, [{ id: 'prediction-1', targetId: '2026-AL-house-99', pick: 'missing' }]);
 assert.ok(canonicalIssues.some((issue) => issue.startsWith('unstable canonical contest ID:')));
@@ -38,6 +40,7 @@ assert.ok(canonicalIssues.some((issue) => issue.startsWith('unstable FEC candida
 assert.ok(canonicalIssues.some((issue) => issue.startsWith('unverified on-ballot candidate:')));
 assert.ok(canonicalIssues.some((issue) => issue.startsWith('ineligible pick exposed:')));
 assert.ok(canonicalIssues.some((issue) => issue.startsWith('orphaned or ambiguous prediction:')));
+assert.ok(canonicalIssues.some((issue) => issue.startsWith('prediction targets an ineligible candidate:')));
 
 const seenNameParties = new Set<string>();
 assert.equal(

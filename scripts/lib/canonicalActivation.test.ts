@@ -38,7 +38,7 @@ const certification = {
 };
 
 const shadowDocuments = [
-  { path: 'migrationShadows/canonical-2026-shadow-v2/races/2026-CA-senate-class-1', data: { electionYear: 2026, mode: 'live', deadlineKind: 'product_safety_lock', lockPolicyId: 'canonical-2026-pre-election-lock-v1', lockPolicyVersion: 1, lockReason: 'Fixture policy', candidates: [{ id: 'fec-S1CA00001' }], closeDate: '2026-11-03', closeAt: { __firestoreType: 'timestamp/v1', seconds: 1793664000, nanoseconds: 0 } } },
+  { path: 'migrationShadows/canonical-2026-shadow-v2/races/2026-CA-senate-class-1', data: { electionYear: 2026, mode: 'live', deadlineKind: 'product_safety_lock', lockPolicyId: 'canonical-2026-pre-election-lock-v1', lockPolicyVersion: 1, lockReason: 'Fixture policy', candidates: [{ id: 'fec-S1CA00001' }], eligibleCandidateIds: [], closeDate: '2026-11-03', closeAt: { __firestoreType: 'timestamp/v1', seconds: 1793664000, nanoseconds: 0 } } },
   { path: 'migrationShadows/canonical-2026-shadow-v2/races/2026-CA-senate-class-1/candidateResearch/fec-S1CA00001', data: { candidateId: 'fec-S1CA00001', raceId: '2026-CA-senate-class-1', sections: [] } },
   { path: 'migrationShadows/canonical-2026-shadow-v2/contestMetrics/2026-CA-senate-class-1', data: { raceId: '2026-CA-senate-class-1', metrics: {} } },
 ];

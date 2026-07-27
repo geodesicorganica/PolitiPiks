@@ -17,6 +17,7 @@ type CanonicalRace = {
   office?: unknown;
   district?: unknown;
   candidates?: unknown;
+  eligibleCandidateIds?: unknown;
 };
 
 type CanonicalPrediction = { id: string; targetId?: unknown; pick?: unknown };
@@ -52,6 +53,13 @@ export function findCanonical2026Issues(races: CanonicalRace[], predictions: Can
     if (owner) issues.push(`ambiguous canonical seat ${expected}: ${owner}, ${race.id}`);
     else seatOwners.set(expected, race.id);
 
+    const eligibleCandidateIds = Array.isArray(race.eligibleCandidateIds)
+      ? race.eligibleCandidateIds.filter((candidateId): candidateId is string => typeof candidateId === 'string' && candidateId.trim().length > 0)
+      : null;
+    if (!eligibleCandidateIds || new Set(eligibleCandidateIds).size !== eligibleCandidateIds.length) {
+      issues.push(`invalid eligible candidate list: ${race.id}`);
+    }
+
     for (const rawCandidate of Array.isArray(race.candidates) ? race.candidates : []) {
       const candidate = rawCandidate as CanonicalCandidate;
       const candidateId = canonicalText(candidate.id);
@@ -72,6 +80,9 @@ export function findCanonical2026Issues(races: CanonicalRace[], predictions: Can
       if (pickEligibility === 'eligible' && (qualification !== 'on_ballot' || !ballotVerifiedAt || !ballotSourceUrl)) {
         issues.push(`ineligible pick exposed: ${race.id}/${candidateId}`);
       }
+      if (eligibleCandidateIds?.includes(candidateId) && pickEligibility !== 'eligible') {
+        issues.push(`ineligible candidate listed for picks: ${race.id}/${candidateId}`);
+      }
     }
   }
 
@@ -87,6 +98,9 @@ export function findCanonical2026Issues(races: CanonicalRace[], predictions: Can
     const matches = (Array.isArray(target.candidates) ? target.candidates : [])
       .filter((candidate) => canonicalText((candidate as CanonicalCandidate).id) === pick).length;
     if (matches !== 1) issues.push(`orphaned or ambiguous prediction: ${prediction.id} (${targetId}/${pick})`);
+    if (!Array.isArray(target.eligibleCandidateIds) || !target.eligibleCandidateIds.includes(pick)) {
+      issues.push(`prediction targets an ineligible candidate: ${prediction.id} (${targetId}/${pick})`);
+    }
   }
 
   return issues.sort((a, b) => a.localeCompare(b));

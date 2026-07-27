@@ -7,7 +7,6 @@ import {
   rollbackCanonicalActivation,
   verifyCanonicalActivation,
 } from './canonicalActivation.js';
-import { buildCanonicalPublicationPlan, certifyCanonicalPublicationPlan } from './canonicalPublication.js';
 import { CANONICAL_2026_FEDERAL_CONTESTS } from '../../ingest/src/federalRegistry.js';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('run this test with firebase emulators:exec --only firestore');
@@ -15,15 +14,20 @@ const projectId = `canonical-activation-emulator-${Date.now()}`;
 process.env.PROJECT_ID = projectId;
 process.env.FIRESTORE_DATABASE_ID = '(default)';
 
-const candidate = { name: 'Fixture Candidate', party: 'Independent', candidateState: 'active', visibility: 'visible', qualificationStatus: 'on_ballot', pickEligibility: 'eligible', ballotVerifiedAt: '2026-01-01T00:00:00.000Z', ballotSourceUrl: 'https://example.invalid/ballot', source: 'Fixture election office', sourceUrl: 'https://example.invalid/source', verificationLevel: 'official' };
-const publication = buildCanonicalPublicationPlan({ generation: 'canonical-2026-shadow-v2',
-  races: CANONICAL_2026_FEDERAL_CONTESTS.map((seat, index) => ({ id: seat.id, state: seat.state, office: seat.office, district: seat.district, candidates: [{ ...candidate, id: `fec-H6AA${String(index + 1).padStart(5, '0')}`, externalIds: { fecCandidateId: `H6AA${String(index + 1).padStart(5, '0')}` } }] })),
-  deadlines: CANONICAL_2026_FEDERAL_CONTESTS.map((seat) => ({ electionId: seat.id, jurisdiction: seat.state, electionDate: '2026-11-03', localPollClosingTime: '20:00', timeZone: 'America/New_York', closeAt: { __firestoreType: 'timestamp/v1' as const, seconds: 1793505600, nanoseconds: 0 }, sourceRuleIds: ['fixture'], sourceName: 'Test-only deadline fixture', sourceUrl: 'https://example.invalid/deadline', citation: 'Fixture citation.', retrievedAt: '2026-01-01T00:00:00.000Z', reviewedAt: '2026-01-01T00:00:00.000Z', reviewerStatus: 'reviewed' as const, notes: 'Test-only fixture.' })),
-  predictions: [], candidateResearch: [], contestMetrics: [], overrides: { schemaVersion: 1, candidateOverrides: [], contestDispositions: [] },
-});
-const published = certifyCanonicalPublicationPlan(publication, 'abcdef1');
-const certification = { projectId, databaseId: '(default)', ...published };
-const plan = buildCanonicalActivationPlan(certification, publication.documents.map((document) => ({ path: `migrationShadows/${publication.generation}/${document.path}`, data: document.data })));
+const generation = 'canonical-2026-shadow-v2';
+const certification = {
+  projectId, databaseId: '(default)', generation, sourceCommit: 'abcdef1', inputDigest: 'a'.repeat(64), mappingDigest: 'b'.repeat(64),
+  planDigest: 'c'.repeat(64), lockPolicyDigest: 'd'.repeat(64), namespaceDigest: 'e'.repeat(64), expectedCounts: { races: 470, research: 0, metrics: 0 },
+};
+// This is an activation-store fixture with explicit ballot evidence. It does not model the FEC-only G3.4 catalog.
+const plan = buildCanonicalActivationPlan(certification, CANONICAL_2026_FEDERAL_CONTESTS.map((seat, index) => {
+  const fecCandidateId = `H6AA${String(index + 1).padStart(5, '0')}`;
+  const candidateId = `fec-${fecCandidateId}`;
+  return {
+    path: `migrationShadows/${generation}/races/${seat.id}`,
+    data: { ...seat, electionYear: 2026, mode: 'live', closeDate: '2026-11-03', closeAt: { __firestoreType: 'timestamp/v1' as const, seconds: 1793664000, nanoseconds: 0 }, deadlineKind: 'product_safety_lock', lockPolicyId: 'canonical-2026-pre-election-lock-v1', lockPolicyVersion: 1, lockReason: 'Fixture policy', candidates: [{ id: candidateId, qualificationStatus: 'on_ballot', pickEligibility: 'eligible', ballotVerifiedAt: '2026-01-01T00:00:00.000Z', ballotSourceUrl: 'https://example.invalid/ballot' }], eligibleCandidateIds: [candidateId] },
+  };
+}));
 const db = new Firestore({ projectId: certification.projectId, databaseId: certification.databaseId });
 await db.doc('races/2026-CA-senate').set({ legacy: true, closeAt: new Timestamp(1, 0) });
 await db.doc('races/2026-CA-senate/candidateResearch/legacy-candidate').set({ legacy: true });

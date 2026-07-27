@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import process from 'node:process';
 import { encodeFirestoreSnapshotValue } from './lib/canonicalMigration.js';
-import { auditCanonicalPublicationPlan, buildCanonicalPublicationPlan, buildCanonicalPublicationSnapshot, certifyCanonicalPublicationPlan, type CanonicalPublicationSnapshot, validateCanonicalPublicationSnapshot } from './lib/canonicalPublication.js';
+import { auditCanonicalPublicationPlan, buildCanonicalPublicationPlan, buildCanonicalPublicationSnapshot, certifyCanonicalCatalogPlan, certifyCanonicalPublicationPlan, type CanonicalPublicationSnapshot, validateCanonicalPublicationSnapshot } from './lib/canonicalPublication.js';
 import { deadlineCoverageReport, generateDeadlineRecords, validateProductLockPolicy } from './lib/deadlineRegistry.js';
 
 const PROJECT_ID = 'politipiks';
@@ -46,11 +46,14 @@ function receipt(snapshot: CanonicalPublicationSnapshot) {
   const validated = validateCanonicalPublicationSnapshot(snapshot);
   const plan = buildCanonicalPublicationPlan(validated.inputs);
   const audit = auditCanonicalPublicationPlan(plan);
-  const certification = audit.publicationReady ? certifyCanonicalPublicationPlan(plan, sourceCommit()) : null;
+  const catalogCertification = audit.catalogReady ? certifyCanonicalCatalogPlan(plan, sourceCommit()) : null;
+  // This remains null until candidates have official ballot evidence. A catalog certificate never authorizes activation.
+  const certification = audit.predictionReady ? certifyCanonicalPublicationPlan(plan, sourceCommit()) : null;
   return {
     operation: 'publication-capture-receipt', schemaVersion: validated.schemaVersion, projectId: validated.projectId, databaseId: validated.databaseId,
     capturedAt: validated.capturedAt, collectionCounts: validated.collectionCounts,
-    inputDigest: validated.inputDigest, mappingDigest: plan.mappingDigest, planDigest: plan.planDigest, lockPolicyDigest: plan.lockPolicyDigest, expectedCounts: plan.expectedCounts, audit, publicationReady: audit.publicationReady, certification,
+    inputDigest: validated.inputDigest, mappingDigest: plan.mappingDigest, planDigest: plan.planDigest, lockPolicyDigest: plan.lockPolicyDigest, expectedCounts: plan.expectedCounts,
+    audit, catalogReady: audit.catalogReady, predictionReady: audit.predictionReady, publicationReady: audit.publicationReady, catalogCertification, certification,
   };
 }
 function stable(value: unknown) { return JSON.stringify(value); }
@@ -63,7 +66,7 @@ function readSnapshot(path: string) { return validateCanonicalPublicationSnapsho
 function assertApproved(snapshot: CanonicalPublicationSnapshot, approvedPath: string) {
   const approved = readSnapshot(approvedPath);
   const currentReceipt = replay(snapshot); const approvedReceipt = replay(approved);
-  const comparable = (value: ReturnType<typeof receipt>) => ({ schemaVersion: value.schemaVersion, projectId: value.projectId, databaseId: value.databaseId, collectionCounts: value.collectionCounts, inputDigest: value.inputDigest, mappingDigest: value.mappingDigest, planDigest: value.planDigest, expectedCounts: value.expectedCounts, audit: value.audit, publicationReady: value.publicationReady, certification: value.certification });
+  const comparable = (value: ReturnType<typeof receipt>) => ({ schemaVersion: value.schemaVersion, projectId: value.projectId, databaseId: value.databaseId, collectionCounts: value.collectionCounts, inputDigest: value.inputDigest, mappingDigest: value.mappingDigest, planDigest: value.planDigest, lockPolicyDigest: value.lockPolicyDigest, expectedCounts: value.expectedCounts, audit: value.audit, catalogReady: value.catalogReady, predictionReady: value.predictionReady, publicationReady: value.publicationReady, catalogCertification: value.catalogCertification, certification: value.certification });
   if (stable(comparable(currentReceipt)) !== stable(comparable(approvedReceipt))) throw new Error('approved publication snapshot differs from the fresh capture');
 }
 async function capture(options: Options): Promise<CanonicalPublicationSnapshot> {
@@ -94,5 +97,10 @@ const snapshot = options.mode === 'snapshot-in' ? readSnapshot(options.snapshotP
 const report = options.verifyReplay ? replay(snapshot) : receipt(snapshot);
 if (options.approvedSnapshot) assertApproved(snapshot, options.approvedSnapshot);
 if (options.mode === 'snapshot-out') writeExclusive(options.snapshotPath, snapshot);
-if (options.approveSnapshot) writeExclusive(options.approveSnapshot, snapshot);
+if (options.approveSnapshot) {
+  if (!report.catalogReady || report.expectedCounts.races !== 470 || report.audit.federalLockCoverage !== 470 || report.audit.researchMissingCandidate !== 0 || report.audit.metricsMissingRace !== 0 || report.audit.unresolvedPredictions !== 0) {
+    throw new Error('catalog snapshot cannot be approved until the offline catalog certification gates pass');
+  }
+  writeExclusive(options.approveSnapshot, snapshot);
+}
 console.log(JSON.stringify({ ...report, operation: options.mode === 'snapshot-in' ? 'offline-publication-replay' : 'live-publication-capture' }, null, 2));
