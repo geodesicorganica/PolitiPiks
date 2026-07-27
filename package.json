@@ -46,6 +46,8 @@
     "test-deadline-registry": "tsx scripts/lib/deadlineRegistry.test.ts",
     "test-canonical-publication-cli": "tsx scripts/lib/canonicalPublicationCli.test.ts",
     "test-ballot-eligibility": "tsx scripts/lib/ballotEligibility.test.ts && tsx scripts/lib/gaBallotEligibilityAdapter.test.ts && tsx scripts/lib/ballotEligibilityCli.test.ts",
+    "test-ballot-measures": "tsx scripts/lib/canonicalBallotMeasures.test.ts",
+    "report-2026-statewide-ballot-measures": "tsx scripts/report-2026-statewide-ballot-measures.ts",
     "report-2026-ballot-eligibility": "tsx scripts/report-2026-ballot-eligibility.ts",
     "apply-canonical-shadow": "tsx scripts/apply-canonical-shadow.ts",
     "test-canonical-shadow-executor": "tsx scripts/lib/canonicalShadowExecutor.test.ts",

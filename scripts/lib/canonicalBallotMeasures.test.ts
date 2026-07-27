@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { buildCanonicalMeasurePlan, buildCanonicalMeasureSnapshot, validateCanonicalMeasureSnapshot } from './canonicalBallotMeasures.js';
+const registry = JSON.parse(readFileSync('data/2026/statewide-ballot-measures.json', 'utf8'));
+const plan = buildCanonicalMeasurePlan(registry);
+assert.equal(plan.documents.length, 14); assert.equal(plan.audit.catalogReady, true); assert.equal(plan.audit.predictionReadyCount, 14); assert.equal(plan.coverage.CA.records, 14); assert.equal(plan.coverage.TX.status, 'not_yet_published');
+assert.deepEqual(plan.documents[0]?.data.eligibleOptions, ['no', 'yes']); assert.equal(plan.documents[0]?.data.lockPolicyId, 'canonical-2026-statewide-measure-lock-v1');
+assert.equal(buildCanonicalMeasurePlan({ ...registry, states: [...registry.states].reverse() }).planDigest, plan.planDigest, 'source order is deterministic');
+assert.throws(() => buildCanonicalMeasurePlan({ ...registry, states: [...registry.states, registry.states[0]] }), /envelope|coverage/);
+const snapshot = buildCanonicalMeasureSnapshot(registry, '2026-07-27T00:00:00.000Z'); assert.equal(validateCanonicalMeasureSnapshot(snapshot).inputDigest, plan.inputDigest);
+assert.throws(() => validateCanonicalMeasureSnapshot({ ...snapshot, inputDigest: '0'.repeat(64) }), /digest/);
+console.log('canonical statewide ballot-measure tests passed');
