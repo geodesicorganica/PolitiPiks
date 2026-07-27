@@ -100,7 +100,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   };
 
   const handlePick = async (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => {
-    if (!profile || isPickClosed(target)) return;
+    if (!profile || isPickClosed(target) || (type === 'race' && !(target as Race).eligibleCandidateIds?.includes(pick))) return;
     setSubmitting(target.id);
     try {
       const q = query(
@@ -575,6 +575,8 @@ function DecisionModule({
   const item = race || measure;
   const [canonicalVoteCounts, setCanonicalVoteCounts] = useState<Record<string, number>>({});
   if (!item) return null;
+  const eligibleCandidateIds = new Set(race?.eligibleCandidateIds ?? []);
+  const racePicksAvailable = !race || eligibleCandidateIds.size > 0;
   const isClosed = isPickClosed(item);
 
   return (
@@ -620,6 +622,7 @@ function DecisionModule({
                <span className="font-mono text-slate-400 uppercase" data-testid={`close-at-${item.id}`}>
                  {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(item)}
                </span>
+               {race && !racePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${race.id}`}>Picks not yet available</span>}
             </div>
         </div>
 
@@ -881,8 +884,8 @@ function DecisionModule({
 
                      <div className="pt-10 mt-auto">
                         <button 
-                          disabled={isClosed || prediction === candidate.id || isSubmitting}
-                          aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : `Pick ${candidate.name}`}
+                          disabled={isClosed || !eligibleCandidateIds.has(candidate.id) || prediction === candidate.id || isSubmitting}
+                          aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : !eligibleCandidateIds.has(candidate.id) ? `Picks not yet available: ${candidate.name}` : `Pick ${candidate.name}`}
                           onClick={() => onPick(race, candidate.id, 'race')}
                           className={cn(
                              "w-full py-6 font-black uppercase tracking-[0.2em] text-sm transition-all border-2 shadow-[8px_8px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none",
@@ -891,7 +894,7 @@ function DecisionModule({
                               : "bg-white text-black border-white hover:bg-slate-200"
                           )}
                         >
-                           {isClosed ? 'PICKING CLOSED' : isSubmitting && prediction === candidate.id ? 'ENCRYPTING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
+                           {isClosed ? 'PICKING CLOSED' : !eligibleCandidateIds.has(candidate.id) ? 'PICKS NOT YET AVAILABLE' : isSubmitting && prediction === candidate.id ? 'ENCRYPTING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
                         </button>
                      </div>
                   </div>

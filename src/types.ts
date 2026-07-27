@@ -118,6 +118,13 @@ export interface Candidate extends SourceMetadata {
   aliases?: string[];
   party: Party;
   photoURL?: string;
+  /** A FEC filing is visible research, not an assertion that a candidate is active or on the ballot. */
+  qualificationStatus?: 'filed' | 'qualified' | 'on_ballot' | 'withdrawn' | 'inactive' | 'unresolved';
+  candidateState?: 'active' | 'withdrawn' | 'inactive';
+  visibility?: 'hidden' | 'visible';
+  pickEligibility?: 'ineligible' | 'eligible';
+  ballotVerifiedAt?: string;
+  ballotSourceUrl?: string;
   summary?: string;
   biography?: string;
   campaignPromises?: string[];
@@ -161,6 +168,8 @@ export interface Race extends SourceMetadata {
   office: 'Senate' | 'House' | 'Governor' | 'President';
   district?: string;
   candidates: Candidate[];
+  /** The server-enforced allowlist for race picks. An empty list means browseable, but picks are unavailable. */
+  eligibleCandidateIds?: string[];
   status: 'upcoming' | 'live' | 'called';
   winnerId?: string;
   /** Canonical Firestore timestamp used by rules to lock live predictions. */

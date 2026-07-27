@@ -32,6 +32,7 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {races.map((race) => {
             const isClosed = isPickClosed(race);
+            const picksAvailable = (race.eligibleCandidateIds?.length ?? 0) > 0;
             return (
               <article key={race.id} className="brutalist-card bg-slate-900 group" data-testid={`race-${race.id}`}>
                 <div className="bg-brand-dark p-4 flex justify-between items-center border-b border-slate-800">
@@ -69,7 +70,7 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                   <p className="text-[10px] font-mono uppercase text-slate-500" data-testid={`close-at-${race.id}`}>
                     {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(race)}
                   </p>
-                  <p className="text-[10px] font-mono uppercase text-brand-red">Picks are available inside a league.</p>
+                  <p className="text-[10px] font-mono uppercase text-brand-red">{picksAvailable ? 'Picks are available inside a league.' : 'Picks not yet available.'}</p>
                 </div>
               </article>
             );

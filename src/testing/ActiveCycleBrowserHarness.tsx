@@ -7,7 +7,7 @@ import { RACE_2024_SANDBOX_FIXTURE } from './fixtures';
 
 const openCloseAt = Timestamp.fromDate(new Date('2026-11-03T20:00:00Z'));
 const closedCloseAt = Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
-const base = { state: 'California', office: 'Senate' as const, candidates: [], status: 'upcoming' as const, closeAt: openCloseAt, closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live' as const };
+const base = { state: 'California', office: 'Senate' as const, candidates: [], eligibleCandidateIds: [], status: 'upcoming' as const, closeAt: openCloseAt, closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live' as const };
 const canonicalCandidate = { id: 'fec-canonical', name: 'Canonical Candidate', party: 'Democrat' as const };
 const races: Race[] = [
   { ...base, id: '2026-CA-senate' },
@@ -29,8 +29,10 @@ export function ActiveCycleBrowserHarness() {
   return <main><h1>2026 Live Races</h1><p>Picks lock before Election Day under the current league safety policy.</p>{activeTargets.map((target) => {
     const closed = isPickClosed(target);
     const candidate = target.candidates[0];
+    const picksAvailable = !candidate || target.eligibleCandidateIds?.includes(candidate.id) === true;
     return <article key={target.id} data-testid={`race-${target.id}`}><h2>{target.state}</h2><p>{closed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(target)}</p>
-      {candidate ? <button data-testid={`pick-${candidate.id}`} disabled={closed} onClick={() => setPicked(candidate.id)}>{picked === candidate.id ? 'Pick recorded' : 'Make pick'}</button> : <button disabled={closed}>{closed ? 'Picking closed' : 'Make pick'}</button>}
+      {!picksAvailable && <p data-testid={`picks-unavailable-${target.id}`}>Picks not yet available</p>}
+      {candidate ? <button data-testid={`pick-${candidate.id}`} disabled={closed || !picksAvailable} onClick={() => setPicked(candidate.id)}>{closed ? 'Picking closed' : !picksAvailable ? 'Picks not yet available' : picked === candidate.id ? 'Pick recorded' : 'Make pick'}</button> : <button disabled={closed}>{closed ? 'Picking closed' : 'Make pick'}</button>}
       {target.id === '2026-CA-senate-class-1' && <><p data-testid="canonical-research">Canonical research available</p><p data-testid="canonical-metrics">Metrics available</p></>}
     </article>;
   })}{catalog.measures.map((measure) => <article key={measure.id} data-testid={`measure-${measure.id}`}><h2>{measure.title}</h2></article>)}</main>;
