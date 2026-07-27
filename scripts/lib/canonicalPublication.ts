@@ -6,6 +6,7 @@ import {
   type FirestoreTimestampTag,
 } from './canonicalMigration.js';
 import { CANONICAL_2026_PRE_ELECTION_LOCK_POLICY, PRODUCT_LOCK_CLOSE_AT, PRODUCT_LOCK_POLICY_ID, generateProductLockRecords, validateGeneratedDeadlineRecords, validateProductLockPolicy, type JurisdictionDeadline, type ProductLockPolicy } from './deadlineRegistry.js';
+import { ballotEligibilityDigest, validateBallotEligibilityEvidence, type BallotEligibilityEvidence, type BallotSourceStatus, type UnresolvedBallotEvidence } from './ballotEligibility.js';
 
 type Json = Record<string, unknown>;
 type PublicationCandidate = Json & { id: string; externalIds?: Json };
@@ -31,6 +32,14 @@ export type CanonicalPublicationPlan = {
     candidateResearch: { nonCanonicalRace: number; unmappedCandidate: number };
     contestMetrics: { nonCanonicalRace: number };
   };
+  eligibility: {
+    evidenceDigest: string;
+    sourceStatus: BallotSourceStatus | 'not_provided';
+    applied: number;
+    unresolved: number;
+    rejected: number;
+    predictionImpact: { evaluated: number; wouldBeInvalid: number };
+  };
 };
 export type CanonicalPublicationInput = {
   generation: 'canonical-2026-shadow-v2';
@@ -50,6 +59,11 @@ export type CanonicalPublicationSnapshot = {
   collectionCounts: { races: number; predictions: number; candidateResearch: number; contestMetrics: number; deadlines: number };
   inputDigest: string;
   inputs: CanonicalPublicationInput;
+};
+export type CanonicalPublicationOptions = {
+  ballotEligibility?: BallotEligibilityEvidence[];
+  unresolvedBallotEvidence?: UnresolvedBallotEvidence[];
+  sourceStatus?: BallotSourceStatus;
 };
 
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -76,23 +90,26 @@ function canonicalCandidateId(candidate: PublicationCandidate) {
 }
 
 /** FEC filings establish that a candidate filed, not that they are active or ballot-qualified. */
-function normalizeFecCandidate(candidate: Json, targetId: string): Json {
+function normalizeFecCandidate(candidate: Json, targetId: string, evidence?: BallotEligibilityEvidence): Json {
   // The canonical mapping (including approved aliases) is authoritative over a legacy embedded FEC field.
   const fecCandidateId = targetId.replace(/^fec-/, '');
   if (!/^[HS]\d[A-Z]{2}\d{5}$/.test(fecCandidateId) || targetId !== `fec-${fecCandidateId}`) {
     throw new Error(`canonical candidate lacks a valid FEC identity: ${targetId || 'missing-id'}`);
   }
-  const { candidateState: _candidateState, ballotVerifiedAt: _ballotVerifiedAt, ballotSourceUrl: _ballotSourceUrl, ...preserved } = candidate;
+  const { candidateState: _candidateState, ballotEligibility: _ballotEligibility, ballotVerifiedAt: _ballotVerifiedAt, ballotSourceUrl: _ballotSourceUrl, ...preserved } = candidate;
+  const eligibility = evidence?.qualificationStatus === 'on_ballot' ? 'eligible' : 'ineligible';
   return {
     ...preserved,
     id: targetId,
     externalIds: { ...(isRecord(candidate.externalIds) ? candidate.externalIds : {}), fecCandidateId },
-    qualificationStatus: 'filed',
-    pickEligibility: 'ineligible',
+    qualificationStatus: evidence?.qualificationStatus === 'on_ballot' ? 'on_ballot' : evidence?.qualificationStatus === 'withdrawn' ? 'withdrawn' : 'filed',
+    pickEligibility: eligibility,
     visibility: 'visible',
     source: 'Federal Election Commission',
     sourceUrl: `https://www.fec.gov/data/candidate/${fecCandidateId}/`,
     verificationLevel: 'official',
+    ...(evidence ? { ballotEligibility: { evidenceDigest: evidence.evidenceDigest, sourceAuthority: evidence.sourceAuthority, sourceUrl: evidence.sourceUrl, sourcePublishedAt: evidence.sourcePublishedAt ?? null, retrievedAt: evidence.retrievedAt, reviewedAt: evidence.reviewedAt, qualificationStatus: evidence.qualificationStatus } } : {}),
+    ...(eligibility === 'eligible' && evidence ? { ballotVerifiedAt: evidence.reviewedAt, ballotSourceUrl: evidence.sourceUrl } : {}),
   };
 }
 
@@ -126,7 +143,7 @@ function mergeCandidates(candidates: PublicationCandidate[], targetId: string, a
 }
 
 /** Builds the exact active-document payload from a complete publication source; it never uses v1 identity-only documents. */
-export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput): CanonicalPublicationPlan {
+export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput, options: CanonicalPublicationOptions = {}): CanonicalPublicationPlan {
   if (input.generation !== 'canonical-2026-shadow-v2') throw new Error('publication generation must be canonical-2026-shadow-v2');
   const normalizedInput: CanonicalPublicationInput = {
     ...input,
@@ -160,6 +177,9 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
   }
   const candidateConflicts: Array<{ target: string; fields: string[] }> = [];
   const approvedMergeTargets = new Set(mapping.approvedCandidateMerges.map((merge) => merge.target));
+  const providedEvidence = validateBallotEligibilityEvidence(options.ballotEligibility ?? []);
+  const evidenceByTarget = new Map(providedEvidence.map((item) => [`${item.canonicalRaceId}/fec-${item.fecCandidateId}`, item]));
+  let rejectedEligibilityEvidence = 0;
   const raceDocuments: PublicationDocument[] = CANONICAL_2026_FEDERAL_CONTESTS.map((seat) => {
     const deadline = deadlines.get(seat.id);
     const lock = locks.get(seat.id);
@@ -170,7 +190,8 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
         const targetId = key.slice(seat.id.length + 1);
         const merged = mergeCandidates(sources, targetId, approvedMergeTargets.has(key));
         if (merged.conflicts.length) candidateConflicts.push({ target: key, fields: merged.conflicts });
-        return normalizeFecCandidate(merged.candidate, targetId);
+        const evidence = evidenceByTarget.get(`${seat.id}/${targetId}`);
+        return normalizeFecCandidate(merged.candidate, targetId, evidence);
       }), (candidate) => text(candidate.id));
     return {
       path: `races/${seat.id}`,
@@ -203,6 +224,7 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
     };
   });
   const activeCandidates = new Set(raceDocuments.flatMap((document) => (document.data.candidates as Json[]).map((candidate) => `${document.path.slice('races/'.length)}/${text(candidate.id)}`)));
+  for (const evidence of providedEvidence) if (!activeCandidates.has(`${evidence.canonicalRaceId}/fec-${evidence.fecCandidateId}`)) rejectedEligibilityEvidence += 1;
   const excludedSourceDocuments = {
     candidateResearch: { nonCanonicalRace: 0, unmappedCandidate: 0 },
     contestMetrics: { nonCanonicalRace: 0 },
@@ -247,15 +269,29 @@ export function buildCanonicalPublicationPlan(input: CanonicalPublicationInput):
   }
   metricDocuments.sort((left, right) => left.path.localeCompare(right.path));
   const documents = sort([...raceDocuments, ...researchDocuments, ...metricDocuments], (document) => document.path);
+  const eligibleByRace = new Map(raceDocuments.map((document) => [document.path.slice('races/'.length), new Set((document.data.eligibleCandidateIds as string[]).map(text))]));
+  let predictionsEvaluated = 0; let predictionsWouldBeInvalid = 0;
+  for (const prediction of normalizedInput.predictions) {
+    const raceId = raceMap.get(prediction.targetId) ?? prediction.targetId;
+    const eligible = eligibleByRace.get(raceId);
+    if (!eligible) continue;
+    predictionsEvaluated += 1;
+    const candidateId = candidateMap.get(`${prediction.targetId}/${prediction.pick}`) ?? prediction.pick;
+    if (!eligible.has(candidateId)) predictionsWouldBeInvalid += 1;
+  }
+  const sourceStatus: BallotSourceStatus | 'not_provided' = options.sourceStatus ?? 'not_provided';
+  const eligibility = { evidenceDigest: ballotEligibilityDigest({ evidence: providedEvidence, unresolved: options.unresolvedBallotEvidence ?? [], sourceStatus }),
+    sourceStatus, applied: providedEvidence.length - rejectedEligibilityEvidence, unresolved: (options.unresolvedBallotEvidence ?? []).length, rejected: rejectedEligibilityEvidence,
+    predictionImpact: { evaluated: predictionsEvaluated, wouldBeInvalid: predictionsWouldBeInvalid } };
   const lockPolicyDigest = digest(normalizedInput.lockPolicy);
   const planDigest = digest({ generation: input.generation, lockPolicyDigest, documents, mappingDigest: mapping.mappingDigest, candidateConflicts,
-    researchConflicts: researchMerge.conflicts, metricConflicts: publicationMetricConflicts, excludedSourceDocuments });
+    researchConflicts: researchMerge.conflicts, metricConflicts: publicationMetricConflicts, excludedSourceDocuments, eligibility });
   return {
     schemaVersion: 3, generation: input.generation, documents,
     inputDigest: publicationInputDigest(normalizedInput),
     mappingDigest: mapping.mappingDigest, planDigest, mapping: { ...mapping, publicationCandidateConflicts: candidateConflicts,
       publicationResearchConflicts: researchMerge.conflicts, publicationMetricConflicts, activeCandidates }, sourceCandidateCount: normalizedInput.races.reduce((count, race) => count + race.candidates.length, 0),
-    lockPolicyDigest, expectedCounts: { races: raceDocuments.length, research: researchDocuments.length, metrics: metricDocuments.length }, excludedSourceDocuments,
+    lockPolicyDigest, expectedCounts: { races: raceDocuments.length, research: researchDocuments.length, metrics: metricDocuments.length }, excludedSourceDocuments, eligibility,
   };
 }
 
@@ -268,7 +304,7 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
   const candidateKeys = new Set<string>();
   let racesMissingCloseAt = 0; let invalidCloseAt = 0; let racesMissingLockPolicy = 0; let locksLaterThanPolicy = 0; let officialResearchRecords = 0; let racesMissingRequiredLiveFields = 0; let racesWithNoCandidates = 0;
   let totalCandidates = 0; let candidatesWithNoEligible = 0; let candidatesMissingName = 0; let candidatesMissingParty = 0; let candidatesMissingFecIdentity = 0;
-  let candidatesMissingQualification = 0; let candidatesMissingProvenance = 0; let duplicateCanonicalCandidateIds = 0; let invalidCandidateIds = 0; let eligibleWithoutBallotEvidence = 0; let invalidEligibleCandidateIds = 0;
+  let candidatesMissingQualification = 0; let candidatesMissingProvenance = 0; let duplicateCanonicalCandidateIds = 0; let invalidCandidateIds = 0; let eligibleWithoutBallotEvidence = 0; let invalidEligibleCandidateIds = 0; let racesPredictionReady = 0;
   for (const race of races) {
     const data = race.data;
     if (data.closeAt === undefined) racesMissingCloseAt += 1;
@@ -299,6 +335,7 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
     }
     const candidateIds = new Set(candidates.map((candidate) => text(candidate.id)));
     if (eligibleCandidateIds.some((candidateId) => !candidateIds.has(candidateId) || !candidates.some((candidate) => text(candidate.id) === candidateId && candidate.pickEligibility === 'eligible'))) invalidEligibleCandidateIds += 1;
+    if (eligibleCandidateIds.length > 0) racesPredictionReady += 1;
     if (candidates.length > 0 && eligible === 0) candidatesWithNoEligible += 1;
   }
   const researchMissingCandidate = research.filter((document) => {
@@ -313,8 +350,8 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
     && candidatesMissingFecIdentity === 0 && candidatesMissingQualification === 0 && candidatesMissingProvenance === 0 && duplicateCanonicalCandidateIds === 0
     && invalidCandidateIds === 0 && invalidEligibleCandidateIds === 0 && researchMissingCandidate === 0 && metricsMissingRace === 0
     && unresolvedPredictions === 0 && plan.mapping.publicationCandidateConflicts.length === 0 && plan.mapping.publicationResearchConflicts.length === 0
-    && plan.mapping.publicationMetricConflicts.length === 0;
-  const predictionReady = catalogReady && racesWithNoCandidates === 0 && candidatesWithNoEligible === 0 && eligibleWithoutBallotEvidence === 0;
+    && plan.mapping.publicationMetricConflicts.length === 0 && plan.eligibility.unresolved === 0 && plan.eligibility.rejected === 0;
+  const predictionReady = catalogReady && racesPredictionReady > 0 && eligibleWithoutBallotEvidence === 0;
   const publicationReady = catalogReady && predictionReady;
   return { generation: plan.generation, totalFederalRaces: races.length, racesMissingCloseAt, invalidCloseAt, racesMissingLockPolicy, locksLaterThanPolicy, federalLockCoverage: races.length - racesMissingCloseAt - invalidCloseAt, lockPolicyId: PRODUCT_LOCK_POLICY_ID, lockPolicyDigest: plan.lockPolicyDigest, publicationLockReady, officialResearchRecords, unresolvedOfficialResearch: 470 - officialResearchRecords, officialResearchComplete: officialResearchRecords === 470, racesMissingRequiredLiveFields,
     totalSourceCandidates: plan.sourceCandidateCount, totalCanonicalCandidates: totalCandidates, mappedCandidates: plan.mapping.candidateMappings.length,
@@ -322,7 +359,7 @@ export function auditCanonicalPublicationPlan(plan: CanonicalPublicationPlan) {
     racesWithNoCandidates, racesWithCandidatesButNoEligible: candidatesWithNoEligible, candidatesMissingName, candidatesMissingParty,
     candidatesMissingFecIdentity, candidatesMissingQualification, candidatesMissingProvenance, duplicateCanonicalCandidateIds, invalidCandidateIds,
     eligibleWithoutBallotEvidence, invalidEligibleCandidateIds, researchMissingCandidate, metricsMissingRace, unresolvedPredictions,
-    excludedSourceDocuments: plan.excludedSourceDocuments, catalogReady, predictionReady, publicationReady };
+    excludedSourceDocuments: plan.excludedSourceDocuments, ballotEligibility: plan.eligibility, racesPredictionReady, catalogReady, predictionReady, publicationReady };
 }
 
 export function assertCatalogReady(plan: CanonicalPublicationPlan) {
@@ -358,7 +395,7 @@ export function certifyCanonicalCatalogPlan(plan: CanonicalPublicationPlan, sour
 }
 
 const raceFields = ['id', 'state', 'jurisdiction', 'office', 'district', 'seatKind', 'senateClass', 'electionYear', 'mode', 'status', 'closeAt', 'closeDate', 'deadlineKind', 'lockPolicyId', 'lockPolicyVersion', 'lockReason', 'electionDate', 'electionDateSourceUrl', 'officialPollCloseAt', 'officialPollCloseKind', 'officialPollCloseProvenance', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'candidates', 'eligibleCandidateIds'] as const;
-const candidateFields = ['id', 'name', 'party', 'incumbent', 'challenger', 'externalIds', 'candidateState', 'visibility', 'qualificationStatus', 'pickEligibility', 'ballotVerifiedAt', 'ballotSourceUrl', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'websiteUrl', 'ballotpediaUrl', 'biography', 'keyVotes', 'campaignPromises'] as const;
+const candidateFields = ['id', 'name', 'party', 'incumbent', 'challenger', 'externalIds', 'candidateState', 'visibility', 'qualificationStatus', 'pickEligibility', 'ballotEligibility', 'ballotVerifiedAt', 'ballotSourceUrl', 'source', 'sourceUrl', 'verificationLevel', 'sourceUpdatedAt', 'lastRefreshedAt', 'refreshStatus', 'websiteUrl', 'ballotpediaUrl', 'biography', 'keyVotes', 'campaignPromises'] as const;
 function projectFields(value: Json, fields: readonly string[]) { return Object.fromEntries(fields.filter((field) => value[field] !== undefined).map((field) => [field, value[field]])); }
 
 /** Explicit privacy boundary for future v2 captures: no user, league, or unrelated Firestore fields enter the snapshot. */

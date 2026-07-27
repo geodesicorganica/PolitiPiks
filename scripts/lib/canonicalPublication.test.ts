@@ -3,6 +3,7 @@ import { buildCanonicalPublicationPlan, auditCanonicalPublicationPlan, buildCano
 import { buildPublicationV2ActivationPlan } from './canonicalActivation.js';
 import { CANONICAL_2026_FEDERAL_CONTESTS } from '../../ingest/src/federalRegistry.js';
 import { PRODUCT_LOCK_CLOSE_AT } from './deadlineRegistry.js';
+import { normalizeOfficialBallotEvidence, parseOfficialBallotSource } from './ballotEligibility.js';
 
 const deadline = {
   electionId: '2026-GA-senate-class-2', jurisdiction: 'GA', localPollClosingTime: '19:00', timeZone: 'America/New_York',
@@ -93,5 +94,24 @@ const catalogOnlyFixture = buildCanonicalPublicationPlan({
 assert.equal(catalogOnlyFixture.documents.some((document) => document.path.includes('2024-')), false, 'historical source documents never enter the active v2 namespace');
 assert.equal(catalogOnlyFixture.excludedSourceDocuments.candidateResearch.nonCanonicalRace, 1, 'historical research is reported as coverage information');
 assert.equal(catalogOnlyFixture.excludedSourceDocuments.contestMetrics.nonCanonicalRace, 1, 'historical metrics are reported as coverage information');
+
+const ballotSource = (qualificationStatus: 'on_ballot' | 'withdrawn') => parseOfficialBallotSource({ schemaVersion: 1, electionYear: 2026, state: 'GA', election: 'general', sourceStatus: 'available',
+  sourceAuthority: 'Georgia Secretary of State', sourceUrl: 'https://sos.ga.gov/fixture', sourcePublishedAt: '2026-09-19T00:00:00.000Z', retrievedAt: '2026-09-20T00:00:00.000Z', reviewedAt: '2026-09-20T00:00:00.000Z',
+  records: [{ canonicalRaceId: '2026-GA-senate-class-2', fecCandidateId: 'S6CA00001', ballotName: 'Example Candidate', ballotParty: 'Independent', qualificationStatus }] });
+const ballotCandidates = [{ canonicalRaceId: '2026-GA-senate-class-2', fecCandidateId: 'S6CA00001', name: 'Example Candidate', party: 'Independent' }];
+const eligibleEvidence = normalizeOfficialBallotEvidence(ballotSource('on_ballot'), ballotCandidates);
+const progressiveInput = { generation: 'canonical-2026-shadow-v2' as const, races: [{ id: 'legacy-ga-senate', state: 'GA', office: 'Senate', district: null, candidates: [candidate] }], deadlines: [deadline], predictions: [{ id: 'existing-pick', targetId: 'legacy-ga-senate', pick: 'legacy-candidate' }], candidateResearch: [], contestMetrics: [], overrides: { schemaVersion: 1, candidateOverrides: [], contestDispositions: [] } };
+const progressivePlan = buildCanonicalPublicationPlan(progressiveInput, { ballotEligibility: eligibleEvidence.evidence, sourceStatus: 'available' });
+const progressiveRace = progressivePlan.documents.find((document) => document.path === 'races/2026-GA-senate-class-2')!;
+assert.deepEqual(progressiveRace.data.eligibleCandidateIds, ['fec-S6CA00001'], 'only official ballot evidence makes the canonical FEC candidate pickable');
+assert.equal(auditCanonicalPublicationPlan(progressivePlan).racesPredictionReady, 1, 'a single verified race advances progressive readiness');
+assert.equal(auditCanonicalPublicationPlan(progressivePlan).predictionReady, true, 'nationwide eligibility is not required for progressive readiness');
+assert.equal(progressivePlan.eligibility.predictionImpact.wouldBeInvalid, 0, 'existing allowlisted predictions are only audited, never changed');
+const withdrawnEvidence = normalizeOfficialBallotEvidence(ballotSource('withdrawn'), ballotCandidates);
+const changedPlan = buildCanonicalPublicationPlan(progressiveInput, { ballotEligibility: withdrawnEvidence.evidence, sourceStatus: 'available' });
+assert.deepEqual((changedPlan.documents.find((document) => document.path === 'races/2026-GA-senate-class-2')!.data.eligibleCandidateIds), [], 'withdrawn official evidence fails closed');
+assert.equal(changedPlan.eligibility.predictionImpact.wouldBeInvalid, 1, 'eligibility changes audit existing picks without mutating them');
+const ambiguousPlan = buildCanonicalPublicationPlan(progressiveInput, { ballotEligibility: [], unresolvedBallotEvidence: [{ recordDigest: 'f'.repeat(64), canonicalRaceId: '2026-GA-senate-class-2', reason: 'ambiguous_candidate' }], sourceStatus: 'available' });
+assert.equal(auditCanonicalPublicationPlan(ambiguousPlan).catalogReady, false, 'ambiguous official evidence fails catalog certification closed');
 
 console.log('canonical publication builder tracer test passed');

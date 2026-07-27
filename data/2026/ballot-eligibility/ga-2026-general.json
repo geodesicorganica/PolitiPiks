@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "electionYear": 2026,
+  "state": "GA",
+  "election": "general",
+  "sourceStatus": "not_yet_published",
+  "sourceAuthority": "Georgia Secretary of State Elections Division",
+  "sourceUrl": "https://sos.ga.gov/candidate-qualifying-elected-office",
+  "retrievedAt": "2026-07-27T00:00:00.000Z",
+  "reviewedAt": "2026-07-27T00:00:00.000Z",
+  "records": []
+}
