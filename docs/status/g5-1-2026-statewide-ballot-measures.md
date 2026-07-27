@@ -42,4 +42,6 @@ The nested UI surfaces authority and qualification status, provides explicit una
 
 All completed gates exited `0`: `npm run test-ballot-measures`, `npm run test-free-sources`, `npm run test-canonical-publication`, `npm run verify-contests-logic`, `npm run lint`, `npm --prefix ingest run build`, `npm run build`, and the port-8081 `firebase emulators:exec` league-flow test. Nested: `npm run lint`, `npm run lint:rules` (one existing open-read warning), `npm run test-contest-catalog`, `npm run verify-firestore-league-flow`, `npm run verify-browser-league-flow`, and `npm run build`. The measure CLI deterministic replay exited `0/0`.
 
+One initial nested browser/build attempt exited `1` because the new client-side availability guard had an unmatched parenthesis.  No data operation occurred; the guard was corrected, and the affected nested lint, browser, and build reruns exited `0`.
+
 Remaining production gates are separate authorization for an eventual source refresh, publication write, and selector/cutover; none is implied by this local certification.
