@@ -46,6 +46,7 @@ try {
     await setDoc(doc(adminDb, 'races/2026-CA-senate'), target(openCloseAt));
     await setDoc(doc(adminDb, 'races/2026-FL-senate'), target(closedCloseAt));
     await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1'), { ...target(openCloseAt, ['fec-canonical', 'fec-canonical-updated']), catalogScope: 'federal', registryGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'races/2026-GA-senate-class-2'), { ...target(openCloseAt, []), catalogScope: 'federal', registryGeneration: canonicalGeneration });
     await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical'), { raceId: '2026-CA-senate-class-1', candidateId: 'fec-canonical' });
     await setDoc(doc(adminDb, 'contestMetrics/2026-CA-senate-class-1'), { raceId: '2026-CA-senate-class-1' });
     await setDoc(doc(adminDb, 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration });
@@ -66,6 +67,7 @@ try {
   await assertSucceeds(setDoc(doc(userDb, 'predictions/open-create'), prediction('open-race')));
   await assertFails(setDoc(doc(userDb, 'predictions/open-ineligible-candidate'), prediction('open-race', { pick: 'candidate-not-eligible' })));
   await assertSucceeds(setDoc(doc(userDb, 'predictions/canonical-create'), prediction('2026-CA-senate-class-1', { pick: 'fec-canonical' })));
+  await assertFails(setDoc(doc(userDb, 'predictions/catalog-only-create'), prediction('2026-GA-senate-class-2', { pick: 'candidate-a' })));
   await assertSucceeds(updateDoc(doc(userDb, 'predictions/canonical-create'), { pick: 'fec-canonical-updated', updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(userDb, 'predictions/canonical-create'), { pick: 'fec-not-eligible', updatedAt: serverTimestamp() }));
   await assertFails(setDoc(doc(userDb, 'predictions/legacy-federal-create'), prediction('2026-CA-senate')));

@@ -123,6 +123,16 @@ export interface Candidate extends SourceMetadata {
   candidateState?: 'active' | 'withdrawn' | 'inactive';
   visibility?: 'hidden' | 'visible';
   pickEligibility?: 'ineligible' | 'eligible';
+  /** Immutable official-ballot evidence used to permit a pick; FEC filing metadata alone never fills this. */
+  ballotEligibility?: {
+    evidenceDigest: string;
+    sourceAuthority: string;
+    sourceUrl: string;
+    sourcePublishedAt: string | null;
+    retrievedAt: string;
+    reviewedAt: string;
+    qualificationStatus: 'on_ballot' | 'withdrawn' | 'ineligible';
+  };
   ballotVerifiedAt?: string;
   ballotSourceUrl?: string;
   summary?: string;

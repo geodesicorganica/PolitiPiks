@@ -9,9 +9,11 @@ const openCloseAt = Timestamp.fromDate(new Date('2026-11-03T20:00:00Z'));
 const closedCloseAt = Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
 const base = { state: 'California', office: 'Senate' as const, candidates: [], eligibleCandidateIds: [], status: 'upcoming' as const, closeAt: openCloseAt, closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live' as const };
 const canonicalCandidate = { id: 'fec-canonical', name: 'Canonical Candidate', party: 'Democrat' as const };
+const ballotVerifiedCandidate = { id: 'fec-ballot-verified', name: 'Ballot Verified Candidate', party: 'Democrat' as const, qualificationStatus: 'on_ballot' as const, pickEligibility: 'eligible' as const };
 const races: Race[] = [
   { ...base, id: '2026-CA-senate' },
   { ...base, id: '2026-CA-senate-class-1', catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [canonicalCandidate] },
+  { ...base, id: '2026-GA-senate-class-2', state: 'Georgia', catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [ballotVerifiedCandidate], eligibleCandidateIds: ['fec-ballot-verified'] },
   { ...base, id: '2026-CA-governor', office: 'Governor' },
   { ...base, id: 'browser-closed-2026', state: 'Closed State', closeAt: closedCloseAt, closeDate: '2026-01-01T00:00:00Z' },
   RACE_2024_SANDBOX_FIXTURE,

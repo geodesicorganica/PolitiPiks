@@ -14,6 +14,11 @@ test('2026/live is the browser default and closed picks are disabled', async ({ 
   await expect(page.getByTestId('picks-unavailable-2026-CA-senate-class-1')).toContainText('Picks not yet available');
   await expect(page.getByTestId('pick-fec-canonical')).toContainText('Picks not yet available');
   await expect(page.getByTestId('pick-fec-canonical')).toBeDisabled();
+  await expect(page.getByTestId('race-2026-GA-senate-class-2')).toBeVisible();
+  await expect(page.getByTestId('pick-fec-ballot-verified')).toContainText('Make pick');
+  await expect(page.getByTestId('pick-fec-ballot-verified')).toBeEnabled();
+  await page.getByTestId('pick-fec-ballot-verified').click();
+  await expect(page.getByTestId('pick-fec-ballot-verified')).toContainText('Pick recorded');
   await expect(page.getByTestId('race-browser-closed-2026')).toContainText('Picking closed');
   await expect(page.getByTestId('race-browser-closed-2026').getByRole('button')).toBeDisabled();
   await expect(page.getByTestId('race-fixture-race-2024-sandbox')).toHaveCount(0);
