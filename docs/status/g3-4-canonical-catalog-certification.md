@@ -67,6 +67,7 @@ npm run test-free-sources
 npm run lint
 npm --prefix ingest run build
 npm run build
+npx firebase emulators:exec --config scripts/firebase.emulator-test.json --only firestore "npx tsx scripts/verify-firestore-league-flow.ts"
 npx tsx scripts/report-canonical-2026-publication.ts --snapshot-in .artifacts/private/canonical-migration/publication-v2-fresh-2026-07-25.json --verify-replay --approve-snapshot .artifacts/private/canonical-migration/publication-v2-approved-2026-07-25.json
 npx tsx scripts/report-canonical-2026-publication.ts --snapshot-in .artifacts/private/canonical-migration/publication-v2-fresh-2026-07-25.json --verify-replay --approved-snapshot .artifacts/private/canonical-migration/publication-v2-approved-2026-07-25.json
 ```
@@ -85,6 +86,12 @@ npm run build
 `lint:rules` exits 0 with the pre-existing open-read warning. Browser and rules
 tests cover the 2026/live default, closed controls, unavailable pick controls,
 and rejection of ineligible race picks.
+
+The default parent `npm run verify-firestore-league-flow` launcher could not
+start because a pre-existing July 24 Java process owned port 8080; it performed
+no test writes. The same parent test passed with exit 0 through the repository's
+existing port-8081 emulator test configuration shown above. No process was
+stopped or modified.
 
 ## Remaining production gates
 
