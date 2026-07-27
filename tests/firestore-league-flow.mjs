@@ -50,8 +50,9 @@ try {
     await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical'), { raceId: '2026-CA-senate-class-1', candidateId: 'fec-canonical' });
     await setDoc(doc(adminDb, 'contestMetrics/2026-CA-senate-class-1'), { raceId: '2026-CA-senate-class-1' });
     await setDoc(doc(adminDb, 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration });
-    await setDoc(doc(adminDb, 'ballotMeasures/open-measure'), target(openCloseAt));
-    await setDoc(doc(adminDb, 'ballotMeasures/closed-measure'), target(closedCloseAt));
+    await setDoc(doc(adminDb, 'ballotMeasures/open-measure'), { ...target(openCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'] });
+    await setDoc(doc(adminDb, 'ballotMeasures/catalog-only-measure'), { ...target(openCloseAt), predictionReady: false, eligibleOptions: [] });
+    await setDoc(doc(adminDb, 'ballotMeasures/closed-measure'), { ...target(closedCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'] });
     await setDoc(doc(adminDb, 'leagues/league-a'), league());
     await setDoc(doc(adminDb, 'leagues/league-b'), league(otherUserId));
     await setDoc(doc(adminDb, `leagues/league-a/members/${userId}`), member(userId));
@@ -79,6 +80,8 @@ try {
   await assertSucceeds(updateDoc(doc(userDb, 'predictions/open-update'), { pick: 'candidate-b', updatedAt: serverTimestamp() }));
   await assertSucceeds(deleteDoc(doc(userDb, 'predictions/open-create')));
   await assertSucceeds(setDoc(doc(userDb, 'predictions/open-measure-create'), prediction('open-measure', { type: 'measure', pick: 'pass' })));
+  await assertFails(setDoc(doc(userDb, 'predictions/catalog-only-measure-create'), prediction('catalog-only-measure', { type: 'measure', pick: 'pass' })));
+  await assertFails(setDoc(doc(userDb, 'predictions/open-measure-invalid-option'), prediction('open-measure', { type: 'measure', pick: 'other' })));
   await assertSucceeds(getDoc(doc(userDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical')));
   await assertSucceeds(getDoc(doc(userDb, 'contestMetrics/2026-CA-senate-class-1')));
   await assertFails(setDoc(doc(userDb, 'catalogActivations/canonical-2026'), { state: 'rollback', activeFederalGeneration: 'legacy-2026' }));
@@ -90,6 +93,8 @@ try {
   await assertFails(setDoc(doc(userDb, 'predictions/extra-field'), prediction('open-race', { score: 100 })));
   await assertFails(setDoc(doc(userDb, 'predictions/closed-create'), prediction('closed-race')));
   await assertFails(setDoc(doc(userDb, 'predictions/closed-measure-create'), prediction('closed-measure', { type: 'measure', pick: 'pass' })));
+  await assertSucceeds(updateDoc(doc(userDb, 'predictions/open-measure-create'), { pick: 'fail', updatedAt: serverTimestamp() }));
+  await assertFails(updateDoc(doc(userDb, 'predictions/open-measure-create'), { pick: 'other', updatedAt: serverTimestamp() }));
 
   await assertFails(updateDoc(doc(userDb, 'predictions/open-update'), { userId: otherUserId, updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(userDb, 'predictions/open-update'), { leagueId: 'league-b', updatedAt: serverTimestamp() }));

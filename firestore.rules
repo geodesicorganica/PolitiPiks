@@ -207,6 +207,14 @@ service cloud.firestore {
          data.pick in get(/databases/$(database)/documents/races/$(data.targetId)).data.eligibleCandidateIds);
     }
 
+    function measurePickIsEligible(data) {
+      return data.type != 'measure' ||
+        (exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
+         get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('predictionReady', false) == true &&
+         get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('eligibleOptions', null) is list &&
+         data.pick in get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.eligibleOptions);
+    }
+
     function isValidPredictionCreate(data) {
       return data.keys().hasAll(['userId', 'leagueId', 'targetId', 'type', 'pick', 'status', 'createdAt']) &&
              data.keys().hasOnly(['userId', 'leagueId', 'targetId', 'type', 'pick', 'status', 'createdAt', 'updatedAt']) &&
@@ -230,9 +238,9 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid &&
         isLeagueMember(resource.data.leagueId);
       allow create: if isSignedIn() && isValidPredictionCreate(incoming()) &&
-        isLeagueMember(incoming().leagueId) && liveTargetIsOpen(incoming()) && racePickIsEligible(incoming());
+        isLeagueMember(incoming().leagueId) && liveTargetIsOpen(incoming()) && racePickIsEligible(incoming()) && measurePickIsEligible(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid &&
-        isLeagueMember(resource.data.leagueId) && liveTargetIsOpen(resource.data) && isValidPredictionUpdate() && racePickIsEligible(incoming());
+        isLeagueMember(resource.data.leagueId) && liveTargetIsOpen(resource.data) && isValidPredictionUpdate() && racePickIsEligible(incoming()) && measurePickIsEligible(incoming());
       allow delete: if isSignedIn() && resource.data.userId == request.auth.uid &&
         isLeagueMember(resource.data.leagueId) && liveTargetIsOpen(resource.data);
     }

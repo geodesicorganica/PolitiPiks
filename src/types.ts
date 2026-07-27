@@ -209,6 +209,22 @@ export interface BallotMeasure extends SourceMetadata {
   description: string;
   status: 'upcoming' | 'live' | 'called';
   qualificationStatus?: 'filed' | 'circulating' | 'qualified' | 'on_ballot' | 'withdrawn' | 'failed';
+  officialAliases?: string[];
+  jurisdiction?: 'statewide';
+  choices?: string[];
+  /** Rules-authorized choices; an empty list keeps research visible but disables picks. */
+  eligibleOptions?: string[];
+  predictionReady?: boolean;
+  publicationReady?: boolean;
+  evidenceDigest?: string;
+  sourceAuthority?: string;
+  retrievedAt?: string;
+  reviewedAt?: string;
+  fiscalAnalysisUrl?: string;
+  deadlineKind?: 'product_safety_lock';
+  lockPolicyId?: string;
+  lockPolicyVersion?: number;
+  lockReason?: string;
   result?: 'pass' | 'fail';
   /** Canonical Firestore timestamp used by rules to lock live predictions. */
   closeAt?: import('firebase/firestore').Timestamp;

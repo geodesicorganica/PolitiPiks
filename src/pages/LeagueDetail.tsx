@@ -100,7 +100,8 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   };
 
   const handlePick = async (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => {
-    if (!profile || isPickClosed(target) || (type === 'race' && !(target as Race).eligibleCandidateIds?.includes(pick))) return;
+    const measurePickUnavailable = type === 'measure' && (!(target as BallotMeasure).predictionReady || !(target as BallotMeasure).eligibleOptions?.includes(pick));
+    if (!profile || isPickClosed(target) || (type === 'race' && !(target as Race).eligibleCandidateIds?.includes(pick)) || measurePickUnavailable) return;
     setSubmitting(target.id);
     try {
       const q = query(
@@ -577,6 +578,8 @@ function DecisionModule({
   if (!item) return null;
   const eligibleCandidateIds = new Set(race?.eligibleCandidateIds ?? []);
   const racePicksAvailable = !race || eligibleCandidateIds.size > 0;
+  const eligibleMeasureOptions = new Set(measure?.eligibleOptions ?? []);
+  const measurePicksAvailable = !measure || (measure.predictionReady === true && eligibleMeasureOptions.size > 0);
   const isClosed = isPickClosed(item);
 
   return (
@@ -623,6 +626,7 @@ function DecisionModule({
                  {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(item)}
                </span>
                {race && !racePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${race.id}`}>Picks not yet available</span>}
+               {measure && !measurePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${measure.id}`}>Picks not yet available</span>}
             </div>
         </div>
 
@@ -925,8 +929,8 @@ function DecisionModule({
                           {['pass', 'fail'].map(opt => (
                             <button
                               key={opt}
-                              disabled={isClosed || isSubmitting}
-                              aria-label={isClosed ? `Picking is closed: ${formatCloseAt(measure!)}` : `Pick ${opt}`}
+                              disabled={isClosed || !measurePicksAvailable || !eligibleMeasureOptions.has(opt) || isSubmitting}
+                              aria-label={isClosed ? `Picking is closed: ${formatCloseAt(measure!)}` : !measurePicksAvailable || !eligibleMeasureOptions.has(opt) ? `Picks not yet available: ${opt}` : `Pick ${opt}`}
                               onClick={() => onPick(measure!, opt, 'measure')}
                               className={cn(
                                 "py-6 font-black uppercase tracking-widest text-sm border-2 transition-all",
@@ -935,7 +939,7 @@ function DecisionModule({
                                   : "bg-white text-black border-white hover:bg-slate-200"
                               )}
                             >
-                               {isClosed ? 'PICKING CLOSED' : `PREDICT INITIAL ${opt}`}
+                               {isClosed ? 'PICKING CLOSED' : !measurePicksAvailable || !eligibleMeasureOptions.has(opt) ? 'PICKS NOT YET AVAILABLE' : `PREDICT INITIAL ${opt}`}
                             </button>
                           ))}
                        </div>

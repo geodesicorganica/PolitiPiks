@@ -20,8 +20,8 @@ const races: Race[] = [
 ];
 const measures: BallotMeasure[] = [{
   id: 'browser-measure-2026', state: 'California', title: 'Measure', description: 'Fixture measure', status: 'upcoming', closeAt: openCloseAt,
-  closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live',
-}];
+  closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'on_ballot', sourceAuthority: 'Official fixture', predictionReady: true, eligibleOptions: ['yes', 'no'],
+}, { id: 'browser-measure-catalog-only', state: 'Texas', title: 'Catalog only measure', description: 'Fixture measure', status: 'upcoming', closeAt: openCloseAt, closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'filed', sourceAuthority: 'Official fixture', predictionReady: false, eligibleOptions: [] }];
 
 export function ActiveCycleBrowserHarness() {
   const [picked, setPicked] = useState<string | null>(null);
@@ -37,5 +37,5 @@ export function ActiveCycleBrowserHarness() {
       {candidate ? <button data-testid={`pick-${candidate.id}`} disabled={closed || !picksAvailable} onClick={() => setPicked(candidate.id)}>{closed ? 'Picking closed' : !picksAvailable ? 'Picks not yet available' : picked === candidate.id ? 'Pick recorded' : 'Make pick'}</button> : <button disabled={closed}>{closed ? 'Picking closed' : 'Make pick'}</button>}
       {target.id === '2026-CA-senate-class-1' && <><p data-testid="canonical-research">Canonical research available</p><p data-testid="canonical-metrics">Metrics available</p></>}
     </article>;
-  })}{catalog.measures.map((measure) => <article key={measure.id} data-testid={`measure-${measure.id}`}><h2>{measure.title}</h2></article>)}</main>;
+  })}{catalog.measures.map((measure) => { const available = measure.predictionReady === true && (measure.eligibleOptions?.length ?? 0) > 0; return <article key={measure.id} data-testid={`measure-${measure.id}`}><h2>{measure.title}</h2><p data-testid={`measure-source-${measure.id}`}>{measure.sourceAuthority} · {measure.qualificationStatus}</p>{!available && <p data-testid={`picks-unavailable-${measure.id}`}>Picks not yet available</p>}<button data-testid={`pick-measure-${measure.id}`} disabled={!available || isPickClosed(measure)} onClick={() => setPicked(measure.id)}>{!available ? 'Picks not yet available' : picked === measure.id ? 'Pick recorded' : 'Make pick'}</button></article>; })}</main>;
 }
