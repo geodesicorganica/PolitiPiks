@@ -11,6 +11,13 @@ export type StateElectionProvider = {
   load(year: number): Promise<SourcePayload>;
 };
 
+export type StateElectionRegistryDeclaration = { state: string; authorityUrl: string; capabilities: StateElectionCapability[]; adapterStatus: 'not_implemented' | 'fixture_proven' };
+
+/** Future providers may only claim capabilities already reviewed in the official-source registry. */
+export function assertStateElectionProviderRegistry(provider: StateElectionProvider, declaration: StateElectionRegistryDeclaration) {
+  if (provider.state.toUpperCase() !== declaration.state.toUpperCase() || provider.officialBaseUrl !== declaration.authorityUrl || declaration.adapterStatus !== 'fixture_proven' || provider.capabilities.some((capability) => !declaration.capabilities.includes(capability))) throw new Error(`Provider ${provider.id} does not satisfy its source-registry declaration.`);
+}
+
 const providers = new Map<string, StateElectionProvider>();
 
 export function registerStateElectionProvider(provider: StateElectionProvider) {
