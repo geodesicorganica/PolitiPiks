@@ -197,7 +197,9 @@ fixture-proven California and Georgia sources. See
 
 ### G5.3–G5.6 — State provider waves
 
-Status: **planned**
+G5.3 status: **completed locally on 2026-07-29**. All 12 Wave B structured-HTML authorities now have deterministic, source-backed provider fixtures: California is `available` with 14 certified statewide measures; the other 11 are explicitly `not_yet_published` with a next review date and no unsupported capability claim. The offline report has zero duplicate IDs, ambiguous accepted identities, conflicts, or schema drift. See [G5.3 Wave B providers](status/g5-3-wave-b-html-providers.md).
+
+Next: **G5.4 Wave C PDF providers**. Its two official PDF authorities need format-specific fixture and parser review before any capability declaration.
 
 Implement providers by source format so parsers and failure handling can be
 reused:

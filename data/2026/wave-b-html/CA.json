@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "state": "CA",
+  "electionYear": 2026,
+  "status": "available",
+  "sourceAuthority": "California Secretary of State",
+  "sourceUrl": "https://www.sos.ca.gov/administration/news-releases-and-advisories/2026-news-releases-and-advisories/california-secretary-state-shirley-n-weber-phd-certifies-measures-november-3-2026-general-election-ballot",
+  "sourcePublishedAt": "2026-06-25T00:00:00.000Z",
+  "retrievedAt": "2026-07-29T00:00:00.000Z",
+  "reviewedAt": "2026-07-29T00:00:00.000Z",
+  "capabilities": ["statewideMeasure"],
+  "schemaMarkers": ["California Secretary of State", "14 measures", "November 3, 2026"],
+  "records": [
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-1", "title": "Elections: recall of state officers", "description": "Legislative measure concerning recall of state officers.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-2", "title": "California Fair Elections Act of 2026", "description": "Legislative measure concerning public campaign financing.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-3", "title": "Save for California's Future Act", "description": "Legislative measure titled Save for California's Future Act.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-4", "title": "Veterans and Affordable Housing Bond Act of 2026", "description": "Legislative measure concerning veterans and affordable housing bonds.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-5", "title": "Local taxes: limitation", "description": "Legislative measure concerning local-tax limitations.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-37", "title": "Creates loan program for middle-income buyers of qualified new homes", "description": "Certified initiative statute.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-38", "title": "Establishes additional voter identification and citizenship verification requirements", "description": "Certified initiative constitutional amendment.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-39", "title": "Requires community health clinics spend 90% of revenue on program services", "description": "Certified initiative statute.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-40", "title": "Provides permanent funding for schools and healthcare by extending existing tax on high incomes", "description": "Certified initiative constitutional amendment.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-41", "title": "Modifies environmental review for certain projects", "description": "Certified initiative statute.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-42", "title": "Imposes one-time tax on certain individuals and trusts", "description": "Certified initiative constitutional amendment and statute.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-43", "title": "Requires audits of programs funded by new state special taxes", "description": "Certified initiative constitutional amendment.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-44", "title": "Authorizes bonds for immunology research", "description": "Certified initiative statute.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" },
+    { "kind": "statewideMeasure", "canonicalId": "2026-CA-proposition-45", "title": "Prohibits new state personal property taxes and certain retroactive state taxes", "description": "Certified initiative constitutional amendment.", "choices": ["yes", "no"], "qualificationStatus": "on_ballot" }
+  ]
+}
