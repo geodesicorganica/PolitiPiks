@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "state": "RI",
+  "electionYear": 2026,
+  "classification": "calendar",
+  "status": "unsupported_pdf",
+  "sourceAuthority": "Rhode Island Department of State",
+  "sourceUrl": "https://vote.sos.ri.gov/Forms/Elections/Guides/2026ElecCal.pdf",
+  "retrievedAt": "2026-07-29T00:00:00.000Z",
+  "reviewedAt": "2026-07-29T00:00:00.000Z",
+  "nextReviewAt": "2026-08-12T00:00:00.000Z",
+  "extractionMode": "reviewed_text_fixture",
+  "documentText": "Rhode Island Election Calendar Guide 2026. Rhode Island Department of State. General Election November 3, 2026. Candidate filing dates and polling place hours.",
+  "records": []
+}

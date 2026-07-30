@@ -49,6 +49,7 @@
     "test-ballot-measures": "tsx scripts/lib/canonicalBallotMeasures.test.ts",
     "test-state-source-registry": "tsx scripts/lib/stateElectionSourceRegistry.test.ts",
     "test-wave-b-state-providers": "tsx scripts/lib/waveBStateProviders.test.ts",
+    "test-wave-c-pdf-providers": "tsx scripts/lib/waveCPdfProviders.test.ts",
     "audit-2026-state-source-registry": "tsx scripts/audit-2026-state-election-source-registry.ts",
     "report-2026-statewide-ballot-measures": "tsx scripts/report-2026-statewide-ballot-measures.ts",
     "report-2026-ballot-eligibility": "tsx scripts/report-2026-ballot-eligibility.ts",

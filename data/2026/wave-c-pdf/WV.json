@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "state": "WV",
+  "electionYear": 2026,
+  "classification": "calendar",
+  "status": "unsupported_pdf",
+  "sourceAuthority": "West Virginia Secretary of State",
+  "sourceUrl": "https://sos.wv.gov/media/467/download?inline=",
+  "retrievedAt": "2026-07-29T00:00:00.000Z",
+  "reviewedAt": "2026-07-29T00:00:00.000Z",
+  "nextReviewAt": "2026-08-12T00:00:00.000Z",
+  "extractionMode": "reviewed_text_fixture",
+  "documentText": "2026 Elections Calendar. West Virginia Secretary of State Elections Division. General Election November 3, 2026. Calendar of candidate filing, ballot drawing and election administration dates.",
+  "records": []
+}
