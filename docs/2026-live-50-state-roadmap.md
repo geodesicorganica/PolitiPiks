@@ -203,7 +203,9 @@ Next: **G5.4 Wave C PDF providers**. Its two official PDF authorities need forma
 
 G5.4 status: **completed locally on 2026-07-29**. Rhode Island and West Virginia now have fail-closed, deterministic official-PDF providers. Both reviewed documents classify as calendars—not ballot lists—and consequently emit zero records and zero capabilities; each has an explicit next review date. See [G5.4 Wave C providers](status/g5-4-wave-c-pdf-providers.md).
 
-Next: **G5.5 Wave D reviewed-manual resolution**, retaining absent capability claims until an official, reviewable publication endpoint and fixture are available.
+G5.5 status: **completed locally on 2026-07-30**. All 36 former generic Wave D records now have versioned, state-specific official-source plans, evidence digests, precise blockers, and deterministic next reviews. Ten endpoint capabilities are proven as publication surfaces only; no provider or pick eligibility was activated. See [G5.5 Wave D source resolution](status/g5-5-wave-d-source-resolution.md).
+
+Next: **G5.6 fixture-backed adapter implementation**, grouped by the reviewed HTML, PDF/XLSX, mutable/manual, and explicit-blocker plans.
 
 Implement providers by source format so parsers and failure handling can be
 reused:
