@@ -7,12 +7,13 @@ import {
   buildWaveDReport,
   normalizeWaveDEvidence,
   waveDEvidenceDigest,
+  type WaveDEvidence,
 } from './waveDSourceResolution.js';
 
 const load = () => Object.fromEntries(WAVE_D_STATES.map((state) => [
   state,
   JSON.parse(readFileSync(`data/2026/wave-d-reviewed/${state}.json`, 'utf8')),
-] )) as Record<(typeof WAVE_D_STATES)[number], unknown>;
+] )) as Record<(typeof WAVE_D_STATES)[number], WaveDEvidence>;
 
 const evidence = load();
 const report = buildWaveDReport(evidence);
@@ -23,8 +24,9 @@ assert.equal(report.counts.homepageOnlyEvidence, 0);
 assert.equal(report.counts.missingNextReview, 0);
 assert.equal(report.counts.duplicateEndpoints, 0);
 assert.equal(report.counts.conflictingEndpoints, 0);
-assert.equal(buildWaveDReport(Object.fromEntries(Object.entries(evidence).reverse())).planDigest, report.planDigest);
-assert.equal(waveDEvidenceDigest(Object.fromEntries(Object.entries(evidence).reverse())), report.evidenceDigest);
+const shuffledEvidence = Object.fromEntries(Object.entries(evidence).reverse()) as typeof evidence;
+assert.equal(buildWaveDReport(shuffledEvidence).planDigest, report.planDigest);
+assert.equal(waveDEvidenceDigest(shuffledEvidence), report.evidenceDigest);
 
 const homepageOnly = structuredClone(evidence.AL);
 homepageOnly.capabilities[0].endpoint = homepageOnly.authorityUrl;

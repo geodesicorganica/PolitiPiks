@@ -1,1 +1,77 @@
-{"schemaVersion":1,"state":"SD","authorityName":"South Dakota Secretary of State","authorityUrl":"https://sdsos.gov/elections-voting/","election":{"year":2026,"identity":"2026_general"},"publicationStatus":"preliminary","checkedAt":"2026-07-30T00:00:00.000Z","reviewedAt":"2026-07-30T00:00:00.000Z","nextReviewAt":"2026-08-12T00:00:00.000Z","capabilities":[{"capability":"candidateList","endpoint":"https://vip.sdsos.gov/candidatelist.aspx?eid=773","sourceFormat":"HTML","accessRequirements":"public","publicationStatus":"preliminary","applicability":"2026_general","facts":["Official 2026 publication surface was reviewed; its phase is not a final general-election eligibility list."],"reviewerNotes":["Source plan is reviewed only; it never establishes pick eligibility without a later provider fixture."],"adapterRecommendation":{"format":"HTML","wave":"D","nextAction":"Implement a minimal HTML fixture after publication-phase review."},"proven":false,"attempts":1},{"capability":"governorRace","endpoint":"https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026%20Election%20Information/2026-offices-to-be-filled.aspx","sourceFormat":"HTML","accessRequirements":"public","publicationStatus":"preliminary","applicability":"2026_general","facts":["Official 2026 publication surface was reviewed; its phase is not a final general-election eligibility list."],"reviewerNotes":["Source plan is reviewed only; it never establishes pick eligibility without a later provider fixture."],"adapterRecommendation":{"format":"HTML","wave":"D","nextAction":"Implement a minimal HTML fixture after publication-phase review."},"proven":false,"attempts":1},{"capability":"statewideMeasure","endpoint":"https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026/2026-ballot-questions.aspx","sourceFormat":"HTML","accessRequirements":"public","publicationStatus":"available","applicability":"2026_general","facts":["Official 2026 statewideMeasure publication was reviewed at this exact endpoint."],"reviewerNotes":["Source plan is reviewed only; it never establishes pick eligibility without a later provider fixture."],"adapterRecommendation":{"format":"HTML","wave":"D","nextAction":"Implement a minimal HTML fixture after publication-phase review."},"proven":true,"attempts":1}],"evidenceDigest":"f47448a0aa44de4fda84ae4ea2a06b719a9fd3d04b29938a3778c5c9960c9e51"}
+{
+  "schemaVersion": 1,
+  "state": "SD",
+  "authorityName": "South Dakota Secretary of State",
+  "authorityUrl": "https://sdsos.gov/elections-voting/",
+  "election": { "year": 2026, "identity": "2026_general" },
+  "publicationStatus": "preliminary",
+  "checkedAt": "2026-07-30T00:00:00.000Z",
+  "reviewedAt": "2026-07-30T00:00:00.000Z",
+  "nextReviewAt": "2026-08-12T00:00:00.000Z",
+  "capabilities": [
+    {
+      "capability": "candidateList",
+      "endpoint": "https://vip.sdsos.gov/candidatelist.aspx?eid=774",
+      "sourceFormat": "HTML",
+      "accessRequirements": "public",
+      "publicationStatus": "preliminary",
+      "applicability": "2026_general",
+      "facts": [
+        "Official 2026 general-election candidate-list surface was reviewed; it is not a final pick-eligibility list."
+      ],
+      "reviewerNotes": [
+        "Source plan is reviewed only; it never establishes pick eligibility without a later provider fixture."
+      ],
+      "adapterRecommendation": {
+        "format": "HTML",
+        "wave": "D",
+        "nextAction": "Recheck after the August 11 vacancy deadline before treating candidate rows as final."
+      },
+      "proven": false,
+      "attempts": 1
+    },
+    {
+      "capability": "governorRace",
+      "endpoint": "https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026%20Election%20Information/2026-offices-to-be-filled.aspx",
+      "sourceFormat": "HTML",
+      "accessRequirements": "public",
+      "publicationStatus": "preliminary",
+      "applicability": "2026_general",
+      "facts": [
+        "The official 2026 offices-to-be-filled page identifies Governor and Lieutenant Governor as 2026 offices; it is not a candidate eligibility list."
+      ],
+      "reviewerNotes": [
+        "Source plan is reviewed only; it never establishes pick eligibility without a later provider fixture."
+      ],
+      "adapterRecommendation": {
+        "format": "HTML",
+        "wave": "D",
+        "nextAction": "Implement a minimal HTML fixture after publication-phase review."
+      },
+      "proven": false,
+      "attempts": 1
+    },
+    {
+      "capability": "statewideMeasure",
+      "endpoint": "https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026%20Election%20Information/2026-ballot-questions.aspx",
+      "sourceFormat": "HTML",
+      "accessRequirements": "public",
+      "publicationStatus": "available",
+      "applicability": "2026_general",
+      "facts": [
+        "The official 2026 General Election Ballot Measures page was directly reviewed and lists four validated constitutional amendments."
+      ],
+      "reviewerNotes": [
+        "Only items under the General Election Ballot Measures heading are fixture-backed; approved-for-circulation and potential items are excluded."
+      ],
+      "adapterRecommendation": {
+        "format": "HTML",
+        "wave": "D",
+        "nextAction": "Recheck weekly and preserve the official validation date and ballot letter for each measure."
+      },
+      "proven": true,
+      "attempts": 1
+    }
+  ],
+  "evidenceDigest": "e91566e5721c9fcec6b2ca2ea90d59ee13a9208487b2c5bf83a1826404e2d901"
+}

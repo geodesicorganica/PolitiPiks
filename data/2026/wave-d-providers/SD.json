@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "state": "SD",
+  "evidenceDigest": "e91566e5721c9fcec6b2ca2ea90d59ee13a9208487b2c5bf83a1826404e2d901",
+  "sourceUrl": "https://sdsos.gov/elections-voting/upcoming-elections/general-information/2026%20Election%20Information/2026-ballot-questions.aspx",
+  "sourcePhase": "certified",
+  "status": "available",
+  "retrievedAt": "2026-07-30T00:00:00.000Z",
+  "reviewedAt": "2026-07-30T00:00:00.000Z",
+  "sourceMarkers": [
+    "2026 General Election Ballot Measures",
+    "South Dakota Secretary of State"
+  ],
+  "records": [
+    {
+      "sourceId": "sd-2026-hjr-5001",
+      "kind": "statewideMeasure",
+      "name": "An amendment to the Constitution of the State of South Dakota, conditioning the requirement of expanded Medicaid on the level of federal medical assistance.",
+      "office": "HJR 5001",
+      "qualificationPhase": "certified",
+      "pickEligibility": "ineligible",
+      "mapping": "not_attempted"
+    },
+    {
+      "sourceId": "sd-2026-sjr-503",
+      "kind": "statewideMeasure",
+      "name": "An amendment to the Constitution of the State of South Dakota, clarifying that an individual must be a citizen of the United States to be eligible to vote.",
+      "office": "SJR 503",
+      "qualificationPhase": "certified",
+      "pickEligibility": "ineligible",
+      "mapping": "not_attempted"
+    },
+    {
+      "sourceId": "sd-2026-sjr-505",
+      "kind": "statewideMeasure",
+      "name": "An amendment to the Constitution of the State of South Dakota, establishing the trust for unclaimed property fund.",
+      "office": "SJR 505",
+      "qualificationPhase": "certified",
+      "pickEligibility": "ineligible",
+      "mapping": "not_attempted"
+    },
+    {
+      "sourceId": "sd-2026-hjr-5003",
+      "kind": "statewideMeasure",
+      "name": "An amendment to the Constitution of the State of South Dakota, requiring that a constitutional amendment receive an affirmative vote of sixty percent of the votes cast before the measure is enacted.",
+      "office": "HJR 5003",
+      "qualificationPhase": "certified",
+      "pickEligibility": "ineligible",
+      "mapping": "not_attempted"
+    }
+  ]
+}

@@ -205,7 +205,9 @@ G5.4 status: **completed locally on 2026-07-29**. Rhode Island and West Virginia
 
 G5.5 status: **completed locally on 2026-07-30**. All 36 former generic Wave D records now have versioned, state-specific official-source plans, evidence digests, precise blockers, and deterministic next reviews. Ten endpoint capabilities are proven as publication surfaces only; no provider or pick eligibility was activated. See [G5.5 Wave D source resolution](status/g5-5-wave-d-source-resolution.md).
 
-Next: **G5.6 fixture-backed adapter implementation**, grouped by the reviewed HTML, PDF/XLSX, mutable/manual, and explicit-blocker plans.
+G5.6 status: **completed locally on 2026-07-30**. The 50-state provider foundation is complete locally: all 36 Wave D states have a deterministic provider result; six reviewed source fixtures (AL, IL, IA, MD, ME, and SD) back 10 proven publication capabilities and project six records; the other 30 states remain reviewed manual or explicit fail-closed blockers with their source status and next-review date. The offline runner is Firebase-free, provenance-checked, deterministic, and keeps every emitted candidate or measure ineligible for picks. See [G5.6 Wave D fixture providers](status/g5-6-wave-d-fixture-providers.md).
+
+Next: **G6 research and metrics depth**.
 
 Implement providers by source format so parsers and failure handling can be
 reused:
