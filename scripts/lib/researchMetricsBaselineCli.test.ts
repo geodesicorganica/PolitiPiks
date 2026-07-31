@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+
+const root = process.cwd();
+const name = `g6-1-cli-${process.pid}`;
+const input = '.artifacts/private/canonical-migration/publication-v2-fresh-2026-07-25.json';
+const output = `.artifacts/private/canonical-migration/${name}-output.json`;
+const report = `.artifacts/private/canonical-migration/${name}-report.json`;
+for (const path of [output, report]) if (existsSync(path)) rmSync(path);
+const invoke = (args: string[]) => execFileSync(process.execPath, [resolve(root, 'node_modules/tsx/dist/cli.mjs'), 'scripts/report-2026-research-metrics-baseline.ts', ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, GOOGLE_APPLICATION_CREDENTIALS: 'Z:\\missing-firebase.json', FIREBASE_CONFIG: 'invalid' } });
+const dry = JSON.parse(invoke(['--snapshot-in', input, '--dry-run', '--verify-replay']));
+assert.equal(dry.firebaseInitialized, false); assert.equal(dry.coverage.canonicalRaces, 470); assert.equal(dry.coverage.metrics.coverageOnly, 6);
+const state = JSON.parse(invoke(['--snapshot-in', input, '--state', 'CA', '--dry-run'])); assert.equal(state.state, 'CA'); assert.ok(state.selectedDocuments > 0);
+const saved = JSON.parse(invoke(['--snapshot-in', input, '--snapshot-out', output, '--report-out', report, '--verify-replay']));
+assert.equal(saved.planDigest, dry.planDigest); assert.equal(existsSync(resolve(root, output)), true); assert.equal(existsSync(resolve(root, report)), true);
+assert.throws(() => invoke(['--snapshot-in', input, '--snapshot-out', output]), /already exists/, 'output uses no-clobber writes');
+assert.throws(() => invoke(['--snapshot-in', input, '--snapshot-out', 'unsafe.json']), /beneath/, 'unsafe artifact paths are rejected');
+assert.throws(() => invoke(['--snapshot-in', input, '--dry-run', '--report-out', report]), /cannot write/, 'dry runs cannot create evidence');
+for (const path of [output, report]) rmSync(resolve(root, path));
+console.log('research metrics baseline CLI tests passed');

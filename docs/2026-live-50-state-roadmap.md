@@ -207,7 +207,9 @@ G5.5 status: **completed locally on 2026-07-30**. All 36 former generic Wave D r
 
 G5.6 status: **completed locally on 2026-07-30**. The 50-state provider foundation is complete locally: all 36 Wave D states have a deterministic provider result; six reviewed source fixtures (AL, IL, IA, MD, ME, and SD) back 10 proven publication capabilities and project six records; the other 30 states remain reviewed manual or explicit fail-closed blockers with their source status and next-review date. The offline runner is Firebase-free, provenance-checked, deterministic, and keeps every emitted candidate or measure ineligible for picks. See [G5.6 Wave D fixture providers](status/g5-6-wave-d-fixture-providers.md).
 
-Next: **G6 research and metrics depth**.
+G6.1 status: **completed locally on 2026-07-30**. The Firebase-free baseline reconstructs the 470-seat canonical registry from a 467-raw-race snapshot, preserves 537 richer candidate-research records, supplies a minimal official-FEC baseline for all 2,384 canonical candidates, includes research for 14 certified statewide measures, and reaches 470/470 federal metric documents (464 preserved plus six explicit availability-only records). Document coverage is deliberately separate from field depth; comparative finance remains unavailable for all 470 races.
+
+Next: **G6.2 source-backed finance, Congress, and historical-metric depth**.
 
 Implement providers by source format so parsers and failure handling can be
 reused:
@@ -239,7 +241,7 @@ Exit gate for the workstream:
 
 ### G6 — Research and metrics depth
 
-Status: **planned; may proceed while ballots are unpublished**
+Status: **G6.1 completed locally; G6.2 depth work next**
 
 Raise the catalog from identity coverage to decision-useful evidence.
 

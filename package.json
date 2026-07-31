@@ -52,6 +52,8 @@
     "test-wave-c-pdf-providers": "tsx scripts/lib/waveCPdfProviders.test.ts",
     "test-wave-d-source-resolution": "tsx scripts/lib/waveDSourceResolution.test.ts",
     "test-wave-d-state-providers": "tsx scripts/lib/waveDStateProviders.test.ts",
+    "test-research-metrics-baseline": "tsx scripts/lib/researchMetricsBaseline.test.ts && tsx scripts/lib/researchMetricsBaselineCli.test.ts",
+    "report-2026-research-metrics-baseline": "tsx scripts/report-2026-research-metrics-baseline.ts",
     "audit-2026-state-source-registry": "tsx scripts/audit-2026-state-election-source-registry.ts",
     "audit-2026-wave-d-source-resolution": "tsx scripts/audit-2026-wave-d-source-resolution.ts",
     "audit-2026-wave-d-state-providers": "tsx scripts/audit-2026-wave-d-state-providers.ts",
