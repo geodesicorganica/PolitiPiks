@@ -96,14 +96,8 @@ function normalizeName(value: string | undefined) {
 }
 
 export function memberMatchesCandidate(member: RollCallMember, candidate: Candidate) {
-  if (member.bioguideId && candidate.externalIds?.bioguideId) {
-    return member.bioguideId.toUpperCase() === candidate.externalIds.bioguideId.toUpperCase();
-  }
-  const candidateTokens = candidate.name.split(/[\s,]+/).map(normalizeName).filter(Boolean);
-  const last = normalizeName(member.lastName);
-  const first = normalizeName(member.firstName);
-  if (!last || !candidateTokens.includes(last)) return false;
-  return !first || candidateTokens.some((token) => token === first || token.startsWith(first) || first.startsWith(token));
+  return Boolean(member.bioguideId && candidate.externalIds?.bioguideId)
+    && member.bioguideId!.toUpperCase() === candidate.externalIds!.bioguideId!.toUpperCase();
 }
 
 export function buildVoteRecordResearch(candidate: Candidate, votes: RollCall[], retrievedAt = new Date().toISOString()) {

@@ -35,6 +35,7 @@
     "test-contest-metrics": "tsx scripts/lib/contestMetrics.test.ts",
     "enrich-roll-calls": "tsx scripts/enrich-roll-calls.ts",
     "test-roll-calls": "tsx scripts/lib/rollCalls.test.ts",
+    "test-congress-depth": "tsx scripts/lib/congressDepth.test.ts",
     "test-ingest-free-sources": "tsx ingest/src/sources/freeSources.test.ts",
     "test-free-sources": "npm run test-fec-finance && npm run test-contest-metrics && npm run test-roll-calls && npm run test-ingest-free-sources && npm run verify-contests-logic",
     "discover-2026-contests": "tsx scripts/discover-2026-contests.ts",

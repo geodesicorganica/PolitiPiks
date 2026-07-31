@@ -211,7 +211,9 @@ G6.1 status: **completed locally on 2026-07-30**. The Firebase-free baseline rec
 
 G6.2 status: **certified locally on 2026-07-31**. The Firebase-free FEC bulk candidate-summary path normalizes the official 2025–2026 archive privately and deterministically: 2,368 exact canonical candidate matches yield comparable finance for 431 races, with 33 partial/incompatible-period races and 16 explicitly unavailable canonical candidates. It preserves all 470 metrics, 2,384 candidate-research documents, and 14 measure-research documents; 106 presidential source rows remain audited out of scope. See [G6.2 FEC finance depth](status/g6-2-fec-finance-depth.md).
 
-Next after G6.2 certification: **G6.3 source-backed Congress and roll-call depth**.
+G6.3 status: **certified locally on 2026-07-31**. A Firebase-free official Congress.gov/Senate.gov capture resolved all 449 reviewed canonical Bioguide identities, added 20 House and 20 Senate roll calls, and preserves G6.2 finance plus all baseline cardinalities. See [G6.3 Congress and roll-call depth](status/g6-3-congress-roll-call-depth.md).
+
+Next after G6.3 certification: **G6.4 historical margin, turnout, and CVAP depth**.
 
 Implement providers by source format so parsers and failure handling can be
 reused:
@@ -243,7 +245,7 @@ Exit gate for the workstream:
 
 ### G6 — Research and metrics depth
 
-Status: **G6.1 and G6.2 completed locally; G6.3 depth work next**
+Status: **G6.1 through G6.3 completed locally; G6.4 depth work next**
 
 Raise the catalog from identity coverage to decision-useful evidence.
 

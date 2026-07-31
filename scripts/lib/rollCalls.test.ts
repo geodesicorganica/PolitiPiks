@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildVoteRecordResearch, normalizeVoteCast, parseSenateVoteMenu, parseSenateVoteXml } from './rollCalls.js';
+import { buildVoteRecordResearch, memberMatchesCandidate, normalizeVoteCast, parseSenateVoteMenu, parseSenateVoteXml } from './rollCalls.js';
 
 assert.equal(normalizeVoteCast('Aye'), 'Yea');
 assert.equal(normalizeVoteCast('Nay'), 'Nay');
@@ -12,7 +12,8 @@ assert.equal(menu[0].issue, 'S.J.Res. 198');
 const xml = '<roll_call_vote><congress>119</congress><session>2</session><vote_number>1</vote_number><vote_date>January 5, 2026</vote_date><vote_title>Confirmation</vote_title><vote_result_text>Confirmed</vote_result_text><document><document_name>PN12-1</document_name></document><members><member><first_name>Jane</first_name><last_name>Doe</last_name><state>GA</state><vote_cast>Yea</vote_cast></member></members></roll_call_vote>';
 const vote = parseSenateVoteXml(xml, 'https://senate.example/vote.xml');
 assert.equal(vote.members[0].lastName, 'Doe');
-const research = buildVoteRecordResearch({ id: 'jane', name: 'Jane Doe', party: 'Democrat' }, [vote]);
+assert.equal(memberMatchesCandidate({ firstName: 'Jane', lastName: 'Doe' }, { id: 'jane', name: 'Jane Doe', party: 'Democrat', externalIds: { bioguideId: 'D000001' } }), false, 'name-only matching is rejected');
+const research = buildVoteRecordResearch({ id: 'jane', name: 'Jane Doe', party: 'Democrat', externalIds: { bioguideId: 'D000001' } }, [{ ...vote, members: [{ bioguideId: 'D000001', voteCast: 'Yea' }] }]);
 assert.ok(research.section?.bullets?.[0].startsWith('Yea on PN12-1'));
 assert.equal(research.sources[0].type, 'official');
 
