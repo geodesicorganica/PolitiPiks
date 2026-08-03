@@ -191,6 +191,10 @@ export interface Race extends SourceMetadata {
   /** Canonical-catalog metadata; absent records are legacy or non-federal compatibility records. */
   catalogScope?: 'federal' | 'nonfederal';
   registryGeneration?: string;
+  catalogReady?: boolean;
+  researchReady?: boolean;
+  metricsReady?: boolean;
+  predictionReady?: boolean;
   summary?: string;
   ballotpediaUrl?: string;
   newsUrl?: string;
@@ -218,8 +222,12 @@ export interface BallotMeasure extends SourceMetadata {
   publicationReady?: boolean;
   evidenceDigest?: string;
   sourceAuthority?: string;
+  sourceUrl?: string;
   retrievedAt?: string;
   reviewedAt?: string;
+  catalogReady?: boolean;
+  researchReady?: boolean;
+  metricsReady?: boolean;
   fiscalAnalysisUrl?: string;
   deadlineKind?: 'product_safety_lock';
   lockPolicyId?: string;

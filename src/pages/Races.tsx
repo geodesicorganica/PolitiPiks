@@ -87,6 +87,7 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
           {measures.map((measure) => {
             const isClosed = isPickClosed(measure);
+            const picksAvailable = measure.predictionReady === true && (measure.eligibleOptions?.length ?? 0) > 0;
             return (
               <article key={measure.id} className="brutalist-card bg-slate-900 overflow-hidden" data-testid={`measure-${measure.id}`}>
                 <div className="bg-brand-red text-white p-4 flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
@@ -97,11 +98,14 @@ export function Races({ onSelectCandidate }: { onSelectCandidate: (candidate: Ca
                   <div className="space-y-4">
                     <h3 className="font-black uppercase tracking-tight text-xl text-white italic">{measure.title}</h3>
                     <p className="text-xs text-slate-400 font-medium uppercase leading-relaxed border-l-2 border-brand-red pl-4">{measure.description}</p>
+                    <p className="text-[10px] font-mono text-slate-500 uppercase" data-testid={`measure-source-${measure.id}`}>{measure.sourceAuthority ?? 'Official source pending'} · {measure.qualificationStatus ?? 'status unavailable'}</p>
+                    {(measure.eligibleOptions?.length ?? 0) > 0 && <p className="text-[10px] font-mono text-slate-400 uppercase">Choices: {measure.eligibleOptions!.join(' / ')}</p>}
+                    {measure.sourceUrl && <a href={measure.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-400 hover:text-white uppercase">Official source <ExternalLink size={10} /></a>}
                   </div>
                   <p className="text-[10px] font-mono uppercase text-slate-500" data-testid={`close-at-${measure.id}`}>
                     {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(measure)}
                   </p>
-                  <p className="text-[10px] font-mono uppercase text-brand-red">Picks are available inside a league.</p>
+                  <p className="text-[10px] font-mono uppercase text-brand-red">{picksAvailable ? 'Picks are available inside a league.' : 'Picks not yet available.'}</p>
                 </div>
               </article>
             );

@@ -17,6 +17,7 @@
     "migrate-close-at": "tsx scripts/migrate-close-at.ts",
     "verify-close-at-migration": "tsx tests/close-at-migration.test.ts",
     "test-contest-catalog": "tsx src/lib/contestCatalog.test.ts",
+    "test-canonical-evidence": "tsx src/lib/canonicalEvidence.test.ts",
     "verify-firestore-league-flow": "firebase emulators:exec --config scripts/firebase.emulator-test.json --only firestore \"node tests/firestore-league-flow.mjs\"",
     "verify-browser-league-flow": "playwright test --config=playwright.config.ts"
   },
