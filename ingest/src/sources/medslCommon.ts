@@ -125,6 +125,14 @@ export async function fetchCsv(url: string) {
   return parsed.data.filter((r: Row) => Object.keys(r).length > 0);
 }
 
+/** Parse a downloaded MEDSL delimited file without exposing its rows outside
+ * the source adapter. The tabular Senate archive is tab-delimited. */
+export function parseMedslDelimited(contents: string, delimiter = ',') {
+  const parsed = Papa.parse<Row>(contents, { header: true, skipEmptyLines: true, delimiter });
+  if (parsed.errors.length) throw new Error(`CSV parse error: ${parsed.errors[0]?.message ?? 'unknown'}`);
+  return parsed.data.filter((row: Row) => Object.keys(row).length > 0);
+}
+
 export function closeDateForElection(electionDateISO: string) {
   // For post-cert historical imports, exact poll close times don't matter for pick locking.
   // Use end-of-day UTC as a stable placeholder.
@@ -135,6 +143,12 @@ export async function forEachZipCsvRow(url: string, onRow: (row: Row) => void) {
   const resp = await fetch(url, { headers: { accept: 'application/zip,*/*' } });
   if (!resp.ok) throw new Error(`Fetch failed ${resp.status} for ${url}`);
   const buffer = Buffer.from(await resp.arrayBuffer());
+  await forEachZipCsvBuffer(buffer, onRow);
+}
+
+/** Parses an already-fetched MEDSL ZIP. Capture callers use this to checkpoint
+ * privacy-projected aggregates rather than retain raw election rows. */
+export async function forEachZipCsvBuffer(buffer: Buffer, onRow: (row: Row) => void) {
   const csvStream = extractFirstCsvStreamFromZip(buffer);
 
   await new Promise<void>((resolve, reject) => {

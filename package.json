@@ -33,6 +33,7 @@
     "test-fec-finance-capture-cli": "tsx scripts/lib/fecFinanceCaptureCli.test.ts",
     "capture-2026-fec-finance": "tsx scripts/capture-2026-fec-finance.ts",
     "test-contest-metrics": "tsx scripts/lib/contestMetrics.test.ts",
+    "test-historical-cvap-depth": "tsx scripts/lib/historicalCvapDepth.test.ts && tsx scripts/lib/historicalCvapCaptureCli.test.ts && tsx scripts/lib/historicalCvapCensus.test.ts && tsx scripts/lib/historicalCvapCensusTransport.test.ts",
     "enrich-roll-calls": "tsx scripts/enrich-roll-calls.ts",
     "test-roll-calls": "tsx scripts/lib/rollCalls.test.ts",
     "test-congress-depth": "tsx scripts/lib/congressDepth.test.ts",

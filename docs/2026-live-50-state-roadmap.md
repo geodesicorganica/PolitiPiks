@@ -213,7 +213,9 @@ G6.2 status: **certified locally on 2026-07-31**. The Firebase-free FEC bulk can
 
 G6.3 status: **certified locally on 2026-07-31**. A Firebase-free official Congress.gov/Senate.gov capture resolved all 449 reviewed canonical Bioguide identities, added 20 House and 20 Senate roll calls, and preserves G6.2 finance plus all baseline cardinalities. See [G6.3 Congress and roll-call depth](status/g6-3-congress-roll-call-depth.md).
 
-Next after G6.3 certification: **G6.4 historical margin, turnout, and CVAP depth**.
+G6.4 status: **certified locally on 2026-08-03**. Firebase-free historical/CVAP capture now provides 470/470 canonical CVAP facts, 434 historical facts, and 428 turnout proxies, while preserving 470 metrics, 2,384 candidate-research documents, and 14 measure-research documents. District of Columbia and Puerto Rico are audited Census statewide exclusions; CT/IL/NH `ZZ` district rows are audited non-district exclusions. See [G6.4 historical turnout and CVAP depth](status/g6-4-historical-turnout-cvap-depth.md).
+
+Next after G6.4 certification: **G7 product-complete catalog, research, leagues, and picks**.
 
 Implement providers by source format so parsers and failure handling can be
 reused:
@@ -245,7 +247,7 @@ Exit gate for the workstream:
 
 ### G6 — Research and metrics depth
 
-Status: **G6.1 through G6.3 completed locally; G6.4 depth work next**
+Status: **G6.1 through G6.4 completed locally; G7 product surfacing next**
 
 Raise the catalog from identity coverage to decision-useful evidence.
 

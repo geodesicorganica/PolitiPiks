@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import { CENSUS_2024_DISTRICT_HEADER, CENSUS_STATE_FIPS, censusDistrictShardUrl, censusDistrictShards, censusFailureReceipt, validateCensusDistrictResponse, validateCensusRedirect, validateCensusStateResponse, versionedCensusFailureReceiptName } from './historicalCvapCensus.js';
+const shards = censusDistrictShards();
+assert.equal(shards.length, 50, 'exactly 50 state shards');
+assert.equal(new Set(shards.map((item) => item.fips)).size, 50, 'state FIPS are unique');
+assert.equal(new Set(shards.map((item) => item.sourceUrl)).size, 50, 'state URLs are unique');
+assert.equal(shards.find((item) => item.state === 'AK')?.fips, CENSUS_STATE_FIPS.AK);
+assert.equal(versionedCensusFailureReceiptName('AK', ['census-failure-AK.json']), 'census-failure-AK-v2.json');
+assert.equal(versionedCensusFailureReceiptName('AK', ['census-failure-AK.json', 'census-failure-AK-v2.json']), 'census-failure-AK-v3.json');
+assert.equal(new URL(censusDistrictShardUrl('02')).searchParams.get('in'), 'state:02', 'canonical URLs use URLSearchParams');
+const observedAlaskaHeader = ['NAME', 'B29001_001E', 'state', 'congressional district'];
+const rowFor = (header: string[]) => header.map((column) => ({ NAME: 'Alaska At-Large', B29001_001E: '100', state: '02', 'congressional district': '00' })[column]!);
+const valid = Buffer.from(JSON.stringify([observedAlaskaHeader, rowFor(observedAlaskaHeader)]));
+assert.deepEqual(validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json; charset=utf-8', body: valid }), { rows: [{ state: 'AK', district: 'AL', cvapEstimate: 100 }], ignoredNonDistrictRows: 0 }, 'observed Alaska state 02 and district 00 map to AK/AL');
+const permutations = <T>(values: T[]): T[][] => values.length < 2 ? [values] : values.flatMap((value, index) => permutations([...values.slice(0, index), ...values.slice(index + 1)]).map((rest) => [value, ...rest]));
+for (const header of permutations([...CENSUS_2024_DISTRICT_HEADER])) assert.deepEqual(validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([header, rowFor(header)])) }), { rows: [{ state: 'AK', district: 'AL', cvapEstimate: 100 }], ignoredNonDistrictRows: 0 }, `exact district header permutation binds by name: ${header.join(',')}`);
+const ctRows = ['01','02','03','04','05','ZZ'].map((district) => ['Connecticut', '100', '09', district]);
+const ct = validateCensusDistrictResponse({ requestedState: 'CT', requestedFips: '09', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ...ctRows])) });
+assert.deepEqual(ct.rows.map((row) => row.district), ['001','002','003','004','005']); assert.equal(ct.ignoredNonDistrictRows, 1, 'exact ZZ is ignored and audited');
+for (const input of [
+  { status: 200, redirected: false, contentType: 'text/html', body: Buffer.from('<html>blocked</html>') },
+  { status: 200, redirected: true, contentType: 'application/json', body: valid },
+  { status: 200, redirected: false, contentType: 'application/json', body: Buffer.from('<html>wrong</html>') },
+]) assert.throws(() => validateCensusDistrictResponse({ requestedState: 'AL', requestedFips: '01', ...input }), /(content type|redirect|array)/i);
+for (const header of [['NAME', 'B29001_001E', 'state'], ['NAME', 'B29001_001E', 'state', 'state'], ['NAME', 'B29001_001E', 'state', 'congressional district', 'extra']]) assert.throws(() => validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([header, rowFor(observedAlaskaHeader)])) }), /header/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ['Alaska', '10', '02']])) }), /record/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ['bad', '10', '01', '00']])) }), /state mismatch/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'AK', requestedFips: '02', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ['bad', '-1', '02', '00']])) }), /CVAP/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'CT', requestedFips: '09', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ...ctRows.filter((row) => row[3] !== '05')])) }), /incomplete/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'CT', requestedFips: '09', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ...ctRows.filter((row) => row[3] !== 'ZZ'), ['Connecticut', '100', '09', '06']])) }), /malformed Census district geography/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'CT', requestedFips: '09', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ...ctRows.filter((row) => row[3] !== 'ZZ'), ['Connecticut', '100', '09', '00']])) }), /malformed Census district geography/);
+assert.throws(() => validateCensusDistrictResponse({ requestedState: 'CT', requestedFips: '09', status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([observedAlaskaHeader, ...ctRows.filter((row) => row[3] !== 'ZZ'), ['Connecticut', '100', '09', 'AA']])) }), /malformed Census district geography/);
+const receipt = censusFailureReceipt({ state: 'AL', sourceUrl: 'https://api.census.gov/data?token=secret', status: 200, contentType: 'text/html', location: 'https://api.census.gov/data/2024/acs/acs5?get=NAME,B29001_001E&for=congressional%20district:*&in=state:01', body: Buffer.from('<html>blocked</html>'), bodyArtifact: 'census-response-AL-v2.json', createdAt: '2026-07-31T00:00:00.000Z' });
+assert.equal(JSON.stringify(receipt).includes('secret'), false, 'failure receipts do not disclose query secrets');
+assert.match(receipt.responseDigest, /^[a-f0-9]{64}$/);
+assert.equal(receipt.location?.includes('state:01'), true, 'the private receipt records the raw Location header');
+assert.equal(receipt.bodyArtifact, 'census-response-AL-v2.json', 'complete public schema failures have a private no-clobber body artifact');
+const statewideHeader = ['state', 'NAME', 'B29001_001E'];
+const statewideRows = Object.entries(CENSUS_STATE_FIPS).map(([state, fips], index) => [fips, state, String(index + 100)]);
+const statewideResponse = () => Buffer.from(JSON.stringify([statewideHeader, ...statewideRows, ['11', 'District of Columbia', '100'], ['72', 'Puerto Rico', '100']]));
+const statewide = validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: statewideResponse() });
+assert.equal(statewide.rows.length, 50, 'the saved-style 52-row statewide response yields exactly 50 canonical states');
+assert.deepEqual(statewide.excludedJurisdictions, [{ fips: '11', name: 'District of Columbia' }, { fips: '72', name: 'Puerto Rico' }], 'DC and PR are explicitly audited as excluded');
+assert.deepEqual(validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([['NAME', 'B29001_001E', 'state'], ...statewideRows.map(([fips, name, estimate]) => [name, estimate, fips]), ['District of Columbia', '100', '11'], ['Puerto Rico', '100', '72']])) }).rows.map((row) => row.state), Object.keys(CENSUS_STATE_FIPS).sort(), 'statewide headers bind by exact names in any order');
+assert.throws(() => validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([statewideHeader, ...statewideRows.slice(1), ['11', 'District of Columbia', '100'], ['72', 'Puerto Rico', '100']])) }), /incomplete/);
+assert.throws(() => validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([statewideHeader, ...statewideRows, ['60', 'American Samoa', '100']])) }), /unsupported/);
+assert.throws(() => validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([statewideHeader, ...statewideRows, statewideRows[0]])) }), /duplicate/);
+assert.throws(() => validateCensusStateResponse({ status: 200, redirected: false, contentType: 'application/json', body: Buffer.from(JSON.stringify([['NAME', 'state', 'state'], ...statewideRows])) }), /header/);
+const source = censusDistrictShardUrl('02');
+assert.equal(validateCensusRedirect({ sourceUrl: source, location: source, requestedFips: '02', redirectCount: 1 }), source, 'same-host canonical redirect is permitted');
+for (const location of ['http://api.census.gov/data/2024/acs/acs5', 'https://example.invalid/data/2024/acs/acs5', 'https://api.census.gov/data/2023/acs/acs5?get=NAME,B29001_001E&for=congressional%20district:*&in=state:02', 'https://api.census.gov/data/2024/acs/acs5?get=NAME,B29001_001E&for=congressional%20district:*&in=state:01', 'https://api.census.gov/data/2024/acs/acs5?get=NAME,B29001_001E&for=congressional%20district:*&in=state:02&token=x']) assert.throws(() => validateCensusRedirect({ sourceUrl: source, location, requestedFips: '02', redirectCount: 1 }));
+assert.throws(() => validateCensusRedirect({ sourceUrl: source, location: source, requestedFips: '02', redirectCount: 2 }), /chain/);
+console.log('historical/CVAP Census shard tests passed');

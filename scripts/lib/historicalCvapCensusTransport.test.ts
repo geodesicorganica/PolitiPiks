@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { censusTransportUrl, loadCensusApiKey, sanitizeCensusLocation } from './historicalCvapCensusTransport.js';
+const calls: Array<{ path: string; override: boolean; quiet: boolean }> = []; const dotenvEnv: Record<string, string | undefined> = {};
+const loaded = loadCensusApiKey({ env: dotenvEnv, cwd: 'C:/Projects/Politipiks', exists: () => true, config: ({ path, override, quiet }) => { calls.push({ path, override, quiet }); dotenvEnv.CENSUS_API_KEY = 'synthetic-dotenv-key'; return {}; } });
+assert.deepEqual(loaded, { present: true, source: 'dotenv' }); assert.deepEqual(calls[0], { path: 'C:\\Projects\\Politipiks\\.env.local', override: false, quiet: true });
+const shellEnv = { CENSUS_API_KEY: 'synthetic-shell-key' }; assert.deepEqual(loadCensusApiKey({ env: shellEnv, cwd: 'C:/Projects/Politipiks', exists: () => true, config: () => { shellEnv.CENSUS_API_KEY ??= 'dotenv-key'; return {}; } }), { present: true, source: 'shell' });
+assert.deepEqual(loadCensusApiKey({ env: {}, cwd: 'C:/Projects/Politipiks', exists: () => false }), { present: false, source: 'absent' });
+const canonical = 'https://api.census.gov/data/2024/acs/acs5?get=NAME%2CB29001_001E&for=congressional+district%3A*&in=state%3A02'; const transport = censusTransportUrl(canonical, 'synthetic-key');
+assert.equal(new URL(canonical).searchParams.has('key'), false, 'canonical provenance URL is keyless'); assert.equal(new URL(transport).searchParams.get('key'), 'synthetic-key', 'key is only added to the ephemeral transport URL'); assert.equal(sanitizeCensusLocation('https://api.census.gov/data/missing_key.html?key=synthetic-key')?.includes('synthetic-key'), false);
+assert.throws(() => censusTransportUrl(canonical, ''), /required/);
+console.log('historical/CVAP Census transport tests passed');

@@ -4,6 +4,8 @@ export type PartyTotals = { dem: number; rep: number; total: number };
 
 export type DemographicsRecord = NonNullable<ContestMetrics['demographics']> & {
   vap?: number | null;
+  /** ACS citizen voting-age population estimate; VAP is never a substitute. */
+  cvap?: number | null;
 };
 
 export type HistoricalPlan = {
@@ -91,6 +93,14 @@ export function getHistoricalPlan(
   return null;
 }
 
+/** Canonical 2026 identifiers carry Senate class/special status; never infer it from state alone. */
+export function getCanonical2026HistoricalPlan(race: { id: string; office: Race['office'] }): HistoricalPlan | null {
+  if (race.office === 'House' && /^2026-[A-Z]{2}-house-/.test(race.id)) return { historicalElectionYear: 2024, turnoutElectionYear: 2024, turnoutComparisonElectionYear: 2022 };
+  if (race.office === 'Senate' && /^2026-[A-Z]{2}-senate-class-2$/.test(race.id)) return { historicalElectionYear: 2020, turnoutElectionYear: 2020, turnoutComparisonElectionYear: null };
+  if (race.office === 'Senate' && /^2026-(FL|OH)-senate-special-class-3$/.test(race.id)) return { historicalElectionYear: 2022, turnoutElectionYear: 2022, turnoutComparisonElectionYear: null };
+  return null;
+}
+
 function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
@@ -106,7 +116,7 @@ export function marginPct(totals: PartyTotals): number | null {
 
 function stripVap(demo: DemographicsRecord | undefined): ContestMetrics['demographics'] | undefined {
   if (!demo) return undefined;
-  const { vap: _vap, ...rest } = demo;
+  const { vap: _vap, cvap: _cvap, ...rest } = demo;
   return rest;
 }
 
@@ -165,8 +175,10 @@ export function buildMetricsForRace(race: Race, inputs: MetricsInputs): ContestM
   const turnout: NonNullable<ContestMetrics['turnout']> = {
     electionYear: turnoutElectionYear,
     comparisonElectionYear: turnoutComparisonElectionYear,
-    turnoutRate: turnoutBasis && turnoutBasis.total > 0 && demo?.vap
-      ? round3(Math.min(1, turnoutBasis.total / demo.vap))
+    // A votes/CVAP ratio over one is a geography/vintage contradiction, not a
+    // value to clamp. Keep it unavailable until a reviewed source resolves it.
+    turnoutRate: turnoutBasis && turnoutBasis.total > 0 && demo?.cvap && turnoutBasis.total <= demo.cvap
+      ? round3(turnoutBasis.total / demo.cvap)
       : null,
     turnoutChange: turnoutBasis && turnoutBasis.total > 0 && turnoutComparison && turnoutComparison.total > 0
       ? round3((turnoutBasis.total - turnoutComparison.total) / turnoutComparison.total)
