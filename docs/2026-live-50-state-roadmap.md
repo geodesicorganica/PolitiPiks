@@ -288,7 +288,7 @@ Exit gate:
 
 ### G7 — Product-complete catalog, research, leagues, and picks
 
-Status: **planned**
+Status: **in progress; G7.1 local research surfacing certified, G7.2 workflow certification next**
 
 Complete and verify the user-facing workflow:
 
@@ -303,6 +303,20 @@ Complete and verify the user-facing workflow:
 - preserve accessibility and mobile behavior;
 - keep valid non-federal contests and measures visible during federal selector
   changes.
+
+G7.1 status: **certified locally on 2026-08-03**. A deterministic private
+product bundle now projects the certified G3–G6 chain into 470 races, 14
+measures, 2,384 candidate-research documents, 14 measure-research documents,
+470 metrics, and one selector with zero duplicate/orphan/unresolved/leakage
+findings. A loopback-only seeder populated all 3,353 documents in nine emulator
+batches. The active app renders sourced identity, finance, congressional,
+historical-margin, turnout-proxy, CVAP, freshness, methodology, and explicit
+missing/error states; California measures remain selectable while catalog-only
+Georgia remains browseable and disabled. See [G7.1 local research
+surfacing](status/g7-1-local-research-surfacing.md).
+
+Next: **G7.2 local league/pick workflow and catalog filters**, followed by G7.3
+release/rollback runbook readiness. Neither step authorizes production access.
 
 Exit gate:
 
