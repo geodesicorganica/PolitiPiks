@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../App';
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, serverTimestamp, getDocs, doc, setDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { League, LeagueMember } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -20,6 +20,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
   const [tab, setTab] = useState<'my' | 'join' | 'create'>('my');
   const [copied, setCopied] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ kind: 'status' | 'alert'; message: string } | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -42,19 +43,21 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
 
   const handleCreate = async () => {
     if (!newLeagueName) {
-      alert('Please enter a league name.');
+      setFeedback({ kind: 'alert', message: 'Please enter a league name.' });
       return;
     }
     
     if (!profile) {
-      alert('User profile not found. Please refresh the page or sign in again.');
+      setFeedback({ kind: 'alert', message: 'User profile not found. Please refresh the page or sign in again.' });
       return;
     }
 
     setIsSubmitting(true);
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     try {
-      const docRef = await addDoc(collection(db, 'leagues'), {
+      const docRef = doc(collection(db, 'leagues'));
+      const batch = writeBatch(db);
+      batch.set(docRef, {
         name: newLeagueName,
         ownerId: profile.uid,
         inviteCode: code,
@@ -63,18 +66,19 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
         mode: ACTIVE_ELECTION_MODE,
       });
       
-      // Add owner as member
-      await setDoc(doc(db, `leagues/${docRef.id}/members`, profile.uid), {
+      // Create the league and its owner membership atomically to avoid orphan leagues.
+      batch.set(doc(db, `leagues/${docRef.id}/members`, profile.uid), {
         userId: profile.uid,
         displayName: profile.displayName,
         photoURL: profile.photoURL || '',
         points: 0,
         joinedAt: serverTimestamp()
       });
+      await batch.commit();
 
       setNewLeagueName('');
-      setTab('my');
-      alert('League created successfully!');
+      setFeedback({ kind: 'status', message: 'League created. Opening its certified contest catalog.' });
+      onSelectLeague(docRef.id);
     } catch (err) {
       console.error('League creation error:', err);
       // handleFirestoreError will throw, so we catch it or use it for logging
@@ -83,7 +87,7 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
       } catch (formattedErr) {
         console.error('Formatted Error:', formattedErr);
       }
-      alert('Failed to create league. This may be due to a permission error or network issue.');
+      setFeedback({ kind: 'alert', message: 'League creation failed. No partial league was kept.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -96,20 +100,23 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
   };
 
   const handleJoin = async () => {
-    if (!profile || !inviteCode) return;
+    const normalizedInviteCode = inviteCode.trim().toUpperCase();
+    if (!profile || !normalizedInviteCode) {
+      setFeedback({ kind: 'alert', message: 'Enter an invite code.' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const q = query(
         collection(db, 'leagues'),
-        where('inviteCode', '==', inviteCode),
+        where('inviteCode', '==', normalizedInviteCode),
         where('electionYear', '==', ACTIVE_ELECTION_YEAR),
         where('mode', '==', ACTIVE_ELECTION_MODE),
       );
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        alert('Invalid invite code');
-        setIsSubmitting(false);
+        setFeedback({ kind: 'alert', message: 'No active 2026 league matches that invite code.' });
         return;
       }
 
@@ -125,11 +132,11 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
       });
 
       setInviteCode('');
-      setTab('my');
-      alert('Joined league successfully!');
+      setFeedback({ kind: 'status', message: 'League joined. Opening its certified contest catalog.' });
+      onSelectLeague(leagueId);
     } catch (err) {
       console.error(err);
-      alert('Failed to join league. You might already be a member.');
+      setFeedback({ kind: 'alert', message: 'Unable to join this league.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -137,30 +144,32 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
 
   return (
     <div className="space-y-12 pb-12">
-      <div className="border-b-4 border-slate-800 pb-6 flex justify-between items-end">
+      <div className="border-b-4 border-slate-800 pb-6 flex flex-col sm:flex-row justify-between sm:items-end gap-5">
         <div>
           <h1 className="text-5xl font-black italic tracking-tighter uppercase italic text-white flex items-center gap-4">
              Leagues <span className="bg-brand-red text-white text-[10px] not-italic px-2 py-0.5 font-mono">2026 LIVE</span>
           </h1>
           <p className="text-xs font-mono uppercase text-slate-500 mt-2">Compete in exclusive circles. Win big, lose face.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button 
             disabled={isSubmitting}
             onClick={() => setTab('join')}
-            className={cn("px-6 py-2 font-black uppercase text-xs transition-all", tab === 'join' ? "bg-brand-blue text-white shadow-[4px_4px_0px_0px_#fff]" : "bg-slate-900 text-slate-500 hover:text-white border border-slate-800")}
+            className={cn("min-h-11 px-6 py-2 font-black uppercase text-xs transition-all", tab === 'join' ? "bg-brand-blue text-white shadow-[4px_4px_0px_0px_#fff]" : "bg-slate-900 text-slate-500 hover:text-white border border-slate-800")}
           >
             Join League
           </button>
           <button 
             disabled={isSubmitting}
             onClick={() => setTab('create')}
-            className={cn("px-6 py-2 font-black uppercase text-xs transition-all", tab === 'create' ? "bg-brand-red text-white shadow-[4px_4px_0px_0px_#fff]" : "bg-slate-900 text-slate-500 hover:text-white border border-slate-800")}
+            className={cn("min-h-11 px-6 py-2 font-black uppercase text-xs transition-all", tab === 'create' ? "bg-brand-red text-white shadow-[4px_4px_0px_0px_#fff]" : "bg-slate-900 text-slate-500 hover:text-white border border-slate-800")}
           >
             Start New
           </button>
         </div>
       </div>
+
+      {feedback && <div role={feedback.kind} aria-live="polite" className={cn('p-4 border font-mono text-xs uppercase', feedback.kind === 'alert' ? 'border-brand-red text-brand-red' : 'border-emerald-500 text-emerald-400')}>{feedback.message}</div>}
 
       <AnimatePresence mode="wait">
         {tab === 'my' && (
@@ -240,8 +249,9 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
             
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-mono uppercase text-slate-500 block ml-1">Entity Name</label>
+                <label htmlFor="league-name" className="text-[10px] font-mono uppercase text-slate-500 block ml-1">Entity Name</label>
                 <input 
+                  id="league-name"
                   type="text" 
                   value={newLeagueName}
                   disabled={isSubmitting}
@@ -286,6 +296,8 @@ export function Leagues({ onSelectLeague }: LeaguesProps) {
                 <label className="text-[10px] font-mono uppercase text-slate-500 block text-center">Auth Code</label>
                 <input 
                   type="text" 
+                  id="invite-code"
+                  aria-label="Invite code"
                   value={inviteCode}
                   disabled={isSubmitting}
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}

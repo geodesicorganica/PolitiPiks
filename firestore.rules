@@ -203,6 +203,9 @@ service cloud.firestore {
     function racePickIsEligible(data) {
       return data.type != 'race' ||
         (exists(/databases/$(database)/documents/races/$(data.targetId)) &&
+         (get(/databases/$(database)/documents/races/$(data.targetId)).data.get('predictionReady', null) == true ||
+          (get(/databases/$(database)/documents/races/$(data.targetId)).data.get('predictionReady', null) == null &&
+           get(/databases/$(database)/documents/races/$(data.targetId)).data.get('catalogScope', null) != 'federal')) &&
          get(/databases/$(database)/documents/races/$(data.targetId)).data.get('eligibleCandidateIds', null) is list &&
          data.pick in get(/databases/$(database)/documents/races/$(data.targetId)).data.eligibleCandidateIds);
     }

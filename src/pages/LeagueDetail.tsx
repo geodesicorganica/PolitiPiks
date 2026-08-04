@@ -8,6 +8,8 @@ import { useContestCatalog } from '../lib/useContestCatalog';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, handleFirestoreError, OperationType } from '../lib/utils';
 import { normalizeCandidateRecords, sortActivitiesRecentFirst, sortVotesRecentFirst } from '../lib/dataPlatform';
+import { candidatePickIsEligible, measurePickIsEligible, racePickUnavailableReason } from '../lib/predictionEligibility';
+import { measureReady, raceReady } from '../lib/catalogFilters';
 import { 
   Users, Trophy, Vote, Activity, ArrowLeft, ExternalLink, 
   Info, Check, BarChart2, TrendingUp, BookOpen, Shield, Globe, Target, Trash2
@@ -27,6 +29,7 @@ type CategoryType = 'Senate' | 'Gubernatorial' | 'Congress' | 'Ballot Initiative
 export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const { profile } = useAuth();
   const [league, setLeague] = useState<League | null>(null);
+  const [leagueUnavailable, setLeagueUnavailable] = useState(false);
   const [members, setMembers] = useState<LeagueMember[]>([]);
   const { races, measures, loading: catalogLoading, error: catalogError } = useContestCatalog();
   const [predictions, setPredictions] = useState<Record<string, string>>({});
@@ -47,6 +50,9 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
     const unsubscribeLeague = onSnapshot(doc(db, 'leagues', leagueId), (docSnap) => {
       if (docSnap.exists()) {
         setLeague({ id: docSnap.id, ...docSnap.data() } as League);
+        setLeagueUnavailable(false);
+      } else {
+        setLeagueUnavailable(true);
       }
     }, (error) => handleFirestoreError(error, OperationType.GET, `leagues/${leagueId}`));
 
@@ -100,8 +106,10 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   };
 
   const handlePick = async (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => {
-    const measurePickUnavailable = type === 'measure' && (!(target as BallotMeasure).predictionReady || !(target as BallotMeasure).eligibleOptions?.includes(pick));
-    if (!profile || isPickClosed(target) || (type === 'race' && !(target as Race).eligibleCandidateIds?.includes(pick)) || measurePickUnavailable) return;
+    const raceCandidate = type === 'race' ? (target as Race).candidates.find((candidate) => candidate.id === pick) : null;
+    const racePickUnavailable = type === 'race' && (!raceCandidate || !candidatePickIsEligible(target as Race, raceCandidate));
+    const measurePickUnavailable = type === 'measure' && !measurePickIsEligible(target as BallotMeasure, pick);
+    if (!profile || isPickClosed(target) || racePickUnavailable || measurePickUnavailable) return;
     setSubmitting(target.id);
     try {
       const q = query(
@@ -220,11 +228,14 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
 
   const { items, type } = getDataForCategory();
 
-  if (catalogError) return <div role="alert" className="p-8 border border-brand-red text-brand-red font-mono uppercase">Catalog unavailable: {catalogError}</div>;
+  if (catalogError) return <div role="alert" data-testid="league-catalog-source-error" className="p-8 border border-brand-red text-brand-red font-mono uppercase">Catalog source error. Picks are unavailable: {catalogError}</div>;
+
+  if (leagueUnavailable) return <div role="alert" className="p-8 border border-amber-500 text-amber-300 font-mono uppercase">This league is unavailable or no longer exists.</div>;
 
   if (loading || !league) return (
-    <div className="flex h-screen items-center justify-center bg-brand-dark">
+    <div className="flex h-screen items-center justify-center gap-3 bg-brand-dark" role="status" aria-live="polite">
       <div className="w-12 h-12 border-4 border-brand-red border-t-transparent rounded-full animate-spin" />
+      <span className="font-mono text-xs uppercase text-slate-400">Loading league and certified catalog…</span>
     </div>
   );
 
@@ -328,7 +339,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
         </div>
 
         {/* Table View */}
-        <div className="bg-slate-900 border border-slate-800 brutalist-card overflow-hidden">
+        <div className="bg-slate-900 border border-slate-800 brutalist-card overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-black/50 border-b border-slate-800">
@@ -392,8 +403,12 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
                               <Check size={14} />
                               <span className="text-[10px] font-black uppercase tracking-widest italic">{prediction}</span>
                            </div>
-                         ) : (
-                           <span className="text-[10px] font-bold text-slate-700 uppercase italic">Awaiting Pick</span>
+                          ) : isRace && !raceReady(item) ? (
+                            <span className="text-[10px] font-bold text-amber-500 uppercase italic">Picks unavailable</span>
+                          ) : !isRace && !measureReady(item) ? (
+                            <span className="text-[10px] font-bold text-amber-500 uppercase italic">Picks unavailable</span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-500 uppercase italic">Awaiting pick</span>
                          )}
                       </td>
                       <td className="p-6 text-right">
@@ -576,10 +591,9 @@ function DecisionModule({
   const item = race || measure;
   const [canonicalVoteCounts, setCanonicalVoteCounts] = useState<Record<string, number>>({});
   if (!item) return null;
-  const eligibleCandidateIds = new Set(race?.eligibleCandidateIds ?? []);
-  const racePicksAvailable = !race || eligibleCandidateIds.size > 0;
+  const racePicksAvailable = !race || raceReady(race);
   const eligibleMeasureOptions = new Set(measure?.eligibleOptions ?? []);
-  const measurePicksAvailable = !measure || (measure.predictionReady === true && eligibleMeasureOptions.size > 0);
+  const measurePicksAvailable = !measure || measureReady(measure);
   const isClosed = isPickClosed(item);
 
   return (
@@ -625,8 +639,8 @@ function DecisionModule({
                <span className="font-mono text-slate-400 uppercase" data-testid={`close-at-${item.id}`}>
                  {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(item)}
                </span>
-               {race && !racePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${race.id}`}>Picks not yet available</span>}
-               {measure && !measurePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${measure.id}`}>Picks not yet available</span>}
+               {race && !racePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${race.id}`}>{racePickUnavailableReason(race)}</span>}
+               {measure && !measurePicksAvailable && <span className="font-mono text-amber-400 uppercase" data-testid={`picks-unavailable-${measure.id}`}>Picks are unavailable because this measure is not prediction-ready.</span>}
             </div>
         </div>
 
@@ -888,8 +902,8 @@ function DecisionModule({
 
                      <div className="pt-10 mt-auto">
                         <button 
-                          disabled={isClosed || !eligibleCandidateIds.has(candidate.id) || prediction === candidate.id || isSubmitting}
-                          aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : !eligibleCandidateIds.has(candidate.id) ? `Picks not yet available: ${candidate.name}` : `Pick ${candidate.name}`}
+                          disabled={isClosed || !candidatePickIsEligible(race, candidate) || prediction === candidate.id || isSubmitting}
+                          aria-label={isClosed ? `Picking is closed: ${formatCloseAt(race)}` : !candidatePickIsEligible(race, candidate) ? `Picks unavailable: ${candidate.name}` : `Pick ${candidate.name}`}
                           onClick={() => onPick(race, candidate.id, 'race')}
                           className={cn(
                              "w-full py-6 font-black uppercase tracking-[0.2em] text-sm transition-all border-2 shadow-[8px_8px_0px_0px_#000] active:translate-x-1 active:translate-y-1 active:shadow-none",
@@ -898,7 +912,7 @@ function DecisionModule({
                               : "bg-white text-black border-white hover:bg-slate-200"
                           )}
                         >
-                           {isClosed ? 'PICKING CLOSED' : !eligibleCandidateIds.has(candidate.id) ? 'PICKS NOT YET AVAILABLE' : isSubmitting && prediction === candidate.id ? 'ENCRYPTING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
+                           {isClosed ? 'PICKING CLOSED' : !candidatePickIsEligible(race, candidate) ? 'PICKS UNAVAILABLE' : isSubmitting && prediction === candidate.id ? 'SAVING PICK...' : prediction === candidate.id ? 'SELECTION SECURED' : `COMMIT FOR ${candidate.name}`}
                         </button>
                      </div>
                   </div>
@@ -926,7 +940,7 @@ function DecisionModule({
                     <div className="space-y-8 bg-slate-900 border border-slate-800 p-12">
                        <p className="text-[10px] font-black uppercase text-brand-red tracking-widest underline decoration-2 offset-4 mb-4">Action Terminal</p>
                        <div className="grid grid-cols-1 gap-4">
-                          {['pass', 'fail'].map(opt => (
+                          {(measure?.eligibleOptions ?? []).map(opt => (
                             <button
                               key={opt}
                               disabled={isClosed || !measurePicksAvailable || !eligibleMeasureOptions.has(opt) || isSubmitting}

@@ -13,7 +13,7 @@ test('2026/live is the browser default and closed picks are disabled', async ({ 
   await expect(page.getByTestId('pick-measure-browser-measure-2026')).toBeEnabled();
   await page.getByTestId('pick-measure-browser-measure-2026').click();
   await expect(page.getByTestId('pick-measure-browser-measure-2026')).toContainText('Pick recorded');
-  await expect(page.getByTestId('picks-unavailable-browser-measure-catalog-only')).toContainText('Picks not yet available');
+  await expect(page.getByTestId('picks-unavailable-browser-measure-catalog-only')).toContainText('Picks unavailable');
   await expect(page.getByTestId('pick-measure-browser-measure-catalog-only')).toBeDisabled();
   await expect(page.getByTestId('canonical-evidence').first()).toContainText('Campaign finance');
   await expect(page.getByTestId('finance-evidence').first()).toContainText('$1,250,000');
@@ -24,8 +24,8 @@ test('2026/live is the browser default and closed picks are disabled', async ({ 
   await expect(page.getByTestId('congress-evidence').first()).toContainText('Official Example Act');
   await expect(page.getByTestId('unavailable-evidence')).toContainText('FEC totals are unavailable.');
   await expect(page.getByTestId('unavailable-evidence')).toContainText('Official source could not be validated.');
-  await expect(page.getByTestId('picks-unavailable-2026-CA-senate-class-1')).toContainText('Picks not yet available');
-  await expect(page.getByTestId('pick-fec-canonical')).toContainText('Picks not yet available');
+  await expect(page.getByTestId('picks-unavailable-2026-CA-senate-class-1')).toContainText('official candidate allowlist');
+  await expect(page.getByTestId('pick-fec-canonical')).toContainText('Picks unavailable');
   await expect(page.getByTestId('pick-fec-canonical')).toBeDisabled();
   await expect(page.getByTestId('race-2026-GA-senate-class-2')).toBeVisible();
   await expect(page.getByTestId('picks-unavailable-2026-GA-senate-class-2')).toBeVisible();
@@ -37,4 +37,32 @@ test('2026/live is the browser default and closed picks are disabled', async ({ 
   await expect(page.getByTestId('race-browser-closed-2026')).toContainText('Picking closed');
   await expect(page.getByTestId('race-browser-closed-2026').getByRole('button')).toBeDisabled();
   await expect(page.getByTestId('race-fixture-race-2024-sandbox')).toHaveCount(0);
+});
+
+test('local create, invite join, combined filters, measure create, and measure update work on mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?browser-test=league-workflow');
+  await page.getByLabel('League name').fill('G7.2 League');
+  await page.getByRole('button', { name: 'Create league' }).click();
+  await expect(page.getByRole('status')).toContainText('G72CA');
+  await page.getByLabel('Invite code').fill('G72CA');
+  await page.getByRole('button', { name: 'Join league' }).click();
+  await expect(page.getByText(/league joined/i)).toBeVisible();
+  await page.getByLabel('State').selectOption('CA');
+  await page.getByLabel('Office or contest type').selectOption('Measure');
+  await page.getByLabel('Race or measure').selectOption('measure');
+  await page.getByLabel('Prediction readiness').selectOption('ready');
+  await expect(page.getByTestId('catalog-result-count')).toHaveText('14 results');
+  const proposition = page.getByTestId('workflow-measure-2026-CA-proposition-1');
+  await proposition.getByRole('button', { name: 'Pick yes' }).click();
+  await expect(proposition).toContainText('Saved pick: yes');
+  await proposition.getByRole('button', { name: 'Pick no' }).click();
+  await expect(proposition).toContainText('Saved pick: no');
+  await page.getByLabel('State').selectOption({ label: 'All states' });
+  await page.getByLabel('Office or contest type').selectOption('Senate');
+  await page.getByLabel('Race or measure').selectOption('measure');
+  await expect(page.getByText(/no contests match/i)).toBeVisible();
+  await page.getByRole('button', { name: 'Clear filters' }).last().click();
+  await expect(page.getByTestId('catalog-result-count')).toHaveText('15 results');
+  await expect(page.getByTestId('workflow-race-2026-CA-senate-class-1')).toContainText('official candidate allowlist');
 });

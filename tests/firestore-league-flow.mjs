@@ -12,10 +12,10 @@ const closedCloseAt = Timestamp.fromMillis(now - 60 * 60 * 1000);
 const canonicalGeneration = 'canonical-2026-shadow-v1';
 
 const target = (closeAt, eligibleCandidateIds = ['candidate-a', 'candidate-b']) => ({ electionYear: 2026, mode: 'live', closeAt, closeDate: closeAt.toDate().toISOString(), eligibleCandidateIds });
-const league = (ownerId = userId) => ({
+const league = (ownerId = userId, inviteCode = 'TEST26') => ({
   name: 'Test league',
   ownerId,
-  inviteCode: 'TEST26',
+  inviteCode,
   createdAt: Timestamp.fromMillis(now),
   electionYear: 2026,
   mode: 'live',
@@ -45,8 +45,10 @@ try {
     await setDoc(doc(adminDb, 'races/closed-race'), target(closedCloseAt));
     await setDoc(doc(adminDb, 'races/2026-CA-senate'), target(openCloseAt));
     await setDoc(doc(adminDb, 'races/2026-FL-senate'), target(closedCloseAt));
-    await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1'), { ...target(openCloseAt, ['fec-canonical', 'fec-canonical-updated']), catalogScope: 'federal', registryGeneration: canonicalGeneration });
-    await setDoc(doc(adminDb, 'races/2026-GA-senate-class-2'), { ...target(openCloseAt, []), catalogScope: 'federal', registryGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1'), { ...target(openCloseAt, ['fec-canonical', 'fec-canonical-updated']), predictionReady: true, catalogScope: 'federal', registryGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'races/2026-GA-senate-class-2'), { ...target(openCloseAt, []), predictionReady: false, catalogScope: 'federal', registryGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'races/source-error-race'), { ...target(openCloseAt, ['stale-candidate']), predictionReady: false });
+    await setDoc(doc(adminDb, 'races/withdrawn-race'), { ...target(openCloseAt, []), predictionReady: false });
     await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical'), { raceId: '2026-CA-senate-class-1', candidateId: 'fec-canonical' });
     await setDoc(doc(adminDb, 'contestMetrics/2026-CA-senate-class-1'), { raceId: '2026-CA-senate-class-1' });
     await setDoc(doc(adminDb, 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration });
@@ -55,6 +57,7 @@ try {
     await setDoc(doc(adminDb, 'ballotMeasures/closed-measure'), { ...target(closedCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'] });
     await setDoc(doc(adminDb, 'leagues/league-a'), league());
     await setDoc(doc(adminDb, 'leagues/league-b'), league(otherUserId));
+    await setDoc(doc(adminDb, 'leagues/league-c'), league(otherUserId, 'JOIN26'));
     await setDoc(doc(adminDb, `leagues/league-a/members/${userId}`), member(userId));
     await setDoc(doc(adminDb, `leagues/league-a/members/${otherUserId}`), member(otherUserId));
     await setDoc(doc(adminDb, 'predictions/open-update'), prediction('open-race', { createdAt: Timestamp.fromMillis(now) }));
@@ -65,12 +68,23 @@ try {
   const userDb = testEnv.authenticatedContext(userId).firestore();
   const otherUserDb = testEnv.authenticatedContext(otherUserId).firestore();
 
+  await assertSucceeds(setDoc(doc(userDb, 'leagues/league-created'), { ...league(), createdAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(userDb, `leagues/league-created/members/${userId}`), { ...member(userId), joinedAt: serverTimestamp() }));
+  const inviteMatch = await assertSucceeds(getDocs(query(collection(userDb, 'leagues'), where('inviteCode', '==', 'JOIN26'))));
+  await assertSucceeds(setDoc(doc(userDb, `leagues/${inviteMatch.docs[0].id}/members/${userId}`), { ...member(userId), joinedAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(userDb, 'predictions/joined-league-create'), prediction('open-race', { leagueId: 'league-c' })));
   await assertSucceeds(setDoc(doc(userDb, 'predictions/open-create'), prediction('open-race')));
   await assertFails(setDoc(doc(userDb, 'predictions/open-ineligible-candidate'), prediction('open-race', { pick: 'candidate-not-eligible' })));
   await assertSucceeds(setDoc(doc(userDb, 'predictions/canonical-create'), prediction('2026-CA-senate-class-1', { pick: 'fec-canonical' })));
   await assertFails(setDoc(doc(userDb, 'predictions/catalog-only-create'), prediction('2026-GA-senate-class-2', { pick: 'candidate-a' })));
+  await assertFails(setDoc(doc(userDb, 'predictions/source-error-create'), prediction('source-error-race', { pick: 'stale-candidate' })));
+  await assertFails(setDoc(doc(userDb, 'predictions/withdrawn-create'), prediction('withdrawn-race', { pick: 'withdrawn-candidate' })));
   await assertSucceeds(updateDoc(doc(userDb, 'predictions/canonical-create'), { pick: 'fec-canonical-updated', updatedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(userDb, 'predictions/canonical-create'), { pick: 'fec-not-eligible', updatedAt: serverTimestamp() }));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), 'races/2026-CA-senate-class-1'), { eligibleCandidateIds: [], predictionReady: false });
+  });
+  await assertFails(updateDoc(doc(userDb, 'predictions/canonical-create'), { pick: 'fec-canonical', updatedAt: serverTimestamp() }));
   await assertFails(setDoc(doc(userDb, 'predictions/legacy-federal-create'), prediction('2026-CA-senate')));
   await assertSucceeds(getDocs(query(
     collection(userDb, 'predictions'),
@@ -128,7 +142,7 @@ try {
   await assertFails(updateDoc(doc(userDb, 'leagues/league-a'), { ownerId: otherUserId }));
   await assertFails(updateDoc(doc(otherUserDb, 'leagues/league-a'), { name: 'Takeover' }));
 
-  console.log('PASS: league-scoped prediction create/update/delete and least-privilege denials verified.');
+  console.log('PASS: league create/join boundaries and fail-closed prediction create/update/delete rules verified.');
 } finally {
   await testEnv.cleanup();
 }

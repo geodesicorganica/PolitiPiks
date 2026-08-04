@@ -5,6 +5,7 @@ import { selectContestCatalog } from '../lib/contestCatalog';
 import type { BallotMeasure, Race } from '../types';
 import { RACE_2024_SANDBOX_FIXTURE } from './fixtures';
 import { CanonicalEvidencePanels } from '../components/CanonicalEvidencePanels';
+import { candidatePickIsEligible, measurePickIsEligible, racePickUnavailableReason } from '../lib/predictionEligibility';
 
 const openCloseAt = Timestamp.fromDate(new Date('2026-11-03T20:00:00Z'));
 const closedCloseAt = Timestamp.fromDate(new Date('2026-01-01T00:00:00Z'));
@@ -13,9 +14,9 @@ const canonicalCandidate = { id: 'fec-canonical', name: 'Canonical Candidate', p
 const ballotVerifiedCandidate = { id: 'fec-ballot-verified', name: 'Ballot Verified Candidate', party: 'Democrat' as const, qualificationStatus: 'on_ballot' as const, pickEligibility: 'eligible' as const };
 const races: Race[] = [
   { ...base, id: '2026-CA-senate' },
-  { ...base, id: '2026-CA-senate-class-1', catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [canonicalCandidate] },
-  { ...base, id: '2026-GA-senate-class-2', state: 'Georgia', catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [ballotVerifiedCandidate], eligibleCandidateIds: [] },
-  { ...base, id: '2026-VA-house-001', state: 'Virginia', office: 'House', district: '001', catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [ballotVerifiedCandidate], eligibleCandidateIds: ['fec-ballot-verified'] },
+  { ...base, id: '2026-CA-senate-class-1', predictionReady: false, catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [canonicalCandidate] },
+  { ...base, id: '2026-GA-senate-class-2', state: 'Georgia', predictionReady: false, catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [ballotVerifiedCandidate], eligibleCandidateIds: [] },
+  { ...base, id: '2026-VA-house-001', state: 'Virginia', office: 'House', district: '001', predictionReady: true, catalogScope: 'federal', registryGeneration: 'canonical-2026-shadow-v2', candidates: [ballotVerifiedCandidate], eligibleCandidateIds: ['fec-ballot-verified'] },
   { ...base, id: '2026-CA-governor', office: 'Governor' },
   { ...base, id: 'browser-closed-2026', state: 'Closed State', closeAt: closedCloseAt, closeDate: '2026-01-01T00:00:00Z' },
   RACE_2024_SANDBOX_FIXTURE,
@@ -37,11 +38,11 @@ export function ActiveCycleBrowserHarness() {
   return <main><h1>2026 Live Races</h1><p>Picks lock before Election Day under the current league safety policy.</p>{activeTargets.map((target) => {
     const closed = isPickClosed(target);
     const candidate = target.candidates[0];
-    const picksAvailable = !candidate || target.eligibleCandidateIds?.includes(candidate.id) === true;
+    const picksAvailable = !candidate || candidatePickIsEligible(target, candidate);
     return <article key={target.id} data-testid={`race-${target.id}`}><h2>{target.state}</h2><p>{closed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(target)}</p>
-      {!picksAvailable && <p data-testid={`picks-unavailable-${target.id}`}>Picks not yet available</p>}
-      {candidate ? <button data-testid={`pick-${candidate.id}`} disabled={closed || !picksAvailable} onClick={() => setPicked(candidate.id)}>{closed ? 'Picking closed' : !picksAvailable ? 'Picks not yet available' : picked === candidate.id ? 'Pick recorded' : 'Make pick'}</button> : <button disabled={closed}>{closed ? 'Picking closed' : 'Make pick'}</button>}
+      {!picksAvailable && <p data-testid={`picks-unavailable-${target.id}`}>{racePickUnavailableReason(target)}</p>}
+      {candidate ? <button data-testid={`pick-${candidate.id}`} disabled={closed || !picksAvailable} onClick={() => setPicked(candidate.id)}>{closed ? 'Picking closed' : !picksAvailable ? 'Picks unavailable' : picked === candidate.id ? 'Pick recorded' : 'Make pick'}</button> : <button disabled={closed}>{closed ? 'Picking closed' : 'Make pick'}</button>}
       {target.id === '2026-CA-senate-class-1' && <CanonicalEvidencePanels research={richResearch} metrics={richMetrics} />}
     </article>;
-  })}<section data-testid="unavailable-evidence"><CanonicalEvidencePanels research={{ baselineResearch: { fields: { identity: { availability: 'unavailable', reason: 'Official identity source pending.' } } }, fecFinance: { availability: 'unavailable', reason: 'FEC totals are unavailable.' }, congressDepth: { availability: 'not_applicable', methodology: 'No reviewed Bioguide mapping.' } }} metrics={{ historical: { availability: 'unavailable', reason: 'No comparable return.' }, turnout: { availability: 'unavailable', reason: 'No comparable turnout proxy.' }, demographics: { availability: 'source_error', reason: 'Official source could not be validated.' } }} /></section>{catalog.measures.map((measure) => { const available = measure.predictionReady === true && (measure.eligibleOptions?.length ?? 0) > 0; return <article key={measure.id} data-testid={`measure-${measure.id}`}><h2>{measure.title}</h2><p data-testid={`measure-source-${measure.id}`}>{measure.sourceAuthority} · {measure.qualificationStatus}</p><p>Choices: {(measure.eligibleOptions ?? []).join(' / ') || 'Not yet published'}</p>{measure.sourceUrl && <a href={measure.sourceUrl}>Official measure source</a>}{!available && <p data-testid={`picks-unavailable-${measure.id}`}>Picks not yet available</p>}<button data-testid={`pick-measure-${measure.id}`} disabled={!available || isPickClosed(measure)} onClick={() => setPicked(measure.id)}>{!available ? 'Picks not yet available' : picked === measure.id ? 'Pick recorded' : 'Make pick'}</button></article>; })}</main>;
+  })}<section data-testid="unavailable-evidence"><CanonicalEvidencePanels research={{ baselineResearch: { fields: { identity: { availability: 'unavailable', reason: 'Official identity source pending.' } } }, fecFinance: { availability: 'unavailable', reason: 'FEC totals are unavailable.' }, congressDepth: { availability: 'not_applicable', methodology: 'No reviewed Bioguide mapping.' } }} metrics={{ historical: { availability: 'unavailable', reason: 'No comparable return.' }, turnout: { availability: 'unavailable', reason: 'No comparable turnout proxy.' }, demographics: { availability: 'source_error', reason: 'Official source could not be validated.' } }} /></section>{catalog.measures.map((measure) => { const available = measure.eligibleOptions?.some((option) => measurePickIsEligible(measure, option)) === true; return <article key={measure.id} data-testid={`measure-${measure.id}`}><h2>{measure.title}</h2><p data-testid={`measure-source-${measure.id}`}>{measure.sourceAuthority} · {measure.qualificationStatus}</p><p>Choices: {(measure.eligibleOptions ?? []).join(' / ') || 'Not yet published'}</p>{measure.sourceUrl && <a href={measure.sourceUrl}>Official measure source</a>}{!available && <p data-testid={`picks-unavailable-${measure.id}`}>Picks unavailable</p>}<button data-testid={`pick-measure-${measure.id}`} disabled={!available || isPickClosed(measure)} onClick={() => setPicked(measure.id)}>{!available ? 'Picks unavailable' : picked === measure.id ? 'Pick recorded' : 'Make pick'}</button></article>; })}</main>;
 }
