@@ -288,7 +288,7 @@ Exit gate:
 
 ### G7 — Product-complete catalog, research, leagues, and picks
 
-Status: **in progress; G7.1 local research surfacing certified, G7.2 workflow certification next**
+Status: **in progress; G7.1 research surfacing and G7.2 local workflow certified, G7.3 runbook readiness next**
 
 Complete and verify the user-facing workflow:
 
@@ -315,8 +315,19 @@ missing/error states; California measures remain selectable while catalog-only
 Georgia remains browseable and disabled. See [G7.1 local research
 surfacing](status/g7-1-local-research-surfacing.md).
 
-Next: **G7.2 local league/pick workflow and catalog filters**, followed by G7.3
-release/rollback runbook readiness. Neither step authorizes production access.
+G7.2 status: **certified locally on 2026-08-03**. The app now combines state,
+office/contest, race-versus-measure, and readiness filters with accessible
+loading, source-error, unavailable, empty, reset, and mobile states. Local
+create/join-league and create/update-pick flows pass browser and Firestore
+emulator gates against all 14 certified California measures. Federal races
+remain browseable and non-pickable without official allowlists; changed,
+withdrawn, invalid, source-error, closed, and legacy-canonical cases fail closed.
+The offline prediction audit found zero incompatible live-2026 references and
+rewrote nothing. See [G7.2 local league and pick
+workflow](status/g7-2-local-league-pick-workflow.md).
+
+Next: **G7.3 release/rollback runbook readiness**. It does not authorize
+production access, deployment, or selector activation.
 
 Exit gate:
 
