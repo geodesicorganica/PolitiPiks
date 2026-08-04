@@ -326,8 +326,15 @@ The offline prediction audit found zero incompatible live-2026 references and
 rewrote nothing. See [G7.2 local league and pick
 workflow](status/g7-2-local-league-pick-workflow.md).
 
-Next: **G7.3 release/rollback runbook readiness**. It does not authorize
-production access, deployment, or selector activation.
+G7.3 status: **certified locally on 2026-08-03**. The release manifest and
+Firebase-free validator pin the v2 catalog-beta contract at 470 races, 14
+measures, 2,384 candidate-research documents, 14 measure-research documents,
+470 metrics, one selector, and 3,353 total documents. It records zero
+prediction-ready federal races and 14 prediction-ready California measures,
+rejects the immutable identity-only v1 payload, enforces the ordered G8 state
+machine and separate authorization boundaries, and verifies non-destructive
+rollback paths. No production operation was executed. See [G7.3 release and
+rollback runbook readiness](status/g7-3-release-rollback-runbook-readiness.md).
 
 Exit gate:
 
@@ -349,11 +356,13 @@ Use three releases rather than a nationwide big-bang cutover:
 3. **50-state certification** — verify every state as currently published,
    `officially_none`, or explicitly awaiting an official source.
 
-Every production release follows:
+Catalog beta, progressive prediction enablement, and eventual 50-state
+certification are separate releases. Catalog beta follows this exact sequence:
 
 ```text
-fresh bounded capture
-→ offline replay and certification
+preflight
+→ fresh bounded capture
+→ offline certification
 → shadow write
 → namespace verification
 → Firestore rules deployment
@@ -364,8 +373,10 @@ fresh bounded capture
 ```
 
 Each production read, write, deployment, selector change, deletion, and rollback
-requires the authorization defined by its release goal. Legacy records are not
-retired until pick migration and production verification are complete.
+requires its own explicit authorization; no authorization is inherited from an
+earlier stage. The G7.3 manifest is the local contract for ordering, fail-closed
+stops, and rollback evidence. `canonical-2026-shadow-v1` remains immutable and
+nonpublishable; canonical and legacy records are retained during rollback.
 
 ### G9 — Live operations and coverage control
 

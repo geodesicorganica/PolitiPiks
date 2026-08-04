@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "release": {
+    "id": "g8-catalog-beta",
+    "kind": "catalog-beta",
+    "artifactName": "g7-1-local-product-bundle.json",
+    "generation": "canonical-2026-shadow-v2",
+    "immutableLegacyGeneration": "canonical-2026-shadow-v1",
+    "target": {
+      "projectId": "politipiks",
+      "databaseId": "ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a"
+    },
+    "expectedCounts": {
+      "races": 470,
+      "measures": 14,
+      "candidateResearch": 2384,
+      "measureResearch": 14,
+      "metrics": 470,
+      "selectors": 1,
+      "total": 3353
+    },
+    "expectedReadiness": {
+      "catalogReady": true,
+      "researchReady": true,
+      "metricsReady": true,
+      "predictionReadyRaces": 0,
+      "predictionReadyMeasures": 14
+    },
+    "expectedAudit": {
+      "duplicatePaths": 0,
+      "orphanDocuments": 0,
+      "unresolvedReferences": 0,
+      "leakage": 0
+    },
+    "expectedDigests": {
+      "input": "d674f0cdf194ba800e5bfb9babd1b2b3766b8ae84cf642838df0c1d1fd91384d",
+      "evidence": "0c6ad4b9c80601fdbcfa5d26a861a706325b021adac94f2604bdaac1d860ca09",
+      "plan": "9c04ce1f256501d9f300cebb700d1d16ea742b1bd5ead642b850e3f0f2c282be",
+      "bundle": "41f5c282d05cb13af8a6711781594acabbc48dceb5b0eed315cb36e1dcf6854f"
+    }
+  },
+  "synchronization": {
+    "parentCommits": [
+      "a2c3a7cb899f7e7ca394ce67fc7ab0bf9c3d91a1",
+      "387b97b37ffa89c0ccc5fd7af37cc47f09fe0264",
+      "664c1dd5cb6a00499c5e5aa35c1d30075ad7eed3"
+    ],
+    "nestedCommits": [
+      "ed87a4bf6ad060903d3af13e64c147466ae5fe16",
+      "8a77a316eabb4f1f6bd1dfae8b790942c57f7d97"
+    ],
+    "wrongBranchOrCommit": "stop"
+  },
+  "productionPolicy": {
+    "productionAccess": false,
+    "networkCalls": 0,
+    "credentialsAccepted": false,
+    "mutationExecuted": false,
+    "forbiddenEnvironmentFlags": [
+      "VITE_USE_FIREBASE_EMULATORS",
+      "VITE_ENABLE_TEST_AUTH",
+      "VITE_USE_MOCK_CONTESTS",
+      "VITE_ALLOW_ADMIN_SEED"
+    ]
+  },
+  "releaseScope": {
+    "cleanRequired": true,
+    "unrelatedDirtyFilesMustBePreserved": true
+  },
+  "stages": [
+    { "id": "preflight", "operation": "read", "authorizationBoundary": "read:preflight", "authorizationRequired": true },
+    { "id": "fresh-bounded-capture", "operation": "read", "authorizationBoundary": "read:fresh-bounded-capture", "authorizationRequired": true },
+    { "id": "offline-certification", "operation": "local-read", "authorizationBoundary": "local:offline-certification", "authorizationRequired": true },
+    { "id": "shadow-write", "operation": "write", "authorizationBoundary": "write:shadow", "authorizationRequired": true },
+    { "id": "namespace-verification", "operation": "read", "authorizationBoundary": "read:namespace-verification", "authorizationRequired": true },
+    { "id": "rules-deployment", "operation": "deploy", "authorizationBoundary": "deploy:rules", "authorizationRequired": true },
+    { "id": "app-deployment", "operation": "deploy", "authorizationBoundary": "deploy:app", "authorizationRequired": true },
+    { "id": "selector-activation", "operation": "selector", "authorizationBoundary": "selector:activation", "authorizationRequired": true },
+    { "id": "smoke-verification", "operation": "read", "authorizationBoundary": "read:smoke-verification", "authorizationRequired": true },
+    { "id": "observation-window", "operation": "observe", "authorizationBoundary": "read:observation-window", "authorizationRequired": true }
+  ],
+  "stopConditions": [
+    "digest-count-drift",
+    "unresolved-references",
+    "incompatible-predictions",
+    "publication-readiness-regression",
+    "dirty-release-scope",
+    "wrong-project-database",
+    "wrong-branch-commit",
+    "unsafe-environment-flags",
+    "partial-writes",
+    "failed-smoke-tests",
+    "missing-rollback-evidence"
+  ],
+  "rollbackPaths": [
+    { "id": "before-selector-activation", "action": "stop-and-preserve", "dataDeletionAllowed": false, "selectorChangeAllowed": false },
+    { "id": "selector-rollback-after-activation", "action": "selector-only-to-legacy", "dataDeletionAllowed": false, "selectorChangeAllowed": true },
+    { "id": "rules-rollback", "action": "redeploy-known-good-rules", "dataDeletionAllowed": false, "selectorChangeAllowed": false },
+    { "id": "application-rollback", "action": "redeploy-known-good-application", "dataDeletionAllowed": false, "selectorChangeAllowed": false },
+    { "id": "partial-or-failed-shadow-write", "action": "stop-verify-and-forward-fix", "dataDeletionAllowed": false, "selectorChangeAllowed": false }
+  ],
+  "deletionPolicy": {
+    "authorizationBoundary": "delete:legacy-or-canonical",
+    "allowed": false,
+    "canonicalRetention": "required",
+    "legacyRetention": "required"
+  }
+}
