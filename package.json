@@ -35,6 +35,7 @@
     "test-contest-metrics": "tsx scripts/lib/contestMetrics.test.ts",
     "test-historical-cvap-depth": "tsx scripts/lib/historicalCvapDepth.test.ts && tsx scripts/lib/historicalCvapCaptureCli.test.ts && tsx scripts/lib/historicalCvapCensus.test.ts && tsx scripts/lib/historicalCvapCensusTransport.test.ts",
     "test-local-product-bundle": "tsx scripts/lib/localProductBundle.test.ts",
+    "audit-g7-2-predictions": "tsx scripts/audit-g7-2-predictions.ts",
     "build-2026-local-product-bundle": "tsx scripts/build-2026-local-product-bundle.ts",
     "seed-2026-local-product-emulator": "tsx scripts/seed-2026-local-product-emulator.ts",
     "enrich-roll-calls": "tsx scripts/enrich-roll-calls.ts",

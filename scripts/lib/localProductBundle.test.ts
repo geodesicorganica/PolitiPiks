@@ -14,6 +14,9 @@ const inputs = {
 const first = buildLocalProductBundle(inputs); const second = buildLocalProductBundle(inputs);
 assert.deepEqual(first, second); assert.deepEqual(first.counts, { races: 470, measures: 14, candidateResearch: 2384, measureResearch: 14, metrics: 470, selectors: 1, total: 3353 });
 assert.equal(first.readiness.predictionReadyMeasures, 14); assert.deepEqual(first.audit, { duplicatePaths: 0, orphanDocuments: 0, unresolvedReferences: 0, leakage: 0 });
+const measures = first.documents.filter((item) => /^ballotMeasures\/[^/]+$/.test(item.path));
+assert.equal(measures.length, 14); assert.ok(measures.every((item) => item.data.state === 'CA' && item.data.predictionReady === true && item.data.qualificationStatus === 'on_ballot'));
+assert.ok(measures.every((item) => JSON.stringify(item.data.eligibleOptions) === JSON.stringify(['no', 'yes']))); assert.ok(measures.every((item) => item.data.closeAt && typeof item.data.closeAt === 'object'));
 assert.equal(validateLocalProductBundle(JSON.parse(JSON.stringify(first))).bundleDigest, first.bundleDigest);
 const research = first.documents.find((item) => /candidateResearch/.test(item.path))!; assert.equal('buckets' in research.data, false); assert.equal('sources' in research.data, false); assert.ok(research.data.baselineResearch); assert.ok(research.data.fecFinance);
 const tampered = JSON.parse(JSON.stringify(first)); tampered.documents[0].data.privateKey = 'secret'; assert.throws(() => validateLocalProductBundle(tampered), /credential field leakage/);
