@@ -37,6 +37,21 @@ assert.equal(plan.historicalCvapCoverage.historical.present, 470);
 assert.equal(plan.historicalCvapCoverage.turnout.present, 470, 'unclamped compatible votes/CVAP are present');
 assert.equal(plan.historicalCvapCoverage.demographicsCvap.present, 470);
 assert.equal(plan.documents.filter((document) => /candidateResearch/.test(document.path)).length, 2384, 'G6.2/G6.3 research is preserved');
+const captureMetadataVariant = { ...publication, capturedAt: '2026-08-04T00:00:00.000Z' };
+const reorderedPublication = { ...publication, inputs: {
+  ...publication.inputs,
+  races: [...publication.inputs.races].reverse(),
+  deadlines: [...publication.inputs.deadlines].reverse(),
+  predictions: [...publication.inputs.predictions].reverse(),
+  candidateResearch: [...publication.inputs.candidateResearch].reverse(),
+  contestMetrics: [...publication.inputs.contestMetrics].reverse(),
+} };
+const metadataVariantPlan = buildHistoricalCvapPlan(captureMetadataVariant, finance, congress, snapshot);
+const reorderedPlan = buildHistoricalCvapPlan(reorderedPublication, finance, congress, snapshot);
+assert.equal(metadataVariantPlan.evidenceDigest, plan.evidenceDigest, 'publication capture metadata does not change G6.4 evidence digest');
+assert.equal(metadataVariantPlan.planDigest, plan.planDigest, 'publication capture metadata does not change G6.4 plan digest');
+assert.equal(reorderedPlan.evidenceDigest, plan.evidenceDigest, 'publication ordering does not change G6.4 evidence digest');
+assert.equal(reorderedPlan.planDigest, plan.planDigest, 'publication ordering does not change G6.4 plan digest');
 const gaMetric = plan.documents.find((document) => document.path === 'contestMetrics/2026-GA-house-001')!;
 assert.equal((gaMetric.data.historical as { marginPct: number }).marginPct, -20, 'historical margin preserves all valid-vote denominator');
 const implausible = buildHistoricalCvapSnapshot({ ...snapshot, cvap: snapshot.cvap.map((item) => item.raceId === '2026-GA-house-001' ? { ...item, cvapEstimate: 50 } : item) });

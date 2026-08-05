@@ -34,10 +34,10 @@ Selector-driven reads, valid non-federal contests, ballot measures, and the G7.1
 | Metrics / selectors / total | `470 / 1 / 3,353` |
 | Prediction-ready races / measures | `0 / 14` |
 | Duplicate paths / orphans / unresolved references / leakage | `0 / 0 / 0 / 0` |
-| Input digest | `d674f0cdf194ba800e5bfb9babd1b2b3766b8ae84cf642838df0c1d1fd91384d` |
-| Evidence digest | `0c6ad4b9c80601fdbcfa5d26a861a706325b021adac94f2604bdaac1d860ca09` |
-| Plan digest | `9c04ce1f256501d9f300cebb700d1d16ea742b1bd5ead642b850e3f0f2c282be` |
-| Bundle digest | `41f5c282d05cb13af8a6711781594acabbc48dceb5b0eed315cb36e1dcf6854f` |
+| Input digest | `af8a1a8e96cafc02937d7570e5e2d1c70a8bc6462b1a60e77252eaae40cba830` |
+| Evidence digest | `f022709c58fe2b5a75ad6e76dd8112e6e160323380611d66ba9db6e73f07894f` |
+| Plan digest | `15726ee867d93d9de5fcc1f52887d6302bc61c606063c90320ebc1c194f62641` |
+| Bundle digest | `7b9f6a8dc89f7a86c8481aaf5fe46418fc47dbe5675846b63d5149b273e1c8a7` |
 
 ## Existing-prediction audit
 

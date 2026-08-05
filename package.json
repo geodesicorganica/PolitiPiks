@@ -35,6 +35,7 @@
     "capture-2026-fec-finance": "tsx scripts/capture-2026-fec-finance.ts",
     "test-contest-metrics": "tsx scripts/lib/contestMetrics.test.ts",
     "test-historical-cvap-depth": "tsx scripts/lib/historicalCvapDepth.test.ts && tsx scripts/lib/historicalCvapCaptureCli.test.ts && tsx scripts/lib/historicalCvapCensus.test.ts && tsx scripts/lib/historicalCvapCensusTransport.test.ts",
+    "diagnose-g6-4-certification-drift": "tsx scripts/diagnose-g6-4-certification-drift.ts",
     "test-local-product-bundle": "tsx scripts/lib/localProductBundle.test.ts",
     "test-g8-release-readiness": "tsx scripts/lib/g8ReleaseReadiness.test.ts",
     "audit-g7-2-predictions": "tsx scripts/audit-g7-2-predictions.ts",

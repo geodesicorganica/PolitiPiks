@@ -33,8 +33,8 @@ export const CERTIFIED_G6_4 = {
   snapshot: 'c2ff11afbf184d29cc3d3d5a428ebe43c72875717d63fdd484c65e9858730d29',
   source: 'e4598622c3ec18534590503313516489b60bbb1a977a591c36a4a43b3aeab45d',
   input: '535ac1413062b8c5f046b5265ace2b1762e90409aee6e0b3da37e82315a4df8e',
-  evidence: '7f6e41354136814c13e897e0aef289743379e5da0eb98f14ece33a8036a08ab3',
-  plan: '8e752ba5f0555213d431bb307cc212b47d061fef8c91d7e2ae74e82265d5fe98',
+  evidence: '17413f6a19620fd628fb2bf60f927c1caba7aed97e23f158c63f942ff6bb5242',
+  plan: '23d3ea2290552fbbfee7396a6019fb17213c756e79dcf5409d1fd8d129c6cec7',
 } as const;
 
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);

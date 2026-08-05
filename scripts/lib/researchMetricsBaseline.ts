@@ -28,6 +28,25 @@ const digest = (value: unknown) => createHash('sha256').update(stable(value)).di
 const order = <T>(items: T[], key: (item: T) => string) => [...items].sort((a, b) => key(a).localeCompare(key(b)));
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
 const availability = (state: Availability, source: Json) => ({ availability: state, ...source });
+
+/**
+ * Removes only capture-derived metadata from certification projections. The
+ * full product documents retain these fields for provenance; certification
+ * digests must not change when an otherwise identical publication is captured
+ * at a different time. Derived nested evidence digests are omitted because
+ * their source values remain in the same projection.
+ */
+export function projectCertificationValue(value: unknown, publicationCapturedAt: string): unknown {
+  if (Array.isArray(value)) return value.map((item) => projectCertificationValue(item, publicationCapturedAt));
+  if (!isRecord(value)) return value;
+  const projected: Json = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'evidenceDigest') continue;
+    if ((key === 'capturedAt' || key === 'asOf' || key === 'retrievedAt') && child === publicationCapturedAt) continue;
+    projected[key] = projectCertificationValue(child, publicationCapturedAt);
+  }
+  return projected;
+}
 const officialFec = (candidateId: string, capturedAt: string) => {
   const fecCandidateId = candidateId.replace(/^fec-/, '');
   if (!/^[HS]\d[A-Z]{2}\d{5}$/.test(fecCandidateId)) throw new Error(`canonical candidate lacks an FEC identity: ${candidateId}`);
@@ -131,9 +150,10 @@ export function buildResearchMetricsBaseline(snapshotValue: unknown): ResearchMe
     depth[name][state === 'present' || state === 'not_applicable' ? state : 'unavailable'] += 1;
   }
   const coverageOnlyRaceIds = CANONICAL_2026_FEDERAL_CONTESTS.filter((race) => !metricByRace.has(race.id)).map((race) => race.id);
-  const evidenceDigest = digest({ snapshotInput: snapshot.inputDigest, publicationPlan: publication.planDigest, measurePlan: measurePlan.planDigest, documents });
+  const certificationDocuments = projectCertificationValue(documents, snapshot.capturedAt);
+  const evidenceDigest = digest({ snapshotInput: snapshot.inputDigest, publicationPlan: publication.planDigest, measurePlan: measurePlan.planDigest, documents: certificationDocuments });
   const coverage = { rawRaces: snapshot.inputs.races.length, canonicalRaces: raceDocuments.length, candidateResearch: { documents: researchDocuments.length, richPreserved: richDocuments.length, baselineOnly: researchDocuments.length - richDocuments.length }, measureResearch: { documents: measureResearch.length }, metrics: { documents: metricDocuments.length, preserved: metrics.length, coverageOnly: coverageOnlyRaceIds.length, coverageOnlyRaceIds, depth } };
   const audit = { duplicateDocuments, orphanDocuments, leakage: 0, metricsReady: metricDocuments.filter((document) => Object.values(isRecord(document.data.baselineMetrics) && isRecord(document.data.baselineMetrics.fieldAvailability) ? document.data.baselineMetrics.fieldAvailability : {}).some((value) => value === 'present')).length };
   const inputDigest = digest({ snapshot: snapshot.inputDigest, canonicalRegistry: CANONICAL_2026_FEDERAL_CONTESTS, measureRegistry });
-  return { schemaVersion: 1, documents, inputDigest, evidenceDigest, planDigest: digest({ documents, coverage, audit, evidenceDigest }), coverage, audit };
+  return { schemaVersion: 1, documents, inputDigest, evidenceDigest, planDigest: digest({ documents: certificationDocuments, coverage, audit, evidenceDigest }), coverage, audit };
 }

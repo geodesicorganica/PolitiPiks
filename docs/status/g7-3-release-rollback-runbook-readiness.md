@@ -86,7 +86,7 @@ npm run verify-g8-release-readiness
 
 The receipt digest from the deterministic validator is:
 
-`5b38f53e9d7a48ce01c90695e3f07257d9f43d75211c9a652f30970398907ac9`
+`0a370499fc7366ef5adcd87068b941aff40f73e3de3ebebf53fbfd9ab470173c`
 
 The validator was run twice; both receipts must retain this digest. Its fixed
 warnings state that production authorization is absent and no capture, write,
@@ -127,7 +127,7 @@ All required commands exited `0`.
 
 The validator was run twice in one local PowerShell check. Both sanitized
 receipts had digest
-`5b38f53e9d7a48ce01c90695e3f07257d9f43d75211c9a652f30970398907ac9`, with
+`0a370499fc7366ef5adcd87068b941aff40f73e3de3ebebf53fbfd9ab470173c`, with
 `productionAccess=false`, `networkCalls=0`, `writes=0`, and `deletions=0`.
 
 ### Nested active app

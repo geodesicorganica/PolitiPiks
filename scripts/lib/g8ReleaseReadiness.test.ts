@@ -12,7 +12,7 @@ const clone = <T>(value: T): T => structuredClone(value);
 const first = validateG8ReleaseManifest(manifest, bundle);
 const second = validateG8ReleaseManifest(manifest, bundle);
 assert.deepEqual(first, second);
-assert.equal(first.receiptDigest, '5b38f53e9d7a48ce01c90695e3f07257d9f43d75211c9a652f30970398907ac9');
+assert.equal(first.receiptDigest, '0a370499fc7366ef5adcd87068b941aff40f73e3de3ebebf53fbfd9ab470173c');
 
 const staleCounts = clone(manifest);
 staleCounts.release.expectedCounts.races = 469;

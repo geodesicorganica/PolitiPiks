@@ -1,6 +1,6 @@
 # G6.4 — Historical turnout and CVAP depth
 
-Status: **certified locally on 2026-08-03**. This work was Firebase-free and made no production writes, deployment, activation, deletion, push, or branch change.
+Status: **source snapshot certified locally on 2026-08-03; deterministic downstream contract recertified as G6.4.1 on 2026-08-04**. This work was Firebase-free and made no production writes, deployment, activation, deletion, push, or branch change. See [G6.4.1 deterministic certification recertification](g6-4-1-deterministic-certification.md).
 
 ## Recovery record
 
@@ -29,8 +29,8 @@ The sole R6 capture invocation made exactly two direct official Census requests:
 - Snapshot digest: `c2ff11afbf184d29cc3d3d5a428ebe43c72875717d63fdd484c65e9858730d29`
 - Source digest: `e4598622c3ec18534590503313516489b60bbb1a977a591c36a4a43b3aeab45d`
 - Input digest: `535ac1413062b8c5f046b5265ace2b1762e90409aee6e0b3da37e82315a4df8e`
-- Evidence digest: `7f6e41354136814c13e897e0aef289743379e5da0eb98f14ece33a8036a08ab3`
-- Plan digest: `8e752ba5f0555213d431bb307cc212b47d061fef8c91d7e2ae74e82265d5fe98`
+- G6.4.1 evidence digest: `17413f6a19620fd628fb2bf60f927c1caba7aed97e23f158c63f942ff6bb5242`
+- G6.4.1 plan digest: `23d3ea2290552fbbfee7396a6019fb17213c756e79dcf5409d1fd8d129c6cec7`
 
 Two offline replays of the private final snapshot produced these identical digests with `httpCalls:0` and Firebase uninitialized.
 

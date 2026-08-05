@@ -213,7 +213,7 @@ G6.2 status: **certified locally on 2026-07-31**. The Firebase-free FEC bulk can
 
 G6.3 status: **certified locally on 2026-07-31**. A Firebase-free official Congress.gov/Senate.gov capture resolved all 449 reviewed canonical Bioguide identities, added 20 House and 20 Senate roll calls, and preserves G6.2 finance plus all baseline cardinalities. See [G6.3 Congress and roll-call depth](status/g6-3-congress-roll-call-depth.md).
 
-G6.4 status: **certified locally on 2026-08-03**. Firebase-free historical/CVAP capture now provides 470/470 canonical CVAP facts, 434 historical facts, and 428 turnout proxies, while preserving 470 metrics, 2,384 candidate-research documents, and 14 measure-research documents. District of Columbia and Puerto Rico are audited Census statewide exclusions; CT/IL/NH `ZZ` district rows are audited non-district exclusions. See [G6.4 historical turnout and CVAP depth](status/g6-4-historical-turnout-cvap-depth.md).
+G6.4 status: **source snapshot certified locally on 2026-08-03; deterministic downstream contract recertified as G6.4.1 on 2026-08-04**. Firebase-free historical/CVAP capture provides 470/470 canonical CVAP facts, 434 historical facts, and 428 turnout proxies, while preserving 470 metrics, 2,384 candidate-research documents, and 14 measure-research documents. The G6.4.1 contract excludes unrelated publication capture metadata from evidence/plan hashing while retaining provenance fields in product documents. See [G6.4 historical turnout and CVAP depth](status/g6-4-historical-turnout-cvap-depth.md) and [G6.4.1 deterministic certification recertification](status/g6-4-1-deterministic-certification.md).
 
 Next after G6.4 certification: **G7 product-complete catalog, research, leagues, and picks**.
 
@@ -288,7 +288,7 @@ Exit gate:
 
 ### G7 — Product-complete catalog, research, leagues, and picks
 
-Status: **in progress; G7.1 research surfacing and G7.2 local workflow certified, G7.3 runbook readiness next**
+Status: **in progress; G7.1, G7.2, and G7.3 locally certified; G8.1 catalog-beta offline certification completed**
 
 Complete and verify the user-facing workflow:
 
@@ -345,7 +345,7 @@ Exit gate:
 
 ### G8 — Progressive production release
 
-Status: **planned; separately authorized**
+Status: **G8.1 catalog-beta offline certification completed locally on 2026-08-04; production stages remain separately authorized**
 
 Use three releases rather than a nationwide big-bang cutover:
 
@@ -377,6 +377,15 @@ requires its own explicit authorization; no authorization is inherited from an
 earlier stage. The G7.3 manifest is the local contract for ordering, fail-closed
 stops, and rollback evidence. `canonical-2026-shadow-v1` remains immutable and
 nonpublishable; canonical and legacy records are retained during rollback.
+
+G8.1 status: **certified locally on 2026-08-04** from the one preserved fresh
+capture after G6.4.1 offline recertification. The final bundle satisfies 470
+races, 14 measures, 2,384 candidate-research documents, 14 measure-research
+documents, 470 metrics, one selector, 3,353 total documents, zero
+prediction-ready federal races, 14 prediction-ready California measures, and
+zero duplicate, orphan, unresolved-reference, leakage, or incompatible-live
+prediction findings. No production write, deployment, selector activation,
+rollback, or deletion was performed.
 
 ### G9 — Live operations and coverage control
 
