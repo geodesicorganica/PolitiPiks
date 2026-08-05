@@ -2,7 +2,7 @@
 
 Status: **authoritative**
 
-Last verified: **2026-07-27**
+Last verified: **2026-08-05**
 
 This document is the canonical roadmap for taking the 2026 election product from
 its locally certified federal catalog to a production system with live,
@@ -402,6 +402,15 @@ prediction-ready federal races, 14 prediction-ready California measures, and
 zero duplicate, orphan, unresolved-reference, leakage, or incompatible-live
 prediction findings. No production write, deployment, selector activation,
 rollback, or deletion was performed.
+
+G8.2B status: **production v2 shadow write and namespace verification completed
+on 2026-08-05**. The one authorized direct apply completed 3,352 create-only
+content writes across 10 bounded batches with a completed root manifest. The
+one authorized verification returned `verified=true`, exact certified family
+counts, and matching content, recorded, and expected namespace digests. The
+active selector, active collections, legacy/v1 namespace, rules, application,
+and deployment stages remain unchanged and separately authorized. Durable
+evidence: [G8.2B production product-shadow write and verification](status/g8-2b-production-product-shadow.md).
 
 ### G9 — Live operations and coverage control
 
