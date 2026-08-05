@@ -124,6 +124,30 @@ dirty release scope, wrong branch/commit, wrong project/database, unsafe
 environment flags, partial writes, failed smoke tests, or missing rollback
 evidence. Preserve unrelated dirty files while stopping.
 
+## G8.2A product-shadow executor
+
+G8.2A is a separate local-certification boundary for the approved G8.1
+prospective bundle. It accepts only `canonical-2026-shadow-v2` and the pinned
+bundle/input/evidence/plan digests. The one source selector is excluded from the
+shadow write plan, leaving exactly 3,352 content documents beneath
+`migrationShadows/canonical-2026-shadow-v2/`: 470 races, 14 measures, 2,384
+candidate-research documents, 14 measure-research documents, and 470 metrics.
+The root manifest is versioned, identity-bound, digest-bound, create-only for
+content, and records bounded progress. Existing identical content can resume;
+conflicting content fails before mutation. The active selector and all legacy or
+v1 documents remain outside the executor's allowed path set.
+
+The implementation and local evidence are recorded in
+`docs/status/g8-2a-product-shadow-executor-readiness.md`. Offline and emulator
+commands are permitted locally; future production commands must use placeholders
+only until a separately authorized release stage supplies the exact target,
+digests, counts, committed executor source, and authorization receipt:
+
+```powershell
+npx tsx scripts/apply-g8-2a-product-shadow.ts --apply --bundle-in <approved-bundle> --project-id <project> --database-id <database> --generation <generation> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-races <races> --expected-measures <measures> --expected-candidate-research <candidate-research> --expected-measure-research <measure-research> --expected-metrics <metrics> --expected-content-documents <content-documents> --authorization-receipt-id <authorization-receipt-id>
+npx tsx scripts/apply-g8-2a-product-shadow.ts --verify-only --bundle-in <approved-bundle> --project-id <project> --database-id <database> --generation <generation> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-races <races> --expected-measures <measures> --expected-candidate-research <candidate-research> --expected-measure-research <measure-research> --expected-metrics <metrics> --expected-content-documents <content-documents> --authorization-receipt-id <authorization-receipt-id>
+```
+
 ## G8 rollback paths
 
 Rollback is separately authorized and never deletes data:

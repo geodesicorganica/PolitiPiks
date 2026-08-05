@@ -14,6 +14,22 @@ implemented behavior. Production receipts and deployment records define
 production state. A local test, commit, snapshot, or certification must never be
 described as a production deployment.
 
+## G8.2A product-shadow gate
+
+The next bounded gate after G8.1 is the locally certified, production-safe v2
+product-shadow executor. It consumes the approved prospective bundle without a
+new capture, maps only content beneath the versioned migration-shadow namespace,
+and excludes the active selector. The certified shape is 470 races, 14
+measures, 2,384 candidate-research documents, 14 measure-research documents,
+and 470 metrics: 3,352 shadow content documents plus one root manifest
+operation. Create-only writes, exact-content verification, resumable progress,
+and fail-closed target/digest/count/source/authorization guards are required.
+
+G8.2A does not activate a selector, deploy rules or application code, perform a
+production read or write, delete or overwrite legacy data, or authorize the
+subsequent release stages. Its evidence is maintained in
+`docs/status/g8-2a-product-shadow-executor-readiness.md`.
+
 ## Product outcome
 
 A fully functioning 2026 product lets a user:
