@@ -626,17 +626,32 @@ authorization and an approved target/release receipt.
 
 ## G8.3C2 guarded Hosting preview deployment
 
-G8.3C2 status: **preview deployed on 2026-08-07; smoke stopped before browser
-launch**. The one authorized read-only channel list showed only `live`, then
+G8.3C2 status: **preview deployed on 2026-08-07; read-only smoke passed after
+local harness repair**. The one authorized read-only channel list showed only `live`, then
 the exactly-once guarded deployment created preview channel
 `g8-3c2-20260807` for site `politipiks` and emitted
 `https://politipiks--g8-3c2-20260807-x6meubc8.web.app`, expiring after one day.
 The certified artifact was 3 files / 1,339,389 bytes with deterministic digest
 `94416db6b4673aafe3364dfef4d63555d1ca9c06ee6b5973521822e3ae7c116b`.
 
-The single bounded smoke attempt failed before creating a browser because its
+The initial bounded smoke attempt failed before creating a browser because its
 inline Node stdin program used CommonJS `require` while Node evaluated the
-program as an ES module. No preview request, retry, channel deletion, live
-deployment, selector activation, Firestore write, authentication, rollback,
-merge, or push followed. Durable evidence: [G8.3C2 guarded Hosting preview
-deployment](status/g8-3c2-hosting-preview.md).
+program as an ES module. Under recovery authorization
+`g8.3c2r-preview-smoke-2026-08-07`, the reusable ESM harness repair was committed
+as nested `e926a20`. The required local gates passed, followed by exactly one
+remote invocation at `2026-08-07T19:47:05.668Z`:
+
+`node scripts/hosting-preview-smoke.mjs --base-url https://politipiks--g8-3c2-20260807-x6meubc8.web.app`
+
+It exited `0`: `/`, `/races`, and `/leagues` each rendered and reloaded;
+one hashed JS and one hashed CSS asset were served successfully across 12
+asset responses; 23 Firestore read/listen requests occurred; and 0 API/runtime,
+authentication, Firestore-write, unexpected-network, page, or console errors
+were recorded. The smoke used one browser/context and performed no clicks,
+sign-in, submissions, or writes. Preview content remained commit `f96b8dc` with
+artifact digest
+`94416db6b4673aafe3364dfef4d63555d1ca9c06ee6b5973521822e3ae7c116b`; live
+site, selector, Firestore data, rules, Hosting configuration, and deployment
+state were unchanged. No retry, redeployment, deletion, rollback, merge, or
+push occurred. Durable evidence: [G8.3C2 Hosting preview smoke recovery
+record](status/g8-3c2-hosting-preview.md).

@@ -1,9 +1,9 @@
 # G8.3C2 guarded Hosting preview deployment
 
-Status: **preview deployed; smoke session stopped before browser launch**
+Status: **preview deployed; read-only smoke passed after local harness repair**
 
 Verified: **2026-08-07**
-Evidence time: **2026-08-07T19:24:55.1617724Z**
+Evidence time: **2026-08-07T19:47:30.259Z**
 
 G8.3C2 authorized one Firebase Hosting preview-channel deployment for the
 certified static PolitiPiks artifact, followed by one bounded unauthenticated
@@ -87,3 +87,38 @@ the nested worktree again retains only the unrelated `.env.example` change.
 Only this focused parent evidence document and the roadmap entry are in scope
 for the documentation commit. No selector, live channel, Firestore document,
 rules, rollback, channel deletion, merge, or push was touched.
+
+## G8.3C2R smoke recovery
+
+The authorized local repair added the reusable ESM Playwright harness at nested
+commit `e926a20` (`test: repair hosting preview smoke harness`). The committed
+self-test covers malformed arguments, unauthorized hosts, CommonJS regression,
+API/runtime requests, Firestore writes, page errors, and browser lifecycle/route
+coverage. The required local gates passed, including a real Hosting-emulator
+browser run against `http://127.0.0.1:5000`; `hosting-dist`, Firebase config,
+app source, rules, and the deployed artifact contract were unchanged. The
+pre-existing nested `.env.example` modification remained unstaged.
+
+Recovery authorization receipt: `g8.3c2r-preview-smoke-2026-08-07`.
+
+The exact single remote invocation was:
+
+`node scripts/hosting-preview-smoke.mjs --base-url https://politipiks--g8-3c2-20260807-x6meubc8.web.app`
+
+Invocation UTC: **2026-08-07T19:47:05.668Z**; recorded completion UTC:
+**2026-08-07T19:47:30.259Z**; exit code: **0**.
+
+The read-only browser opened one browser/context, directly requested and
+reloaded `/`, `/races`, and `/leagues`, and rendered all six page loads. Asset
+responses included one hashed JavaScript file and one hashed CSS file, with 12
+successful hashed-asset responses. Network summary: 6 app-document requests,
+23 Firestore read/listen requests, 0 `/api/*` or Gemini/runtime-server
+requests, 0 authentication requests, 0 Firestore write/commit endpoints, and
+0 unexpected requests. Page errors and console errors were both 0.
+
+The preview content remained the existing deployed commit `f96b8dc` and
+artifact digest
+`94416db6b4673aafe3364dfef4d63555d1ca9c06ee6b5973521822e3ae7c116b`. The
+read-only smoke changed no preview content, live site, selector, Firestore
+data, rules, Hosting channel, or deployment state. No retry, redeployment,
+deletion, rollback, authentication, push, or additional remote read followed.
