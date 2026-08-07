@@ -9,6 +9,7 @@ test('2026/live is the browser default and closed picks are disabled', async ({ 
   await expect(page.getByTestId('race-2026-CA-senate')).toHaveCount(0);
   await expect(page.getByTestId('race-2026-CA-governor')).toBeVisible();
   await expect(page.getByTestId('measure-browser-measure-2026')).toBeVisible();
+  await expect(page.locator('[data-testid^="measure-2026-CA-proposition-"]')).toHaveCount(14);
   await expect(page.getByTestId('measure-source-browser-measure-2026')).toContainText('on_ballot');
   await expect(page.getByTestId('pick-measure-browser-measure-2026')).toBeEnabled();
   await page.getByTestId('pick-measure-browser-measure-2026').click();

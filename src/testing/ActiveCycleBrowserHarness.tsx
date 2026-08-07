@@ -21,7 +21,11 @@ const races: Race[] = [
   { ...base, id: 'browser-closed-2026', state: 'Closed State', closeAt: closedCloseAt, closeDate: '2026-01-01T00:00:00Z' },
   RACE_2024_SANDBOX_FIXTURE,
 ];
-const measures: BallotMeasure[] = [{
+const canonicalBrowserMeasures: BallotMeasure[] = Array.from({ length: 14 }, (_, index) => ({
+  id: `2026-CA-proposition-${index + 1}`, state: 'California', title: `Certified measure ${index + 1}`, description: 'Certified California statewide measure.', status: 'upcoming', closeAt: openCloseAt,
+  closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'on_ballot', sourceAuthority: 'California Secretary of State', sourceUrl: 'https://www.sos.ca.gov/elections/ballot-measures', predictionReady: true, eligibleOptions: ['yes', 'no'], catalogScope: 'canonical-2026-measures', registryGeneration: 'canonical-2026-shadow-v2',
+}));
+const measures: BallotMeasure[] = [...canonicalBrowserMeasures, {
   id: 'browser-measure-2026', state: 'California', title: 'Measure', description: 'Fixture measure', status: 'upcoming', closeAt: openCloseAt,
   closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'on_ballot', sourceAuthority: 'California Secretary of State', sourceUrl: 'https://www.sos.ca.gov/elections/ballot-measures', predictionReady: true, eligibleOptions: ['yes', 'no'],
 }, { id: 'browser-measure-catalog-only', state: 'Texas', title: 'Catalog only measure', description: 'Fixture measure', status: 'upcoming', closeAt: openCloseAt, closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'filed', sourceAuthority: 'Official fixture', predictionReady: false, eligibleOptions: [] }];
@@ -32,7 +36,7 @@ const richMetrics = { historical: { availability: 'present', electionYear: 2024,
 
 export function ActiveCycleBrowserHarness() {
   const [picked, setPicked] = useState<string | null>(null);
-  const catalog = selectContestCatalog({ races, measures, activation: { state: 'active', activeFederalGeneration: 'canonical-2026-shadow-v2' } });
+  const catalog = selectContestCatalog({ races, measures, activation: { state: 'active', activeFederalGeneration: 'canonical-2026-shadow-v2', activeMeasureGeneration: 'canonical-2026-shadow-v2' } });
   if (catalog.status !== 'ready') return <main role="alert">Catalog unavailable</main>;
   const activeTargets = catalog.races.filter((target) => target.electionYear === ACTIVE_ELECTION_YEAR && target.mode === ACTIVE_ELECTION_MODE);
   return <main><h1>2026 Live Races</h1><p>Picks lock before Election Day under the current league safety policy.</p>{activeTargets.map((target) => {

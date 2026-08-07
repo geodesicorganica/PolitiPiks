@@ -9,7 +9,7 @@ const otherUserId = 'other-member';
 const now = Date.now();
 const openCloseAt = Timestamp.fromMillis(now + 24 * 60 * 60 * 1000);
 const closedCloseAt = Timestamp.fromMillis(now - 60 * 60 * 1000);
-const canonicalGeneration = 'canonical-2026-shadow-v1';
+const canonicalGeneration = 'canonical-2026-shadow-v2';
 
 const target = (closeAt, eligibleCandidateIds = ['candidate-a', 'candidate-b']) => ({ electionYear: 2026, mode: 'live', closeAt, closeDate: closeAt.toDate().toISOString(), eligibleCandidateIds });
 const league = (ownerId = userId, inviteCode = 'TEST26') => ({
@@ -51,7 +51,8 @@ try {
     await setDoc(doc(adminDb, 'races/withdrawn-race'), { ...target(openCloseAt, []), predictionReady: false });
     await setDoc(doc(adminDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical'), { raceId: '2026-CA-senate-class-1', candidateId: 'fec-canonical' });
     await setDoc(doc(adminDb, 'contestMetrics/2026-CA-senate-class-1'), { raceId: '2026-CA-senate-class-1' });
-    await setDoc(doc(adminDb, 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration, activeMeasureGeneration: canonicalGeneration });
+    await setDoc(doc(adminDb, 'ballotMeasures/2026-CA-proposition-1'), { ...target(openCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'], catalogScope: 'canonical-2026-measures', registryGeneration: canonicalGeneration });
     await setDoc(doc(adminDb, 'ballotMeasures/open-measure'), { ...target(openCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'] });
     await setDoc(doc(adminDb, 'ballotMeasures/catalog-only-measure'), { ...target(openCloseAt), predictionReady: false, eligibleOptions: [] });
     await setDoc(doc(adminDb, 'ballotMeasures/closed-measure'), { ...target(closedCloseAt), predictionReady: true, eligibleOptions: ['pass', 'fail'] });
@@ -94,6 +95,14 @@ try {
   await assertSucceeds(updateDoc(doc(userDb, 'predictions/open-update'), { pick: 'candidate-b', updatedAt: serverTimestamp() }));
   await assertSucceeds(deleteDoc(doc(userDb, 'predictions/open-create')));
   await assertSucceeds(setDoc(doc(userDb, 'predictions/open-measure-create'), prediction('open-measure', { type: 'measure', pick: 'pass' })));
+  await assertSucceeds(setDoc(doc(userDb, 'predictions/canonical-measure-create'), prediction('2026-CA-proposition-1', { type: 'measure', pick: 'pass' })));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'catalogActivations/canonical-2026'), { state: 'pending', activeFederalGeneration: 'legacy-2026', activeMeasureGeneration: 'none' });
+  });
+  await assertFails(setDoc(doc(userDb, 'predictions/pending-canonical-measure'), prediction('2026-CA-proposition-1', { type: 'measure', pick: 'pass' })));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'catalogActivations/canonical-2026'), { state: 'active', activeFederalGeneration: canonicalGeneration, activeMeasureGeneration: canonicalGeneration });
+  });
   await assertFails(setDoc(doc(userDb, 'predictions/catalog-only-measure-create'), prediction('catalog-only-measure', { type: 'measure', pick: 'pass' })));
   await assertFails(setDoc(doc(userDb, 'predictions/open-measure-invalid-option'), prediction('open-measure', { type: 'measure', pick: 'other' })));
   await assertSucceeds(getDoc(doc(userDb, 'races/2026-CA-senate-class-1/candidateResearch/fec-canonical')));
@@ -124,6 +133,7 @@ try {
     await setDoc(doc(context.firestore(), 'catalogActivations/canonical-2026'), { state: 'rollback', activeFederalGeneration: 'legacy-2026' });
   });
   await assertFails(setDoc(doc(userDb, 'predictions/rollback-closed-legacy'), prediction('2026-FL-senate')));
+  await assertFails(setDoc(doc(userDb, 'predictions/rollback-canonical-measure'), prediction('2026-CA-proposition-1', { type: 'measure', pick: 'pass' })));
 
   await assertFails(getDoc(doc(userDb, 'predictions/cross-league')));
   await assertFails(getDocs(query(

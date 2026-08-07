@@ -184,6 +184,22 @@ service cloud.firestore {
         );
     }
 
+    function isCanonical2026Measure(targetId) {
+      return targetId is string && targetId.matches('^2026-[A-Z]{2}-proposition-.*$');
+    }
+
+    function activeCanonicalMeasureTarget(targetId) {
+      return exists(/databases/$(database)/documents/ballotMeasures/$(targetId)) &&
+        catalogSelectorIsUsable() && activeFederalGeneration() == 'canonical-2026-shadow-v2' &&
+        get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('catalogScope', null) == 'canonical-2026-measures' &&
+        get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('registryGeneration', null) == activeFederalGeneration();
+    }
+
+    function activeMeasureTarget(targetId) {
+      return exists(/databases/$(database)/documents/ballotMeasures/$(targetId)) &&
+        (!isCanonical2026Measure(targetId) || activeCanonicalMeasureTarget(targetId));
+    }
+
     function liveTargetIsOpen(data) {
       return (data.type == 'race' &&
               exists(/databases/$(database)/documents/races/$(data.targetId)) &&
@@ -192,8 +208,8 @@ service cloud.firestore {
               get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt is timestamp &&
               (!isFederalRaceId(data.targetId) || activeFederalRaceTarget(data.targetId)) &&
               request.time < get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt) ||
-             (data.type == 'measure' &&
-              exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
+              (data.type == 'measure' &&
+               activeMeasureTarget(data.targetId) &&
               get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.electionYear == 2026 &&
               get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.mode == 'live' &&
               get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt is timestamp &&
@@ -212,7 +228,7 @@ service cloud.firestore {
 
     function measurePickIsEligible(data) {
       return data.type != 'measure' ||
-        (exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
+        (activeMeasureTarget(data.targetId) &&
          get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('predictionReady', false) == true &&
          get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('eligibleOptions', null) is list &&
          data.pick in get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.eligibleOptions);

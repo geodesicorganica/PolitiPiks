@@ -228,6 +228,9 @@ export interface BallotMeasure extends SourceMetadata {
   catalogReady?: boolean;
   researchReady?: boolean;
   metricsReady?: boolean;
+  /** Canonical 2026 measure activation metadata; absent records are unrelated/non-federal compatibility records. */
+  catalogScope?: 'canonical-2026-measures' | 'nonfederal';
+  registryGeneration?: string;
   fiscalAnalysisUrl?: string;
   deadlineKind?: 'product_safety_lock';
   lockPolicyId?: string;

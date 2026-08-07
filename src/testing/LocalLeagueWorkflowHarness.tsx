@@ -26,7 +26,7 @@ const openCloseAt = Timestamp.fromDate(new Date('2026-11-03T20:00:00Z'));
 const measures: BallotMeasure[] = certifiedMeasures.map(([id, title]) => ({
   id, state: 'CA', title, description: 'Certified California statewide measure.', status: 'upcoming', closeAt: openCloseAt,
   closeDate: '2026-11-03T20:00:00Z', electionYear: 2026, mode: 'live', qualificationStatus: 'on_ballot',
-  sourceAuthority: 'California Secretary of State', predictionReady: true, eligibleOptions: ['no', 'yes'],
+  sourceAuthority: 'California Secretary of State', predictionReady: true, eligibleOptions: ['no', 'yes'], catalogScope: 'canonical-2026-measures', registryGeneration: 'canonical-2026-shadow-v2',
 }));
 const races: Race[] = [{
   id: '2026-CA-senate-class-1', state: 'CA', office: 'Senate', candidates: [{ id: 'fec-filed-only', name: 'Filed Candidate', party: 'Democrat', qualificationStatus: 'filed', pickEligibility: 'ineligible' }],
