@@ -623,3 +623,20 @@ Nested implementation commits: `c63596e`, `f96b8dc`. No Hosting deployment,
 selector change, rules deployment, production read/write, rollback, deletion,
 merge, or push occurred. The next production Hosting action requires separate
 authorization and an approved target/release receipt.
+
+## G8.3C2 guarded Hosting preview deployment
+
+G8.3C2 status: **preview deployed on 2026-08-07; smoke stopped before browser
+launch**. The one authorized read-only channel list showed only `live`, then
+the exactly-once guarded deployment created preview channel
+`g8-3c2-20260807` for site `politipiks` and emitted
+`https://politipiks--g8-3c2-20260807-x6meubc8.web.app`, expiring after one day.
+The certified artifact was 3 files / 1,339,389 bytes with deterministic digest
+`94416db6b4673aafe3364dfef4d63555d1ca9c06ee6b5973521822e3ae7c116b`.
+
+The single bounded smoke attempt failed before creating a browser because its
+inline Node stdin program used CommonJS `require` while Node evaluated the
+program as an ES module. No preview request, retry, channel deletion, live
+deployment, selector activation, Firestore write, authentication, rollback,
+merge, or push followed. Durable evidence: [G8.3C2 guarded Hosting preview
+deployment](status/g8-3c2-hosting-preview.md).
