@@ -19,6 +19,22 @@ npm run test-canonical-activation
 npm run test-canonical-activation-emulator
 ```
 
+For the static Firebase Hosting candidate, run the browser-only artifact gates
+in this order after the normal source checks:
+
+```powershell
+npm run test-hosting-artifact
+npm run build:hosting
+npm run verify-hosting-artifact
+npm run verify-hosting-emulator
+npm run verify-deployment-readiness
+```
+
+`build:hosting` publishes only `hosting-dist`. The regular `npm run build`
+continues to produce the local/admin Express bundle in `dist`; that bundle and
+its source map are excluded from Hosting. The emulator smoke test checks the
+SPA root, direct deep links, refresh fallback, and hashed asset loading.
+
 Run contest verification against the target Firestore database after seeding or ingesting:
 
 ```sh
@@ -39,6 +55,11 @@ Use `npm run verify-deployment-readiness` to check the current shell. To check a
 ```sh
 npm run verify-deployment-readiness -- --env-file .env.production
 ```
+
+Hosting readiness fails closed when emulator, test-auth, mock-contest, admin
+seed, or equivalent unsafe flags are enabled, and when `hosting-dist` contains
+source maps, server bundles, environment files, credentials, private artifacts,
+legacy browser API routes, Gemini references, or secret-shaped assignments.
 
 ## Firebase And Data
 

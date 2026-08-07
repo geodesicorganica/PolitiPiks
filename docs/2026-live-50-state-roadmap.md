@@ -2,7 +2,7 @@
 
 Status: **authoritative**
 
-Last verified: **2026-08-05**
+Last verified: **2026-08-07**
 
 This document is the canonical roadmap for taking the 2026 election product from
 its locally certified federal catalog to a production system with live,
@@ -598,3 +598,28 @@ No production application version or rollback target is known, so no deploy,
 rollback, Hosting configuration change, push, merge, Cloud Run query, or
 additional remote call is authorized. Durable evidence: [G8.3C0 application
 deployment target discovery](status/g8-3c0-app-deployment-target.md).
+
+## G8.3C1 static Hosting readiness
+
+G8.3C1 status: **locally certified on 2026-08-07; not deployed**. The nested
+selector-aware app now has a deterministic browser-only `hosting-dist` build
+for candidate Hosting site `politipiks`, with SPA deep-link fallback, hashed
+asset caching, no-cache `index.html`, and an artifact guard that rejects server
+bundles, source maps, credentials, private files, unsafe flags, Gemini/API
+references, and secret-shaped assignments. The existing named-database
+Firestore rules configuration is unchanged.
+
+The user-facing app no longer triggers global refresh, Gemini enrichment, or
+candidate-vote `/api` fetches. It reads certified Firestore catalog/research,
+shows explicit unavailable evidence when canonical records are absent, and
+states that official refreshes are handled by the controlled data pipeline.
+Catalog, evidence, authentication, league, and pick workflows remain covered
+by the existing emulator/browser checks; federal races remain browseable but
+non-pickable, while the 14 selector-gated California measures remain pickable
+under active v2 fixtures.
+
+Durable evidence: [G8.3C1 static Hosting readiness](status/g8-3c1-static-hosting-readiness.md).
+Nested implementation commits: `c63596e`, `f96b8dc`. No Hosting deployment,
+selector change, rules deployment, production read/write, rollback, deletion,
+merge, or push occurred. The next production Hosting action requires separate
+authorization and an approved target/release receipt.
