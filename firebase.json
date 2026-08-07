@@ -10,7 +10,7 @@
   },
   "hosting": [{
     "site": "politipiks",
-    "public": "dist/hosting",
+    "public": "hosting-dist",
     "ignore": [
       "firebase.json",
       "**/.*",

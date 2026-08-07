@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+hosting-dist/
 coverage/
 test-results/
 .DS_Store

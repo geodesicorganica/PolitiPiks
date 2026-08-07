@@ -56,7 +56,7 @@ export function assertHostingArtifact(root: string): void {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = process.argv[2] ?? 'dist/hosting';
+  const root = process.argv[2] ?? 'hosting-dist';
   assertHostingArtifact(root);
   console.log(`Hosting artifact passed: ${root}`);
 }
