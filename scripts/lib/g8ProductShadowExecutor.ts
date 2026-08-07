@@ -360,13 +360,14 @@ export async function createFirestoreG8ProductShadowStore(plan: G8ProductShadowW
     async listNamespace() {
       const documents: ShadowDocument[] = [];
       const visitCollection = async (collectionReference: FirestoreCollectionLike) => {
-        for (const reference of await collectionReference.listDocuments()) {
+        const references = await collectionReference.listDocuments();
+        await Promise.all(references.map(async (reference) => {
           const snapshot = await reference.get();
           if (snapshot.exists) documents.push({ path: reference.path, data: encodeFirestoreSnapshotValue(snapshot.data(), reference.path) as JsonRecord });
-          for (const child of await reference.listCollections()) await visitCollection(child);
-        }
+          await Promise.all((await reference.listCollections()).map((child) => visitCollection(child)));
+        }));
       };
-      for (const child of await db.doc(G8_PRODUCT_SHADOW_ROOT).listCollections()) await visitCollection(child);
+      await Promise.all((await db.doc(G8_PRODUCT_SHADOW_ROOT).listCollections()).map((child) => visitCollection(child)));
       return documents;
     },
     async commit(writes) {

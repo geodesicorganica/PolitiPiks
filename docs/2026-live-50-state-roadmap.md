@@ -535,3 +535,26 @@ After every goal:
 
 Changes to MVP scope, data-authority policy, readiness semantics, release order,
 or result-scoring policy require an explicit decision recorded in this document.
+
+## G8.3A versioned v2 activation and deployment readiness
+
+G8.3A defines a separate `g8-3a-v2-activation/v1` contract for the verified
+`canonical-2026-shadow-v2` namespace. It maps exactly 3,352 content documents
+to active `races`, nested `candidateResearch`, `ballotMeasures`, nested measure
+research, and `contestMetrics` paths. Canonical 2026 measures carry explicit
+`catalogScope=canonical-2026-measures` and v2 generation metadata; the active
+selector is the only exposure switch.
+
+The local dry run is credential-free and reports 3,352 promoted content
+documents, two selector/manifest operations, deterministic namespace and plan
+digests, and zero writes. The state machine is validate shadow → pending
+selector/manifest → bounded create-only promotion → exact content verification
+→ final active selector. Existing content must be absent or exact-compatible;
+conflicts and partial incompatible state stop without overwrite or deletion.
+
+The future production sequence requires separate operation receipts and a
+committed implementation. Use direct `npx tsx` with all target, generation,
+digest, count, source-commit, and receipt values derived from the current
+release manifest and offline plan. Do not substitute the existing
+`activate-canonical-2026.ts` contract. Rollback is selector-only and retains
+legacy/v1/v2 data. G8.3A itself performs no production operation.

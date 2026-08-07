@@ -189,3 +189,32 @@ npx tsx <rollback-script> --project-id <project> --database-id <database> --reas
 No template authorizes or executes production operations. The exact runbook and
 manifest validator are recorded in
 `docs/status/g7-3-release-rollback-runbook-readiness.md`.
+
+## G8.3A v2 activation contract
+
+The G8.3A contract is versioned separately from the legacy canonical activation
+executor. It promotes only the verified `canonical-2026-shadow-v2` namespace,
+including 470 races, 2,384 nested candidate-research documents, 14 ballot
+measures, 14 nested measure-research documents, and 470 contest metrics. The
+selector remains absent/legacy until a pending manifest is written; canonical
+documents are create-only, exact-compatible resume is allowed, and exact
+content verification precedes final activation.
+
+Future production commands must be assembled from
+`docs/g8-catalog-beta-release-manifest.json` and the offline dry-run plan. The
+flags below are intentionally explicit; replace every placeholder with the
+manifest-derived value and a distinct approved receipt. Use direct `npx tsx`.
+
+```powershell
+npx tsx scripts/activate-g8-3a-v2.ts --apply --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
+npx tsx scripts/activate-g8-3a-v2.ts --verify-only --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
+npx tsx scripts/activate-g8-3a-v2.ts --rollback --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
+```
+
+The apply and verify commands are a future production sequence and were not
+executed for this readiness goal. Rollback changes only
+`catalogActivations/canonical-2026`; it never deletes or mutates legacy, v1, or
+v2 content. Absent, pending, active, and rollback selector states are mirrored
+by the client catalog and Firestore pick rules: canonical measures are hidden
+until active v2, become pickable only while active v2, and become unavailable
+again after rollback; unrelated non-federal content remains available.
