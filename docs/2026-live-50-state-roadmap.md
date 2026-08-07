@@ -558,3 +558,21 @@ digest, count, source-commit, and receipt values derived from the current
 release manifest and offline plan. Do not substitute the existing
 `activate-canonical-2026.ts` contract. Rollback is selector-only and retains
 legacy/v1/v2 data. G8.3A itself performs no production operation.
+
+## G8.3B production Firestore rules deployment
+
+G8.3B status: **completed with one authorized production rules deployment on
+2026-08-06**. From nested commit `8bbc4bb611dd5826b446ca672c97a98a79a1694d`
+on `codex/politipiks-2026-live-contract`, the direct Firebase CLI command
+deployed only the configured Firestore rules target for project `politipiks`
+and database
+`ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a`. The deployed
+`firestore.rules` SHA-256 is
+`30d1dade24f9a96e27e963d27af6b4077731f7dbf83d13200e7f2da35812a4c4`.
+
+The command exited `0` and Firebase reported successful compilation, upload,
+and release of `firestore.rules`. No app, hosting, functions, storage,
+selector, rollback, deletion, or Firestore document operation occurred; the
+unrelated nested `.env.example` change was preserved. The authorization receipt
+was `g8.3b-rules-deploy-2026-08-06`. Durable evidence: [G8.3B production
+Firestore rules deployment](status/g8-3b-production-rules-deployment.md).
