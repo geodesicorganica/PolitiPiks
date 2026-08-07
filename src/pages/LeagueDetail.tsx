@@ -38,11 +38,6 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [selectedMeasure, setSelectedMeasure] = useState<BallotMeasure | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [globalSyncing, setGlobalSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
-  const [refreshJobId, setRefreshJobId] = useState<string | null>(null);
-  const [refreshStatus, setRefreshStatus] = useState<'idle' | 'queued' | 'running' | 'partial' | 'complete' | 'failed'>('idle');
 
   useEffect(() => {
     if (!leagueId) return;
@@ -142,79 +137,6 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
     }
   };
 
-  const handleSyncCandidate = async (candidate: Candidate, race: Race) => {
-    setSyncingId(candidate.id);
-    try {
-      const response = await fetch('/api/enrich-candidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          candidateName: candidate.name, 
-          currentOffice: race.office,
-          state: race.state 
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch intelligence');
-      
-      const data = await response.json();
-      
-      // Update the candidate in local races state and Firestore
-      const updatedCandidates = race.candidates.map(c => {
-        if (c.id === candidate.id) {
-          return {
-            ...c,
-            biography: data.biography,
-            sentimentData: data.sentimentData,
-            lastSynced: new Date().toISOString()
-          };
-        }
-        return c;
-      });
-
-      await setDoc(doc(db, 'races', race.id), { candidates: updatedCandidates }, { merge: true });
-      
-      // Update selectedRace if it's the one we're viewing
-      if (selectedRace?.id === race.id) {
-        setSelectedRace({ ...race, candidates: updatedCandidates });
-      }
-    } catch (err) {
-      console.error('Sync error:', err);
-      // We don't use handleFirestoreError here as it's a Gemini API error mostly
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  const handleGlobalRefresh = async () => {
-    if (globalSyncing) return;
-    setGlobalSyncing(true);
-    setRefreshStatus('queued');
-    try {
-      const response = await fetch('/api/refresh/global', { method: 'POST' });
-      if (!response.ok) throw new Error('Failed to start global refresh');
-      const job = await response.json();
-      setRefreshJobId(job.id);
-
-      let done = false;
-      while (!done) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const statusResponse = await fetch(`/api/refresh/jobs/${job.id}`);
-        if (!statusResponse.ok) throw new Error('Failed to read refresh status');
-        const latestJob = await statusResponse.json();
-        setRefreshStatus(latestJob.status);
-        setSyncProgress({ current: latestJob.counts.candidates, total: latestJob.counts.candidates });
-        done = ['partial', 'complete', 'failed'].includes(latestJob.status);
-      }
-    } catch (err) {
-      console.error('Global refresh failed:', err);
-      setRefreshStatus('failed');
-    } finally {
-      setGlobalSyncing(false);
-      setSyncingId(null);
-    }
-  };
-
   const getDataForCategory = () => {
     switch (activeCategory) {
       case 'Senate': return { items: normalizedRaces.filter(r => r.office === 'Senate'), type: 'race' };
@@ -282,7 +204,8 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
 
            <div className="p-6 bg-brand-dark border border-slate-800 text-[10px] font-mono text-slate-500 uppercase leading-relaxed space-y-2">
               <p className="text-brand-red font-black">System Status:</p>
-              <p>Predictive engines active. Global latency: 14ms. Source: Ballotpedia Direct API.</p>
+              <p>Certified catalog and research are read from Firestore evidence.</p>
+              <p>Official refreshes are handled by the controlled data pipeline; browsers do not trigger refresh or enrichment.</p>
            </div>
         </aside>
 
@@ -307,35 +230,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
             ))}
           </div>
           
-          <div className="flex flex-col items-end gap-1">
-            <button 
-              onClick={handleGlobalRefresh}
-              disabled={globalSyncing}
-              className={cn(
-                "flex items-center gap-2 px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                globalSyncing 
-                  ? "bg-slate-800 text-slate-500 border border-slate-700 animate-pulse" 
-                  : "bg-slate-900 border border-slate-700 text-brand-red hover:bg-brand-red hover:text-white hover:border-brand-red shadow-[4px_4px_0px_0px_#000]"
-              )}
-            >
-              {globalSyncing ? (
-                <>
-                  <Activity size={14} className="animate-spin" />
-                  {refreshStatus === 'queued' ? 'Queued' : `Refreshing ${syncProgress.current}`}
-                </>
-              ) : (
-                <>
-                  <TrendingUp size={14} />
-                  Global Refresh
-                </>
-              )}
-            </button>
-            {!globalSyncing && (
-              <span className="text-[9px] font-mono text-slate-600 uppercase">
-                Server-side refresh across stale data objects
-              </span>
-            )}
-          </div>
+          <p className="max-w-xs text-right text-[9px] font-mono uppercase text-slate-600">Official refreshes are handled by the controlled data pipeline.</p>
         </div>
 
         {/* Table View */}
@@ -435,11 +330,7 @@ export function LeagueDetail({ leagueId, onBack }: LeagueDetailProps) {
               prediction={selectedRace ? predictions[selectedRace.id] : predictions[selectedMeasure!.id]}
               onPick={handlePick}
               onRemoveCandidate={handleRemoveCandidate}
-              onSyncCandidate={handleSyncCandidate}
               isSubmitting={submitting === (selectedRace?.id || selectedMeasure?.id)}
-              syncingId={syncingId}
-              refreshJobId={refreshJobId}
-              refreshStatus={refreshStatus}
             />
         )}
       </AnimatePresence>
@@ -504,51 +395,11 @@ function ActivityRecord({ activities }: { activities: Candidate['activities'] })
 
 }
 
-function CandidateVotingSection({ candidate, onResolved }: { candidate: Candidate; onResolved?: (count: number) => void }) {
-  const [votes, setVotes] = useState(candidate.votes || []);
-  const [loadingVotes, setLoadingVotes] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadVotes = async () => {
-      try {
-        const response = await fetch(`/api/candidates/${candidate.id}/votes`);
-        if (!response.ok) throw new Error('Failed to load canonical votes');
-        const canonicalVotes = await response.json();
-        if (!cancelled) {
-          const nextVotes = canonicalVotes.length > 0 ? canonicalVotes : (candidate.votes || []);
-          setVotes(nextVotes);
-          onResolved?.(nextVotes.length);
-        }
-      } catch (error) {
-        console.error(`Failed to load canonical votes for ${candidate.name}:`, error);
-        if (!cancelled) {
-          const fallbackVotes = candidate.votes || [];
-          setVotes(fallbackVotes);
-          onResolved?.(fallbackVotes.length);
-        }
-      } finally {
-        if (!cancelled) setLoadingVotes(false);
-      }
-    };
-
-    void loadVotes();
-    return () => {
-      cancelled = true;
-    };
-  }, [candidate.id, candidate.name, candidate.votes, onResolved]);
-
-  if (loadingVotes) {
-    return (
-      <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">
-        Loading verified voting record...
-      </div>
-    );
-  }
+function CandidateVotingSection({ candidate }: { candidate: Candidate }) {
+  const votes = candidate.votes || [];
 
   if (votes.length === 0) {
-    return null;
+    return <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">Official voting record is unavailable from certified Firestore evidence. Official refreshes are handled by the controlled data pipeline.</div>;
   }
 
   return (
@@ -570,11 +421,7 @@ function DecisionModule({
   prediction, 
   onPick,
   onRemoveCandidate,
-  onSyncCandidate,
   isSubmitting,
-  syncingId,
-  refreshJobId,
-  refreshStatus
 }: { 
   race: Race | null, 
   measure: BallotMeasure | null, 
@@ -582,14 +429,9 @@ function DecisionModule({
   prediction?: string,
   onPick: (target: Race | BallotMeasure, pick: string, type: 'race' | 'measure') => void,
   onRemoveCandidate: (raceId: string, candidateId: string) => void,
-  onSyncCandidate: (candidate: Candidate, race: Race) => void,
   isSubmitting: boolean,
-  syncingId: string | null,
-  refreshJobId: string | null,
-  refreshStatus: 'idle' | 'queued' | 'running' | 'partial' | 'complete' | 'failed'
 }) {
   const item = race || measure;
-  const [canonicalVoteCounts, setCanonicalVoteCounts] = useState<Record<string, number>>({});
   if (!item) return null;
   const racePicksAvailable = !race || raceReady(race);
   const eligibleMeasureOptions = new Set(measure?.eligibleOptions ?? []);
@@ -635,7 +477,7 @@ function DecisionModule({
                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 font-black uppercase tracking-widest">
                  <Shield size={10} /> Verified Source Data
                </div>
-               <span className="font-mono text-slate-600 uppercase">REFRESH JOB: {refreshJobId ? refreshStatus : 'idle'}</span>
+               <span className="font-mono text-slate-600 uppercase">CERTIFIED FIRESTORE EVIDENCE</span>
                <span className="font-mono text-slate-400 uppercase" data-testid={`close-at-${item.id}`}>
                  {isClosed ? 'Picking closed' : 'Pick by'}: {formatCloseAt(item)}
                </span>
@@ -715,18 +557,7 @@ function DecisionModule({
                               <p className="text-[11px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
                                  <Users size={14} /> Comprehensive Biography
                               </p>
-                              <button 
-                                onClick={() => race && onSyncCandidate(candidate, race)}
-                                disabled={syncingId === candidate.id}
-                                className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 hover:text-brand-red hover:border-brand-red transition-all disabled:opacity-50"
-                              >
-                                {syncingId === candidate.id ? (
-                                  <Activity size={10} className="animate-spin" />
-                                ) : (
-                                  <TrendingUp size={10} />
-                                )}
-                                {syncingId === candidate.id ? 'Refreshing Enrichment...' : candidate.lastSynced ? `Refresh Enrichment (Updated ${new Date(candidate.lastSynced).toLocaleTimeString()})` : 'Refresh Enrichment'}
-                              </button>
+                              <span className="text-[9px] font-mono uppercase text-slate-600">Official refreshes are pipeline-controlled.</span>
                            </div>
                            <div className="text-sm text-slate-400 leading-relaxed uppercase font-medium border-l-2 border-slate-800 pl-6 space-y-4">
                               <p className="line-clamp-[10]">{candidate.biography || candidate.summary}</p>
@@ -754,7 +585,6 @@ function DecisionModule({
 
                         <CandidateVotingSection
                           candidate={candidate}
-                          onResolved={(count) => setCanonicalVoteCounts((current) => ({ ...current, [candidate.id]: count }))}
                         />
 
                         {candidate.activities && candidate.activities.length > 0 && (
@@ -765,12 +595,6 @@ function DecisionModule({
                                 </p>
                              </div>
                              <ActivityRecord activities={candidate.activities} />
-                          </div>
-                        )}
-
-                        {(canonicalVoteCounts[candidate.id] ?? candidate.votes?.length ?? 0) === 0 && (!candidate.activities || candidate.activities.length === 0) && (
-                          <div className="border border-dashed border-slate-800 p-5 text-[10px] font-mono uppercase text-slate-600">
-                            No verified recent record available yet.
                           </div>
                         )}
 

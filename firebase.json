@@ -5,6 +5,29 @@
   }],
   "emulators": {
     "auth": { "port": 9099 },
-    "firestore": { "port": 8080 }
-  }
+    "firestore": { "port": 8080 },
+    "hosting": { "port": 5000 }
+  },
+  "hosting": [{
+    "site": "politipiks",
+    "public": "dist/hosting",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/*.map",
+      "**/*.env",
+      "**/.env*",
+      "**/server.*",
+      "**/*.cjs",
+      "**/credentials/**",
+      "**/private/**",
+      "**/secrets/**"
+    ],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      { "source": "/assets/**", "headers": [{ "key": "Cache-Control", "value": "public,max-age=31536000,immutable" }] },
+      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache,no-store,must-revalidate" }] }
+    ]
+  }]
 }
