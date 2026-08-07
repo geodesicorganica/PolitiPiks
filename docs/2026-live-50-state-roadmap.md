@@ -576,3 +576,25 @@ selector, rollback, deletion, or Firestore document operation occurred; the
 unrelated nested `.env.example` change was preserved. The authorization receipt
 was `g8.3b-rules-deploy-2026-08-06`. Durable evidence: [G8.3B production
 Firestore rules deployment](status/g8-3b-production-rules-deployment.md).
+
+## G8.3C0 production application deployment target discovery
+
+G8.3C0 status: **blocked on 2026-08-07**. The one authorized Firebase Hosting
+site inventory returned exactly one site, `politipiks`, with default URL
+`https://politipiks.web.app`; it did not return a live release/version,
+previous rollback version, repository connection, application root, region, or
+backend. The authorized App Hosting inventory could not return rows because the
+project is not on the Blaze plan and the required API could not be enabled.
+
+The local app remains a Vite frontend plus bundled Express/Node server, while
+`firebase.json` configures Firestore only. Hosting site inventory therefore
+identifies a candidate URL, not a certified full-application production
+target. The active local commit `8bbc4bb611dd5826b446ca672c97a98a79a1694d`
+and branch `codex/politipiks-2026-live-contract` are not present in the one
+authorized `git ls-remote origin` result; remote `main` and `HEAD` resolve to
+`88fe9121a3b3e4ad5a50776aed7f96e4519463ec`.
+
+No production application version or rollback target is known, so no deploy,
+rollback, Hosting configuration change, push, merge, Cloud Run query, or
+additional remote call is authorized. Durable evidence: [G8.3C0 application
+deployment target discovery](status/g8-3c0-app-deployment-target.md).
