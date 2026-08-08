@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { Firestore } from '@google-cloud/firestore';
+import { buildG8ProductShadowWritePlan } from './g8ProductShadowExecutor.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, createFirestoreG8V2ActivationAuditStore } from './g8V2Activation.js';
+import { auditG8V2ActivationState } from './g8V2StateAudit.js';
+import { validateLocalProductBundle } from './localProductBundle.js';
+
+if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('run this test with the alternate Firebase emulator configuration');
+process.env.PROJECT_ID = 'politipiks';
+process.env.FIRESTORE_DATABASE_ID = 'ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a';
+const bundle = validateLocalProductBundle(JSON.parse(readFileSync('.artifacts/private/canonical-migration/g7-1-local-product-bundle.json', 'utf8')));
+const shadowPlan = buildG8ProductShadowWritePlan(bundle, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT);
+const plan = buildG8V2ActivationPlan(shadowPlan, { shadowVerification: 'g8-4br0-emulator-shadow', promotion: 'g8-4br0-emulator-promotion', activation: 'g8-4br0-emulator-activation', rollback: 'g8-4br0-emulator-rollback' }, { identitySchemaVersion: 2, shadowSourceCommit: CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, activationImplementationCommit: 'b'.repeat(40) });
+const db = new Firestore({ projectId: process.env.PROJECT_ID, databaseId: process.env.FIRESTORE_DATABASE_ID });
+await db.doc(plan.manifestPath).delete();
+await db.doc(plan.manifestPath).create({ contract: 'legacy/v1', state: 'active' });
+const auditStore = await createFirestoreG8V2ActivationAuditStore(plan);
+const result = await auditG8V2ActivationState(auditStore, plan, 'g8-4br0-state-audit-emulator');
+assert.equal(result.selector.state, 'legacy');
+assert.equal(result.contentAudit, null);
+assert.equal(result.readsPerformed.total, 1);
+assert.equal((await db.doc(plan.manifestPath).get()).get('state'), 'active');
+console.log('G8.4BR0 state audit emulator tests passed');

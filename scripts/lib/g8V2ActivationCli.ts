@@ -130,3 +130,23 @@ export function assertCommittedG8V2Implementation(identity: G8V2ActivationIdenti
   const head = getCurrentG8V2ActivationImplementationCommit();
   return assertG8V2ActivationIdentity(identity, { head, focusedStatus: status });
 }
+
+export const G8_V2_STATE_AUDIT_FOCUSED_FILES = [
+  'package.json',
+  'scripts/audit-g8-4br0-state.ts',
+  'scripts/run-g8-4br0-state-audit.ts',
+  'scripts/lib/g8V2StateAudit.ts',
+  'scripts/lib/g8V2StateAuditPreflight.ts',
+  'scripts/firebase.g8-4br0-emulator.json',
+] as const;
+
+export function getCurrentG8V2StateAuditImplementationCommit() {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+}
+
+export function assertCommittedG8V2StateAuditImplementation(expectedCommit: string) {
+  const status = execFileSync('git', ['status', '--porcelain', '--', ...G8_V2_STATE_AUDIT_FOCUSED_FILES], { encoding: 'utf8' });
+  const head = getCurrentG8V2StateAuditImplementationCommit();
+  if (expectedCommit !== head || status.trim()) throw new Error('stale or dirty g8.4br0 state audit implementation');
+  return expectedCommit;
+}

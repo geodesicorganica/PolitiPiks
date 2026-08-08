@@ -63,7 +63,8 @@ const canonicalJson = (value: unknown): string => {
   return encoded;
 };
 const digest = (value: unknown) => createHash('sha256').update(canonicalJson(value)).digest('hex');
-const sameData = (left: unknown, right: unknown) => canonicalJson(encodeFirestoreSnapshotValue(left)) === canonicalJson(encodeFirestoreSnapshotValue(right));
+export const sameG8V2ActivationData = (left: unknown, right: unknown) => canonicalJson(encodeFirestoreSnapshotValue(left)) === canonicalJson(encodeFirestoreSnapshotValue(right));
+const sameData = sameG8V2ActivationData;
 const validDigest = (value: unknown) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const validReceipt = (value: unknown) => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$/.test(value);
 
@@ -287,6 +288,27 @@ export async function createFirestoreG8V2ActivationStore(plan: G8V2ActivationPla
         if (write.operation === 'create') batch.create(document(write.path), data); else batch.set(document(write.path), data);
       }
       await batch.commit();
+    },
+  };
+}
+
+export type G8V2ActivationAuditStore = {
+  get(path: string): Promise<Json | null>;
+};
+
+/** Read-only Firestore store for the bounded state auditor. The allowed path set
+ * prevents accidental collection scans or reads outside the certified plan. */
+export async function createFirestoreG8V2ActivationAuditStore(plan: G8V2ActivationPlan): Promise<G8V2ActivationAuditStore> {
+  assertActivationPlan(plan);
+  const [{ bootstrapFirestore }] = await Promise.all([import('./firestoreCli.js')]);
+  const { db, projectId, databaseId } = bootstrapFirestore();
+  if (projectId !== plan.target.projectId || databaseId !== plan.target.databaseId) throw new Error('unexpected Firestore target for g8.4br0 state audit');
+  const allowed = new Set([plan.manifestPath, ...plan.documents.map((document) => document.path)]);
+  return {
+    async get(path) {
+      if (!allowed.has(path)) throw new Error(`unsafe g8.4br0 audit path: ${path}`);
+      const snapshot = await db.doc(path).get();
+      return snapshot.exists ? encodeFirestoreSnapshotValue(snapshot.data(), path) as Json : null;
     },
   };
 }
