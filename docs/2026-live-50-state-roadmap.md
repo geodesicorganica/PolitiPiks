@@ -715,3 +715,16 @@ did not run; no retry or additional production read is authorized. The final
 known selector state is unknown/unverified and requires a new explicit release
 authorization before follow-up. Durable evidence: [G8.4B production catalog
 activation attempt](status/g8-4b-production-catalog-activation.md).
+
+## G8.4BR0 post-failure state audit
+
+G8.4BR0 implemented and locally certified a selector-first, read-only auditor
+for the consumed G8.4B attempt. Its generated production array was derived from
+the current manifest, certified bundle, and committed implementation identity;
+the twice-run Firebase-free preflight was identical and all required local
+gates passed. The one authorized production invocation then exited `1` at the
+Windows launcher boundary without stdout/stderr or an audit result. A harmless
+reproduction returned `EINVAL` before launching its child. No selector or
+content path was read, and production state remains unknown/unverified. No
+retry, activation, verify-only, smoke, rollback, deployment, deletion, or push
+is authorized. Durable evidence: [G8.4BR0 post-failure state audit](status/g8-4br0-post-failure-state-audit.md).

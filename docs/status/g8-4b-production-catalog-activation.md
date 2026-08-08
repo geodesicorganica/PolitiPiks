@@ -45,3 +45,15 @@ fail-closed and require a new explicit authorization before any follow-up.
 No Hosting/rules deployment, app-code change, legacy/v1 contract change,
 candidate/measure write outside the executor, deletion, channel change, branch
 change, or push occurred.
+
+## G8.4BR0 follow-up audit
+
+The separately authorized G8.4BR0 read-only state-audit attempt on
+`2026-08-08T14:47:53.656Z`–`2026-08-08T14:47:53.659Z` was consumed at the
+launcher boundary with exit `1`, no stdout/stderr, no selector read, and no
+content scan. A harmless local reproduction of the same `spawnSync("npx.cmd",
+..., windowsHide: true)` mechanism returned `EINVAL` before launching its child.
+This does not retroactively repair the missing G8.4B stderr, so the original
+failure phase remains indeterminate; production state remains
+unknown/unverified. Full sanitized evidence is in
+[G8.4BR0 post-failure state audit](g8-4br0-post-failure-state-audit.md).

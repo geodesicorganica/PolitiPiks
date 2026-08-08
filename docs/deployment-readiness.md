@@ -282,3 +282,24 @@ Hosting smoke, and selector-only rollback were not run. The apply attempt is
 consumed; no retry, extra production read, or follow-up operation is authorized.
 The final known selector state is unknown/unverified. See the full sanitized
 ledger in [G8.4B production catalog activation attempt](status/g8-4b-production-catalog-activation.md).
+
+## G8.4BR0 post-failure state audit
+
+G8.4BR0 added a committed, manifest-derived, read-only activation-state auditor
+that validates target, generation, identities, digests, counts, source commit,
+receipt, and safe environment before lazy Firebase initialization. It reads the
+selector first and never writes, repairs, resumes, activates, rolls back,
+deletes, or scans outside the exact 3,352 expected paths.
+
+The one authorized production audit invocation on 2026-08-08 exited `1` without
+stdout/stderr or an audit result. A local no-network reproduction of its Windows
+`spawnSync("npx.cmd", ..., windowsHide: true)` launcher returned `EINVAL` before
+child launch. No selector read or content scan occurred; production state is
+unknown/unverified. The historical G8.4B phase remains indeterminate because its
+durable record omitted the launcher error and exact phase. See
+[G8.4BR0 post-failure state audit](status/g8-4br0-post-failure-state-audit.md).
+
+The exact next authorization is a new bounded read-only audit invocation after
+the launcher mechanism is corrected. Activation, resume, existing verify-only,
+smoke, rollback, deployment, and deletion remain unauthorized until that audit
+successfully establishes selector state.
