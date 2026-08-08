@@ -156,3 +156,35 @@ G7.3 changes are limited to the manifest, validator/test, package scripts, and
 the three requested documentation records. Existing dirty files in both
 repositories, including the nested `.env.example`, were not staged, rewritten,
 or deleted. No nested application source change was required.
+
+## G8.3C3 live Hosting runbook receipt
+
+The following bounded runbook was executed under the separate receipts
+`g8.3c3-live-hosting-2026-08-07` and
+`g8.3c3-conditional-rollback-20260807`:
+
+```text
+channel-list → clone live to named rollback → rollback URL GET
+→ one Hosting deploy → one explicit live-target smoke
+→ conditional rollback only on deploy-success/smoke-failure
+```
+
+The exact target was Firebase project/site `politipiks`, with live URL
+`https://politipiks.web.app`, rollback channel
+`g8-3c3-rollback-20260807`, and rollback URL
+`https://politipiks--g8-3c3-rollback-20260807-dfype3dr.web.app`. The channel list
+was the only preflight and showed live present and the rollback channel absent.
+The clone exited `0`; the rollback URL GET returned HTTP 200; the Hosting
+deploy exited `0` after finding 3 files and completing upload, finalization, and
+release; and the committed command
+`node scripts/hosting-preview-smoke.mjs --base-url https://politipiks.web.app --live-target`
+exited `0`.
+
+The smoke rendered and reloaded `/`, `/races`, and `/leagues`, served 12 hashed
+assets, recorded 26 Firestore reads, and recorded zero API/runtime,
+authentication, Firestore-write, unexpected-network, console, page, or
+navigation errors. Conditional rollback did not run. No selector activation,
+Firestore document write, rules deployment, channel deletion, merge, or push
+was performed. The complete UTC ledger, artifact digest, local gates, and
+non-emitted Firebase version-identifier note are recorded in
+`docs/status/g8-3c3-production-hosting-deployment.md`.

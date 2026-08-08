@@ -655,3 +655,27 @@ site, selector, Firestore data, rules, Hosting configuration, and deployment
 state were unchanged. No retry, redeployment, deletion, rollback, merge, or
 push occurred. Durable evidence: [G8.3C2 Hosting preview smoke recovery
 record](status/g8-3c2-hosting-preview.md).
+
+## G8.3C3 production Hosting deployment
+
+G8.3C3 status: **completed with one authorized live deployment and one passing
+read-only live smoke on 2026-08-07**. The existing `politipiks:live` channel was
+cloned once to rollback channel `g8-3c3-rollback-20260807`, whose emitted URL
+returned HTTP 200. The exact certified artifact remained 3 files / 1,339,389
+bytes with digest
+`94416db6b4673aafe3364dfef4d63555d1ca9c06ee6b5973521822e3ae7c116b` and was
+deployed to `https://politipiks.web.app` once from app commit `f96b8dc`.
+
+The committed ESM harness was extended in nested commit `4135ebb` to require
+explicit `--live-target` for the exact live host while preserving preview and
+loopback support. The one live smoke rendered and reloaded `/`, `/races`, and
+`/leagues`, served 12 hashed assets, recorded 26 Firestore reads, and recorded
+zero API/runtime, authentication, Firestore-write, unexpected-network, page,
+console, or navigation errors. The selector remained unchanged and conditional
+rollback did not run. Firebase emitted no separate version identifier in the
+deploy output. Durable evidence: [G8.3C3 production Hosting deployment](status/g8-3c3-production-hosting-deployment.md).
+
+The focused deployment runbook now records the exact operation ledger and
+rollback boundary in [G8.3C3 runbook receipt](status/g7-3-release-rollback-runbook-readiness.md). No selector activation,
+Firestore document write, rules deployment, channel deletion, merge, or push
+occurred.
