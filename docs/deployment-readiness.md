@@ -260,3 +260,25 @@ offline preflight derives these values from the manifest and bundle; they are
 not launch-time hand entries. No production apply, verify-only read, selector
 change, rollback, deployment, deletion, network call, or nested-app mutation is
 part of G8.4A.
+
+## G8.4B production activation attempt
+
+G8.4B completed its local gates and consumed exactly one generated production
+apply invocation on 2026-08-08. The apply targeted project `politipiks`, named
+database `ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a`, and
+generation `canonical-2026-shadow-v2`. Its generated identity was schema `2`
+with shadow source commit `295466ccc52ccd4d6ad4f1dfb444d48410b92910` and
+activation implementation commit `e34e975a1994d2883e37646a42184dc9b4cd0c31`.
+The certified namespace digest was
+`ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`, the
+activation plan digest was
+`70eaec0164cc7509be5e46f25a3757bafbd7873114fae5c92a95147c9132748d`, and the
+counts were 470 races, 14 measures, 2,384 candidate research, 14 measure
+research, 470 metrics, and 3,352 content documents.
+
+The direct generated apply exited `1` at `2026-08-08T12:19:34.335Z` and did not
+report `status=active`. Per the fail-closed boundary, verify-only, the one live
+Hosting smoke, and selector-only rollback were not run. The apply attempt is
+consumed; no retry, extra production read, or follow-up operation is authorized.
+The final known selector state is unknown/unverified. See the full sanitized
+ledger in [G8.4B production catalog activation attempt](status/g8-4b-production-catalog-activation.md).

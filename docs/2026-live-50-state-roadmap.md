@@ -698,3 +698,20 @@ The focused deployment runbook now records the exact operation ledger and
 rollback boundary in [G8.3C3 runbook receipt](status/g7-3-release-rollback-runbook-readiness.md). No selector activation,
 Firestore document write, rules deployment, channel deletion, merge, or push
 occurred.
+
+## G8.4B canonical v2 catalog activation
+
+G8.4B is **fail-closed after one authorized production apply attempt on
+2026-08-08**. The required branch/HEAD, focused cleanliness, twice-identical
+Firebase-free preflight, credentials, local gates, emulator gates, and generated
+identity/count/digest arrays passed. The apply array was generated from the
+manifest and certified bundle with identity schema `2`, shadow source
+`295466ccc52ccd4d6ad4f1dfb444d48410b92910`, activation implementation
+`e34e975a1994d2883e37646a42184dc9b4cd0c31`, and 3,352 content documents.
+
+The apply invocation exited `1` without reporting `status=active`, so the
+authorized sequence stopped. Verify-only, live smoke, and conditional rollback
+did not run; no retry or additional production read is authorized. The final
+known selector state is unknown/unverified and requires a new explicit release
+authorization before follow-up. Durable evidence: [G8.4B production catalog
+activation attempt](status/g8-4b-production-catalog-activation.md).
