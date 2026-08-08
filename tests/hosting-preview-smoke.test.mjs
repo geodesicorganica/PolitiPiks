@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  LIVE_HOST,
   PREVIEW_HOST,
   ROUTES,
   SmokeFailure,
@@ -13,15 +14,21 @@ import {
 } from '../scripts/hosting-preview-smoke.mjs';
 
 const previewUrl = `https://${PREVIEW_HOST}`;
+const liveUrl = `https://${LIVE_HOST}`;
 
 assert.equal(parseArguments(['--base-url', previewUrl]).baseUrl, previewUrl);
 assert.equal(parseArguments(['--base-url', 'http://127.0.0.1:5000']).baseUrl, 'http://127.0.0.1:5000');
+assert.deepEqual(parseArguments(['--base-url', liveUrl, '--live-target']), { baseUrl: liveUrl, liveTarget: true });
 assert.throws(() => parseArguments([]), /base-url is required/);
 assert.throws(() => parseArguments(['--base-url']), /value is required/);
 assert.throws(() => parseArguments(['--base-url', 'https://evil.example']), /not authorized/);
-assert.throws(() => parseArguments(['--base-url', 'https://politipiks.web.app']), /not authorized/);
+assert.throws(() => parseArguments(['--base-url', liveUrl]), /requires --live-target/);
+assert.throws(() => parseArguments(['--base-url', previewUrl, '--live-target']), /requires the exact live host/);
+assert.throws(() => parseArguments(['--base-url', 'https://evil.example', '--live-target']), /requires the exact live host/);
 assert.throws(() => parseArguments(['--base-url', `http://${PREVIEW_HOST}`]), /must use https/);
+assert.throws(() => parseArguments(['--base-url', 'http://politipiks.web.app', '--live-target']), /must use https/);
 assert.throws(() => parseArguments(['--base-url', previewUrl, '--base-url', previewUrl]), /only once/);
+assert.throws(() => parseArguments(['--base-url', liveUrl, '--live-target', '--live-target']), /only once/);
 assert.throws(() => parseArguments(['--base-url', previewUrl, '--unknown']), /unsupported argument/);
 
 const source = readFileSync(fileURLToPath(new URL('../scripts/hosting-preview-smoke.mjs', import.meta.url)), 'utf8');

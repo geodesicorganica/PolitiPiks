@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 export const PREVIEW_HOST = 'politipiks--g8-3c2-20260807-x6meubc8.web.app';
+export const LIVE_HOST = 'politipiks.web.app';
 export const ROUTES = ['/', '/races', '/leagues'];
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 const HASHED_ASSET = /\/assets\/[^/?#]+-[A-Za-z0-9_-]{6,}\.(?:js|css)$/i;
@@ -19,7 +20,7 @@ export class SmokeFailure extends Error {
   }
 }
 
-function asOrigin(value) {
+function asOrigin(value, { liveTarget = false } = {}) {
   const url = value instanceof URL ? value : new URL(value);
   if (url.username || url.password || url.search || url.hash || (url.pathname !== '' && url.pathname !== '/')) {
     throw new Error('base-url must be an origin without credentials, query, hash, or path');
@@ -27,18 +28,22 @@ function asOrigin(value) {
 
   const hostname = url.hostname.toLowerCase();
   const isPreview = hostname === PREVIEW_HOST;
+  const isLive = hostname === LIVE_HOST;
   const isLoopback = LOOPBACK_HOSTS.has(hostname);
-  if (!isPreview && !isLoopback) throw new Error('base-url hostname is not authorized');
+  if (isLive && !liveTarget) throw new Error('live base-url requires --live-target');
+  if (liveTarget && !isLive) throw new Error('--live-target requires the exact live host');
+  if (!isPreview && !isLive && !isLoopback) throw new Error('base-url hostname is not authorized');
   if (isPreview && url.protocol !== 'https:') throw new Error('preview base-url must use https');
-  if (!isLoopback && url.port && url.port !== '443') throw new Error('preview base-url has an unauthorized port');
+  if (isLive && url.protocol !== 'https:') throw new Error('live base-url must use https');
+  if (!isLoopback && url.port && url.port !== '443') throw new Error('remote base-url has an unauthorized port');
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('base-url must use http or https');
   return url.origin;
 }
 
-export function validateBaseUrl(value) {
+export function validateBaseUrl(value, options = {}) {
   if (typeof value !== 'string' || value.trim() === '') throw new Error('base-url is required');
   try {
-    return asOrigin(value.trim());
+    return asOrigin(value.trim(), options);
   } catch (error) {
     if (error instanceof TypeError) throw new Error('base-url must be a valid URL');
     throw error;
@@ -47,15 +52,21 @@ export function validateBaseUrl(value) {
 
 export function parseArguments(argv = process.argv.slice(2)) {
   let rawBaseUrl = null;
+  let liveTarget = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === '--live-target') {
+      if (liveTarget) throw new Error('live-target may be provided only once');
+      liveTarget = true;
+      continue;
+    }
     if (argument !== '--base-url') throw new Error(`unsupported argument: ${argument}`);
     if (rawBaseUrl !== null) throw new Error('base-url may be provided only once');
     rawBaseUrl = argv[index + 1];
     if (!rawBaseUrl || rawBaseUrl.startsWith('--')) throw new Error('base-url value is required');
     index += 1;
   }
-  return { baseUrl: validateBaseUrl(rawBaseUrl) };
+  return { baseUrl: validateBaseUrl(rawBaseUrl, { liveTarget }), liveTarget };
 }
 
 export function classifyRequest({ url, method = 'GET' }) {
@@ -136,8 +147,8 @@ async function verifyRenderedRoute(page, route, response, summary) {
   summary.routes.rendered.push(route);
 }
 
-export async function runSmoke({ baseUrl, launchBrowser = (options) => chromium.launch(options) }) {
-  const origin = validateBaseUrl(baseUrl);
+export async function runSmoke({ baseUrl, liveTarget = false, launchBrowser = (options) => chromium.launch(options) }) {
+  const origin = validateBaseUrl(baseUrl, { liveTarget });
   const summary = emptySummary(origin);
   const previousOrigin = globalThis.__SMOKE_BASE_ORIGIN__;
   globalThis.__SMOKE_BASE_ORIGIN__ = origin;
@@ -240,8 +251,8 @@ function printSummary(summary) {
 
 async function main() {
   try {
-    const { baseUrl } = parseArguments();
-    printSummary(await runSmoke({ baseUrl }));
+    const { baseUrl, liveTarget } = parseArguments();
+    printSummary(await runSmoke({ baseUrl, liveTarget }));
   } catch (error) {
     if (error instanceof SmokeFailure) printSummary(error.summary);
     else printSummary({ status: 'failed', violations: ['malformed-arguments'] });
