@@ -221,21 +221,42 @@ selector remains absent/legacy until a pending manifest is written; canonical
 documents are create-only, exact-compatible resume is allowed, and exact
 content verification precedes final activation.
 
-Future production commands must be assembled from
-`docs/g8-catalog-beta-release-manifest.json` and the offline dry-run plan. The
-flags below are intentionally explicit; replace every placeholder with the
-manifest-derived value and a distinct approved receipt. Use direct `npx tsx`.
+Future production commands must be assembled by the Firebase-free G8.4A
+preflight from `docs/g8-catalog-beta-release-manifest.json`, the certified local
+bundle, the historical shadow identity, and the committed activation
+implementation identity. Do not manually transcribe digest or count flags.
+Use direct `npx tsx` only after a separately approved production boundary.
 
 ```powershell
-npx tsx scripts/activate-g8-3a-v2.ts --apply --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
-npx tsx scripts/activate-g8-3a-v2.ts --verify-only --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
-npx tsx scripts/activate-g8-3a-v2.ts --rollback --bundle-in .artifacts/private/canonical-migration/g7-1-local-product-bundle.json --manifest docs/g8-catalog-beta-release-manifest.json --project-id <project-id> --database-id <database-id> --generation canonical-2026-shadow-v2 --expected-source-commit <committed-source-commit> --expected-input-digest <input-digest> --expected-evidence-digest <evidence-digest> --expected-plan-digest <plan-digest> --expected-bundle-digest <bundle-digest> --expected-namespace-digest <namespace-digest> --expected-races 470 --expected-measures 14 --expected-candidate-research 2384 --expected-measure-research 14 --expected-metrics 470 --expected-content-documents 3352 --shadow-verification-receipt <shadow-receipt> --promotion-receipt <promotion-receipt> --activation-receipt <activation-receipt> --rollback-receipt <rollback-receipt>
+npm run g8-4a-activation-preflight
 ```
 
-The apply and verify commands are a future production sequence and were not
-executed for this readiness goal. Rollback changes only
+The preflight prints complete sanitized `--apply`, `--verify-only`, and
+`--rollback` arrays. It proves the historical shadow source commit is distinct
+from the current activation implementation commit, requires the focused
+executor files to be clean at that exact current HEAD, and emits no Firebase
+initialization or writes. The apply and verify commands remain a future
+production sequence and were not executed for this readiness goal. Rollback changes only
 `catalogActivations/canonical-2026`; it never deletes or mutates legacy, v1, or
 v2 content. Absent, pending, active, and rollback selector states are mirrored
 by the client catalog and Firestore pick rules: canonical measures are hidden
 until active v2, become pickable only while active v2, and become unavailable
 again after rollback; unrelated non-federal content remains available.
+
+## G8.4A activation identity repair
+
+G8.2B certifies the immutable shadow source at parent commit
+`295466ccc52ccd4d6ad4f1dfb444d48410b92910`. G8.4A keeps that identity for
+reconstructing and verifying `canonical-2026-shadow-v2`, while recording the
+separate current commit that contains the activation executor. The selector and
+active-document metadata use identity schema version `2` and retain the
+`g8-3a-v2-activation/v1` contract string. A swapped, missing, stale, mismatched,
+or dirty identity stops before the Firestore boundary.
+
+The certified shadow remains 3,352 content documents and 3,354 future
+operations including the two selector operations, with namespace digest
+`ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`. The
+offline preflight derives these values from the manifest and bundle; they are
+not launch-time hand entries. No production apply, verify-only read, selector
+change, rollback, deployment, deletion, network call, or nested-app mutation is
+part of G8.4A.

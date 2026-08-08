@@ -559,6 +559,25 @@ release manifest and offline plan. Do not substitute the existing
 `activate-canonical-2026.ts` contract. Rollback is selector-only and retains
 legacy/v1/v2 data. G8.3A itself performs no production operation.
 
+## G8.4A activation identity repair and local certification
+
+G8.4A separates the immutable shadow source commit recorded by G8.2B
+(`295466ccc52ccd4d6ad4f1dfb444d48410b92910`) from the current committed
+activation implementation commit. Identity schema version `2` is recorded in
+the selector and activation metadata while the separate
+`g8-3a-v2-activation/v1` contract and legacy/v1 behavior remain unchanged.
+The executor rejects swapped, missing, dirty, stale, and mismatched identities
+before any Firebase import.
+
+The Firebase-free command builder derives complete deterministic apply,
+verify-only, and selector-only rollback arrays from the release manifest,
+certified bundle, historical shadow identity, and current activation commit.
+The certified dry run remains zero-write with 3,352 content documents, 3,354
+future operations, and namespace digest
+`ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`. G8.4A
+does not authorize production access, selector activation, rollback,
+deployment, deletion, network calls, or nested-app changes.
+
 ## G8.3B production Firestore rules deployment
 
 G8.3B status: **completed with one authorized production rules deployment on

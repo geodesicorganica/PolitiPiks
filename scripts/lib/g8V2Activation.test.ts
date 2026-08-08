@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildG8ProductShadowWritePlan } from './g8ProductShadowExecutor.js';
-import { buildG8V2ActivationPlan, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation, type G8V2ActivationStore } from './g8V2Activation.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation, type G8V2ActivationStore } from './g8V2Activation.js';
 import { validateLocalProductBundle } from './localProductBundle.js';
 
 const bundle = validateLocalProductBundle(JSON.parse(readFileSync('.artifacts/private/canonical-migration/g7-1-local-product-bundle.json', 'utf8')));
-const shadowPlan = buildG8ProductShadowWritePlan(bundle, 'a'.repeat(40));
+const shadowPlan = buildG8ProductShadowWritePlan(bundle, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT);
 const receipts = { shadowVerification: 'g8-3a-shadow-test', promotion: 'g8-3a-promotion-test', activation: 'g8-3a-activation-test', rollback: 'g8-3a-rollback-test' };
-const plan = buildG8V2ActivationPlan(shadowPlan, receipts);
+const identity = { identitySchemaVersion: 2 as const, shadowSourceCommit: CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, activationImplementationCommit: 'a'.repeat(40) };
+const plan = buildG8V2ActivationPlan(shadowPlan, receipts, identity);
 assert.equal(plan.documents.length, 3352);
 assert.deepEqual(plan.expectedCounts, { races: 470, measures: 14, candidateResearch: 2384, measureResearch: 14, metrics: 470, contentDocuments: 3352, totalBundleDocuments: 3353, selectorsExcluded: 1 });
 assert.equal(plan.documents.filter((document) => /^ballotMeasures\/[^/]+$/.test(document.path)).length, 14);
@@ -16,7 +17,12 @@ assert.equal(plan.documents.find((document) => document.path.startsWith('ballotM
 assert.equal(plan.documents.find((document) => document.path.startsWith('ballotMeasures/'))?.data.catalogScope, 'canonical-2026-measures');
 assert.equal(plan.documents.find((document) => document.path.startsWith('races/'))?.data.catalogScope, 'federal');
 assert.match(plan.planDigest, /^[a-f0-9]{64}$/);
-assert.deepEqual(buildG8V2ActivationPlan(shadowPlan, receipts).planDigest, plan.planDigest);
+assert.deepEqual(buildG8V2ActivationPlan(shadowPlan, receipts, identity).planDigest, plan.planDigest);
+assert.equal(plan.shadowSourceCommit, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT);
+assert.equal(plan.activationImplementationCommit, identity.activationImplementationCommit);
+assert.throws(() => buildG8V2ActivationPlan(shadowPlan, receipts, { ...identity, shadowSourceCommit: 'b'.repeat(40) }), /identity/);
+assert.throws(() => buildG8V2ActivationPlan(buildG8ProductShadowWritePlan(bundle, 'b'.repeat(40)), receipts, identity), /identity/);
+assert.throws(() => buildG8V2ActivationPlan(shadowPlan, receipts, { ...identity, activationImplementationCommit: '' }), /identity/);
 
 class MemoryStore implements G8V2ActivationStore {
   readonly documents = new Map<string, Record<string, unknown>>();

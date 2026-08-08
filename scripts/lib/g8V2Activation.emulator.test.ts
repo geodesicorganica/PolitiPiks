@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { Firestore } from '@google-cloud/firestore';
 import { buildG8ProductShadowWritePlan, createFirestoreG8ProductShadowStore, executeG8ProductShadowWritePlan, verifyG8ProductShadowNamespace } from './g8ProductShadowExecutor.js';
-import { buildG8V2ActivationPlan, createFirestoreG8V2ActivationStore, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation } from './g8V2Activation.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, createFirestoreG8V2ActivationStore, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation } from './g8V2Activation.js';
 import { validateLocalProductBundle } from './localProductBundle.js';
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('run this test with the alternate Firebase emulator configuration');
 process.env.PROJECT_ID = 'politipiks';
 process.env.FIRESTORE_DATABASE_ID = 'ai-studio-politipickmidter-cead0e40-d220-401c-9ce8-1d4e5901d29a';
 const bundle = validateLocalProductBundle(JSON.parse(readFileSync('.artifacts/private/canonical-migration/g7-1-local-product-bundle.json', 'utf8')));
-const shadowPlan = buildG8ProductShadowWritePlan(bundle, 'b'.repeat(40));
-const plan = buildG8V2ActivationPlan(shadowPlan, { shadowVerification: 'g8-3a-shadow-emulator', promotion: 'g8-3a-promotion-emulator', activation: 'g8-3a-activation-emulator', rollback: 'g8-3a-rollback-emulator' });
+const shadowPlan = buildG8ProductShadowWritePlan(bundle, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT);
+const plan = buildG8V2ActivationPlan(shadowPlan, { shadowVerification: 'g8-3a-shadow-emulator', promotion: 'g8-3a-promotion-emulator', activation: 'g8-3a-activation-emulator', rollback: 'g8-3a-rollback-emulator' }, { identitySchemaVersion: 2, shadowSourceCommit: CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, activationImplementationCommit: 'b'.repeat(40) });
 const db = new Firestore({ projectId: process.env.PROJECT_ID, databaseId: process.env.FIRESTORE_DATABASE_ID });
 await db.doc('races/legacy-emulator-sentinel').create({ legacy: true });
 await db.doc('ballotMeasures/unrelated-emulator-measure').create({ nonFederal: true });

@@ -1,21 +1,21 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { buildG8ProductShadowWritePlan, createFirestoreG8ProductShadowStore, verifyG8ProductShadowNamespace } from './lib/g8ProductShadowExecutor.js';
-import { buildG8V2ActivationPlan, createFirestoreG8V2ActivationStore, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation } from './lib/g8V2Activation.js';
-import { assertCommittedG8V2Implementation, assertG8V2ActivationGuards, loadG8V2ActivationPlan, parseG8V2ActivationArguments, resolveG8V2Bundle } from './lib/g8V2ActivationCli.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, createFirestoreG8V2ActivationStore, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation } from './lib/g8V2Activation.js';
+import { assertCommittedG8V2Implementation, assertG8V2ActivationGuards, getCurrentG8V2ActivationImplementationCommit, parseG8V2ActivationArguments, resolveG8V2Bundle } from './lib/g8V2ActivationCli.js';
 import { validateLocalProductBundle } from './lib/localProductBundle.js';
 
 const arguments_ = parseG8V2ActivationArguments(process.argv.slice(2));
 const bundlePath = resolveG8V2Bundle(arguments_.bundleIn!);
 const bundle = validateLocalProductBundle(JSON.parse(readFileSync(bundlePath, 'utf8')));
-const sourceCommit = arguments_.expectedSourceCommit ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const shadowPlan = buildG8ProductShadowWritePlan(bundle, sourceCommit);
+const shadowSourceCommit = arguments_.expectedShadowSourceCommit ?? CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT;
+const activationImplementationCommit = arguments_.expectedActivationImplementationCommit ?? getCurrentG8V2ActivationImplementationCommit();
+const shadowPlan = buildG8ProductShadowWritePlan(bundle, shadowSourceCommit);
 const plan = buildG8V2ActivationPlan(shadowPlan, {
   shadowVerification: arguments_.shadowVerificationReceipt ?? 'g8-3a-shadow-offline',
   promotion: arguments_.promotionReceipt ?? 'g8-3a-promotion-offline',
   activation: arguments_.activationReceipt ?? 'g8-3a-activation-offline',
   rollback: arguments_.rollbackReceipt ?? 'g8-3a-rollback-offline',
-}, sourceCommit);
+}, { identitySchemaVersion: 2, shadowSourceCommit, activationImplementationCommit });
 
 if (arguments_.dryRun) {
   const manifest = JSON.parse(readFileSync(arguments_.manifest ?? 'docs/g8-catalog-beta-release-manifest.json', 'utf8')) as unknown;
@@ -26,7 +26,9 @@ if (arguments_.dryRun) {
     promotedContentDocuments: plan.documents.length,
     selectorManifestOperations: ['create-pending-selector', 'set-active-selector'],
     totalFutureOperations: plan.documents.length + 2,
-    sourceCommit: plan.sourceCommit,
+    identitySchemaVersion: plan.identitySchemaVersion,
+    shadowSourceCommit: plan.shadowSourceCommit,
+    activationImplementationCommit: plan.activationImplementationCommit,
     shadowNamespaceDigest: plan.certifiedDigests.namespace,
     activationPlanDigest: plan.planDigest,
     expectedCounts: plan.expectedCounts,
@@ -37,7 +39,7 @@ if (arguments_.dryRun) {
 
 const manifest = JSON.parse(readFileSync(arguments_.manifest ?? 'docs/g8-catalog-beta-release-manifest.json', 'utf8')) as unknown;
 assertG8V2ActivationGuards(arguments_, plan, manifest);
-assertCommittedG8V2Implementation(arguments_.expectedSourceCommit!);
+assertCommittedG8V2Implementation({ identitySchemaVersion: 2, shadowSourceCommit: plan.shadowSourceCommit, activationImplementationCommit: plan.activationImplementationCommit });
 
 const store = await createFirestoreG8V2ActivationStore(plan);
 if (arguments_.apply || arguments_.verifyOnly) {

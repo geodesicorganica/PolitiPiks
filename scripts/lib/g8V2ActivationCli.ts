@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { CERTIFIED_G8_PRODUCT_SHADOW } from './g8ProductShadowExecutor.js';
-import { buildG8V2ActivationPlan, type G8V2AuthorizationReceipts } from './g8V2Activation.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, type G8V2ActivationIdentity, type G8V2AuthorizationReceipts } from './g8V2Activation.js';
 import { validateLocalProductBundle } from './localProductBundle.js';
 import { buildG8ProductShadowWritePlan } from './g8ProductShadowExecutor.js';
 import { validateG8ReleaseManifest } from './g8ReleaseReadiness.js';
@@ -17,7 +17,8 @@ export type G8V2ActivationArguments = {
   projectId?: string;
   databaseId?: string;
   generation?: string;
-  expectedSourceCommit?: string;
+  expectedShadowSourceCommit?: string;
+  expectedActivationImplementationCommit?: string;
   expectedInputDigest?: string;
   expectedEvidenceDigest?: string;
   expectedPlanDigest?: string;
@@ -37,7 +38,7 @@ export type G8V2ActivationArguments = {
 
 type ValueKey = Exclude<keyof G8V2ActivationArguments, 'dryRun' | 'apply' | 'verifyOnly' | 'rollback'>;
 const values: Record<string, ValueKey> = {
-  '--bundle-in': 'bundleIn', '--manifest': 'manifest', '--project-id': 'projectId', '--database-id': 'databaseId', '--generation': 'generation', '--expected-source-commit': 'expectedSourceCommit',
+  '--bundle-in': 'bundleIn', '--manifest': 'manifest', '--project-id': 'projectId', '--database-id': 'databaseId', '--generation': 'generation', '--expected-shadow-source-commit': 'expectedShadowSourceCommit', '--expected-activation-implementation-commit': 'expectedActivationImplementationCommit',
   '--expected-input-digest': 'expectedInputDigest', '--expected-evidence-digest': 'expectedEvidenceDigest', '--expected-plan-digest': 'expectedPlanDigest', '--expected-bundle-digest': 'expectedBundleDigest', '--expected-namespace-digest': 'expectedNamespaceDigest',
   '--expected-races': 'expectedRaces', '--expected-measures': 'expectedMeasures', '--expected-candidate-research': 'expectedCandidateResearch', '--expected-measure-research': 'expectedMeasureResearch', '--expected-metrics': 'expectedMetrics', '--expected-content-documents': 'expectedContentDocuments',
   '--shadow-verification-receipt': 'shadowVerificationReceipt', '--promotion-receipt': 'promotionReceipt', '--activation-receipt': 'activationReceipt', '--rollback-receipt': 'rollbackReceipt',
@@ -79,8 +80,10 @@ export function buildG8V2Receipts(arguments_: G8V2ActivationArguments): G8V2Auth
 
 export function loadG8V2ActivationPlan(arguments_: G8V2ActivationArguments) {
   const bundle = validateLocalProductBundle(JSON.parse(readFileSync(resolveG8V2Bundle(arguments_.bundleIn!), 'utf8')));
-  const shadowPlan = buildG8ProductShadowWritePlan(bundle, arguments_.expectedSourceCommit ?? '0000000000000000000000000000000000000000');
-  return buildG8V2ActivationPlan(shadowPlan, buildG8V2Receipts(arguments_), arguments_.expectedSourceCommit ?? shadowPlan.sourceCommit);
+  const shadowSourceCommit = arguments_.expectedShadowSourceCommit ?? CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT;
+  const activationImplementationCommit = arguments_.expectedActivationImplementationCommit ?? '0000000000000000000000000000000000000000';
+  const shadowPlan = buildG8ProductShadowWritePlan(bundle, shadowSourceCommit);
+  return buildG8V2ActivationPlan(shadowPlan, buildG8V2Receipts(arguments_), { identitySchemaVersion: 2, shadowSourceCommit, activationImplementationCommit });
 }
 
 export function assertG8V2ActivationGuards(arguments_: G8V2ActivationArguments, plan: ReturnType<typeof loadG8V2ActivationPlan>, manifestValue: unknown) {
@@ -93,16 +96,37 @@ export function assertG8V2ActivationGuards(arguments_: G8V2ActivationArguments, 
   };
   if (arguments_.projectId !== expected.projectId || arguments_.databaseId !== expected.databaseId || arguments_.generation !== expected.generation
     || arguments_.expectedInputDigest !== expected.input || arguments_.expectedEvidenceDigest !== expected.evidence || arguments_.expectedPlanDigest !== expected.plan || arguments_.expectedBundleDigest !== expected.bundle
-    || arguments_.expectedNamespaceDigest !== plan.certifiedDigests.namespace || arguments_.expectedRaces !== '470' || arguments_.expectedMeasures !== '14' || arguments_.expectedCandidateResearch !== '2384' || arguments_.expectedMeasureResearch !== '14' || arguments_.expectedMetrics !== '470' || arguments_.expectedContentDocuments !== '3352') throw new Error('missing or mismatched g8.3a activation guard');
+    || arguments_.expectedNamespaceDigest !== plan.certifiedDigests.namespace || arguments_.expectedRaces !== String(plan.expectedCounts.races) || arguments_.expectedMeasures !== String(plan.expectedCounts.measures) || arguments_.expectedCandidateResearch !== String(plan.expectedCounts.candidateResearch) || arguments_.expectedMeasureResearch !== String(plan.expectedCounts.measureResearch) || arguments_.expectedMetrics !== String(plan.expectedCounts.metrics) || arguments_.expectedContentDocuments !== String(plan.expectedCounts.contentDocuments)
+    || arguments_.expectedShadowSourceCommit !== plan.shadowSourceCommit || arguments_.expectedActivationImplementationCommit !== plan.activationImplementationCommit) throw new Error('missing or mismatched g8.4a activation identity or guard');
   if (plan.target.projectId !== expected.projectId || plan.target.databaseId !== expected.databaseId || plan.generation !== expected.generation) throw new Error('offline activation plan does not match release manifest');
   return release;
 }
 
-export function assertCommittedG8V2Implementation(expectedSourceCommit: string) {
-  if (!/^[a-f0-9]{7,64}$/i.test(expectedSourceCommit)) throw new Error('committed implementation source commit is required');
-  const files = ['package.json', 'scripts/activate-g8-3a-v2.ts', 'scripts/lib/g8V2Activation.ts', 'scripts/lib/g8V2ActivationCli.ts'];
-  const status = execFileSync('git', ['status', '--porcelain', '--', ...files], { encoding: 'utf8' });
-  const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  if (status.trim() || head !== expectedSourceCommit) throw new Error('uncommitted or mismatched g8.3a activation implementation');
-  return head;
+export const G8_V2_ACTIVATION_FOCUSED_FILES = [
+  'package.json',
+  'scripts/activate-g8-3a-v2.ts',
+  'scripts/lib/g8V2Activation.ts',
+  'scripts/lib/g8V2ActivationCli.ts',
+  'scripts/lib/g8V2ActivationPreflight.ts',
+  'scripts/verify-g8-4a-activation-preflight.ts',
+] as const;
+
+export type G8V2ActivationIdentityObservation = { head: string; focusedStatus: string };
+
+export function assertG8V2ActivationIdentity(identity: G8V2ActivationIdentity, observed: G8V2ActivationIdentityObservation) {
+  if (identity.identitySchemaVersion !== 2 || !/^[a-f0-9]{7,64}$/i.test(identity.shadowSourceCommit) || !/^[a-f0-9]{7,64}$/i.test(identity.activationImplementationCommit)) throw new Error('missing or malformed g8.4a activation identity');
+  if (identity.shadowSourceCommit !== CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT) throw new Error('mismatched or swapped certified shadow source commit');
+  if (identity.activationImplementationCommit !== observed.head) throw new Error('stale or mismatched activation implementation commit');
+  if (observed.focusedStatus.trim()) throw new Error('dirty g8.4a activation implementation');
+  return identity;
+}
+
+export function getCurrentG8V2ActivationImplementationCommit() {
+  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+}
+
+export function assertCommittedG8V2Implementation(identity: G8V2ActivationIdentity) {
+  const status = execFileSync('git', ['status', '--porcelain', '--', ...G8_V2_ACTIVATION_FOCUSED_FILES], { encoding: 'utf8' });
+  const head = getCurrentG8V2ActivationImplementationCommit();
+  return assertG8V2ActivationIdentity(identity, { head, focusedStatus: status });
 }
