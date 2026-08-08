@@ -13,6 +13,11 @@ export type G8V2StateAuditResult = {
 
 const isRecord = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isV2State = (value: unknown): value is 'pending' | 'active' | 'rollback' => value === 'pending' || value === 'active' || value === 'rollback';
+export function assertSafeG8V2StateAuditEnvironment(environment: NodeJS.ProcessEnv = process.env) {
+  if (environment.FIRESTORE_EMULATOR_HOST) throw new Error('g8.4br0 audit refuses emulator mode');
+  const enabledFlags = ['VITE_USE_FIREBASE_EMULATORS', 'VITE_ENABLE_TEST_AUTH', 'VITE_USE_MOCK_CONTESTS', 'VITE_ALLOW_ADMIN_SEED'];
+  if (enabledFlags.some((name) => /^(?:1|true|yes|on)$/i.test(environment[name] ?? ''))) throw new Error('g8.4br0 audit refuses unsafe environment flags');
+}
 const safeNextActionFor = (state: G8V2StateAuditSelectorState, content: G8V2StateAuditResult['contentAudit']) => {
   if (state === 'absent' || state === 'legacy' || state === 'incompatible') return 'separately authorize a fresh v2 activation recovery';
   if (state === 'pending' && content && content.conflicting === 0) return 'separately authorize a compatible v2 resume';

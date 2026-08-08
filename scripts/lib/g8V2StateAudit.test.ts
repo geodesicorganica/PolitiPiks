@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildG8ProductShadowWritePlan } from './g8ProductShadowExecutor.js';
 import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, type G8V2ActivationAuditStore } from './g8V2Activation.js';
-import { auditG8V2ActivationState } from './g8V2StateAudit.js';
+import { assertSafeG8V2StateAuditEnvironment, auditG8V2ActivationState } from './g8V2StateAudit.js';
 import { validateLocalProductBundle } from './localProductBundle.js';
 
 const bundle = validateLocalProductBundle(JSON.parse(readFileSync('.artifacts/private/canonical-migration/g7-1-local-product-bundle.json', 'utf8')));
+assert.doesNotThrow(() => assertSafeG8V2StateAuditEnvironment({}));
+assert.throws(() => assertSafeG8V2StateAuditEnvironment({ FIRESTORE_EMULATOR_HOST: '127.0.0.1:8081' }), /emulator/);
+assert.throws(() => assertSafeG8V2StateAuditEnvironment({ VITE_ENABLE_TEST_AUTH: 'true' }), /unsafe/);
 const shadowPlan = buildG8ProductShadowWritePlan(bundle, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT);
 const plan = buildG8V2ActivationPlan(shadowPlan, { shadowVerification: 'g8-4br0-shadow', promotion: 'g8-4br0-promotion', activation: 'g8-4br0-activation', rollback: 'g8-4br0-rollback' }, { identitySchemaVersion: 2, shadowSourceCommit: CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, activationImplementationCommit: 'a'.repeat(40) });
 class MemoryAuditStore implements G8V2ActivationAuditStore { constructor(readonly docs = new Map<string, Record<string, unknown>>(), readonly reads: string[] = []) {} async get(path: string) { this.reads.push(path); return this.docs.get(path) ?? null; } }

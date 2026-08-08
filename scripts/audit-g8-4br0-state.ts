@@ -1,11 +1,13 @@
-import { readFileSync } from 'node:fs';
-import { auditG8V2ActivationState } from './lib/g8V2StateAudit.js';
+import { existsSync, readFileSync } from 'node:fs';
+import dotenv from 'dotenv';
+import { assertSafeG8V2StateAuditEnvironment, auditG8V2ActivationState } from './lib/g8V2StateAudit.js';
 import { buildG8ProductShadowWritePlan } from './lib/g8ProductShadowExecutor.js';
 import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, createFirestoreG8V2ActivationAuditStore } from './lib/g8V2Activation.js';
 import { assertCommittedG8V2Implementation, assertCommittedG8V2StateAuditImplementation, assertG8V2ActivationGuards, parseG8V2ActivationArguments, resolveG8V2Bundle } from './lib/g8V2ActivationCli.js';
 import { validateLocalProductBundle } from './lib/localProductBundle.js';
 
 const argv = process.argv.slice(2);
+dotenv.config({ path: existsSync('.env.local') ? '.env.local' : undefined, override: false, quiet: true });
 if (!argv.includes('--audit')) throw new Error('supply --audit');
 const auditReceiptIndex = argv.indexOf('--audit-receipt');
 const auditReceipt = auditReceiptIndex === -1 ? '' : argv[auditReceiptIndex + 1];
@@ -31,6 +33,7 @@ const manifest = JSON.parse(readFileSync(arguments_.manifest ?? 'docs/g8-catalog
 assertG8V2ActivationGuards(arguments_, plan, manifest);
 assertCommittedG8V2Implementation({ identitySchemaVersion: 2, shadowSourceCommit, activationImplementationCommit });
 assertCommittedG8V2StateAuditImplementation(stateAuditCommit);
+assertSafeG8V2StateAuditEnvironment();
 const store = await createFirestoreG8V2ActivationAuditStore(plan);
 console.log(JSON.stringify({
   ...await auditG8V2ActivationState(store, plan, auditReceipt),
