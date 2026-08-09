@@ -89,6 +89,7 @@
     "test-g8-4br0-state-audit-emulator": "firebase emulators:exec --config scripts/firebase.g8-4br0-emulator.json --only firestore \"tsx scripts/lib/g8V2StateAudit.emulator.test.ts\"",
     "test-g8-4br1-state-audit-launcher": "tsx scripts/lib/g8V2StateAuditLauncher.test.ts",
     "self-test-g8-4br1-state-audit-launcher": "tsx scripts/self-test-g8-4br1-state-audit-launcher.ts",
+    "test-g8-4br2-1-preflight-receipt": "tsx scripts/lib/g8V2StateAuditPreflightReceipt.test.ts",
     "test-canonical-activation": "tsx scripts/lib/canonicalActivation.test.ts && tsx scripts/lib/canonicalActivationCli.test.ts",
     "test-canonical-activation-emulator": "firebase emulators:exec --config scripts/firebase.emulator-test.json --only firestore \"tsx scripts/lib/canonicalActivation.emulator.test.ts\"",
     "test-canonical-federal-registry": "tsx ingest/src/federalRegistry.test.ts",

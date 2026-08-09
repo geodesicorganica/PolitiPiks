@@ -78,3 +78,7 @@ G8.4BR1 result.
 
 This readiness work creates no authorization for G8.4BR2 or any production
 action.
+
+The later G8.4BR2.1 investigation preserved this result and explained why this
+PowerShell/npm raw-output hash differs from direct Node stdout; see
+[`g8-4br2-1-preflight-digest-recertification.md`](g8-4br2-1-preflight-digest-recertification.md).

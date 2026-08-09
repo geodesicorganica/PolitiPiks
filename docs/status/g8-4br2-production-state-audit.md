@@ -111,3 +111,7 @@ verify-only command, activation, resume, smoke, rollback, deployment, deletion,
 production write, collection scan, push, or branch change occurred. No selector
 or expected content path was read. Any next operation requires separate
 authorization.
+
+The later offline G8.4BR2.1 investigation preserved this stop result and
+classified the raw digest mismatch; see
+[`g8-4br2-1-preflight-digest-recertification.md`](g8-4br2-1-preflight-digest-recertification.md).
