@@ -728,3 +728,17 @@ reproduction returned `EINVAL` before launching its child. No selector or
 content path was read, and production state remains unknown/unverified. No
 retry, activation, verify-only, smoke, rollback, deployment, deletion, or push
 is authorized. Durable evidence: [G8.4BR0 post-failure state audit](status/g8-4br0-post-failure-state-audit.md).
+
+## G8.4BR2 corrected production state audit
+
+G8.4BR2 stopped before production on 2026-08-09. Its single Firebase-free
+preflight child exited `0` and passed the zero-read/write, direct Node/tsx,
+51-argument, five-unique-receipt, 3,352-path, and namespace-digest checks, but
+the direct UTF-8 output SHA-256 was
+`2f5604e13d3b40a894eb5191016bfc48160f401ac3ca94c73fc9b18a4076b2f2`
+rather than the required
+`a21b518c0cb6015196c2ed4e25c73769adebc1d67e5372ec63bc283c3cd438bd`.
+The preflight was not rerun and the production launcher was not invoked, so
+there were zero production reads and the selector/content state remains
+unknown/unverified. Durable evidence: [G8.4BR2 production state-audit preflight
+stop](status/g8-4br2-production-state-audit.md).
