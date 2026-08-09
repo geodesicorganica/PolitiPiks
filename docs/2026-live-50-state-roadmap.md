@@ -742,3 +742,22 @@ The preflight was not rerun and the production launcher was not invoked, so
 there were zero production reads and the selector/content state remains
 unknown/unverified. Durable evidence: [G8.4BR2 production state-audit preflight
 stop](status/g8-4br2-production-state-audit.md).
+
+## G8.4BR2R canonical-receipt-guarded production state audit
+
+G8.4BR2R consumed its one authorized read-only production audit invocation on
+2026-08-09. The committed preflight ran once and passed its versioned canonical
+receipt gate: schema `g8-4br2-1-state-audit-preflight/v1`, digest
+`c65879b157b9c6ae6b11d6ff8f109e29fc1f0ea5463b67396e26028e2162401b`,
+Firebase initialization false, reads/writes `0/0`, `shell:false`, 51 ordered
+production arguments, 5/5 unique receipts, 3,352 content paths, and namespace
+digest `ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`.
+
+The production launcher and auditor child both started and exited `1`.
+Launcher stdout contained valid JSON and launcher stderr was absent; the auditor
+returned no JSON and had stderr present. Consequently, production read counts,
+selector state/contract/metadata, and content counts/digests/conflicts remain
+unknown/unverified rather than zero. The authorization is consumed, and no
+retry, follow-up read, verify-only command, activation, resume, smoke, rollback,
+deployment, deletion, write, push, or branch change occurred. Durable evidence:
+[G8.4BR2R production state audit](status/g8-4br2r-production-state-audit.md).
