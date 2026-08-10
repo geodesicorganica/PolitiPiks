@@ -908,3 +908,29 @@ TypeScript, lint, build, and diff gates passed. No production capture, network
 operation, read, write, replacement, deletion, activation, rollback, push, or
 branch change occurred, and no G8.4BR5B authorization was created. Durable
 evidence: [G8.4BR5A conflict analysis readiness](status/g8-4br5a-conflict-analysis-readiness.md).
+
+## G8.4BR5B production conflict capture
+
+G8.4BR5B consumed its one authorized production capture on 2026-08-10. The
+single direct-Node preflight matched canonical digest
+`b220c4aeedf0d7ab3922dd73dd32afa7c4ea737706298f5393e74cdaba8a1b1f`,
+then its exact 28-element launcher read the absent selector and all 3,352
+manifest-derived destination paths once. The capture exited `0`, performed
+3,353 reads, zero writes and zero collection scans, and created a complete
+validated 35,148,779-byte ignored snapshot with SHA-256
+`425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3`.
+
+The bounded observation matched BR4B at 0 exact, 2,494 missing, 858
+conflicting, and 0 unknown documents. All 858 conflicts were substantive, had
+protected and production-only differences, retained complete rollback
+evidence, remained unresolved, and had `safeToReplace:false`. The selector and
+counts therefore showed no drift from BR4B.
+
+The required offline analysis and two replay processes each exited `1` with
+no JSON and identical stderr hashes. Their Firebase-import, credential-load,
+network, comparison, and replay-equality evidence is unknown/unverified. The
+operator runner launched all three offline commands before checking the first
+nonzero result; this local control-flow defect is recorded, but no second
+production operation occurred. The capture authorization is consumed and
+must never be retried. Durable evidence:
+[G8.4BR5B production conflict capture](status/g8-4br5b-production-conflict-capture.md).
