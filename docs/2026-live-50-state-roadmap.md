@@ -850,3 +850,36 @@ read, write, activation, verify-only, rollback, smoke, deployment, deletion,
 push, or branch change occurred. Every future production operation requires
 its own fresh exact authorization and is consumed by its first invocation
 regardless of outcome.
+
+## G8.4BR4B guarded production activation recovery
+
+G8.4BR4B consumed its one authorized production apply invocation on
+2026-08-10. The single committed preflight passed the canonical
+`g8-4br4a-activation-preflight/v1` receipt gate with digest
+`e85147b793b07f7a3576091c482de6f8840f050d98cccf1dfb93e4297740db7e`,
+focused activation identity `cfff2011ed72f560f531983ce4291237479fa642`,
+activation plan digest
+`9f8827ac20dd9acfdcb0c6dd7beff8df30b767b504bbbe0fb366711b0ba3ca49`,
+namespace digest
+`ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`,
+47 ordered arguments per operation, four distinct G8.4BR4B receipts,
+`shell:false`, and Firebase initialization/reads/writes/commands
+`false/0/0/0`.
+
+The exact preflight-derived apply attempted, started, and exited once with
+exit `1` and valid `g8-4br4a-activation-result/v1` JSON. Certified-shadow
+verification and Firebase initialization/bootstrap succeeded. The result
+contract then accounted for 3,353 successful selector/destination reads: one
+selector read observed `catalogActivations/canonical-2026` absent, then all
+3,352 exact destination paths were inspected before writes. It does not
+separately enumerate the earlier shadow-store reads. Content validation found
+0 exact, 2,494 missing, 858 conflicting, and 0 unknown documents, so the
+executor failed closed with `CONTENT_CONFLICT` before mutation. Selector
+writes, content writes, and write batches were all 0 attempted.
+
+The apply authorization is consumed and cannot be retried. Because apply did
+not complete active/exact, the conditional verify-only command was not invoked
+and its receipt remains absent. No retry, follow-up production read, state
+audit, smoke, rollback, deployment, deletion, push, or branch change occurred.
+Durable evidence:
+[G8.4BR4B guarded production activation recovery](status/g8-4br4b-production-activation-recovery.md).
