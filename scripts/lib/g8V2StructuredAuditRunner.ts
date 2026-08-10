@@ -15,6 +15,7 @@ export type G8V2StructuredAuditHooks = {
   loadDotenv?: () => void;
   validateEnvironment?: (target: { projectId: string; databaseId: string }, environment: NodeJS.ProcessEnv) => G8V2SafeEnvironmentReport;
   bootstrap?: (plan: G8V2ActivationPlan) => Promise<G8V2ActivationAuditStore>;
+  offlineBootstrap?: boolean;
   read?: (kind: AuditReadKind, path: string, defaultRead: () => Promise<Json | null>) => Promise<Json | null>;
 };
 
@@ -113,7 +114,7 @@ export async function runG8V2StructuredAudit(argv: readonly string[], hooks: G8V
     if (report && typeof report === 'object') result.environment = report as G8V2StructuredAuditResult['environment'];
     return failG8V2StructuredAuditResult(result, 'environment-validation', error);
   }
-  try { await hooks.beforePhase?.('firestore-bootstrap'); result.firebase.initialization = 'attempted-failed'; result.firebase.bootstrap = 'attempted-failed'; store = await (hooks.bootstrap ?? createFirestoreG8V2ActivationAuditStore)(plan!); result.firebase.initialization = 'succeeded'; result.firebase.bootstrap = 'succeeded'; } catch (error) { return failG8V2StructuredAuditResult(result, 'firestore-bootstrap', error); }
+  try { await hooks.beforePhase?.('firestore-bootstrap'); result.firebase.initialization = hooks.offlineBootstrap ? 'not-attempted' : 'attempted-failed'; result.firebase.bootstrap = hooks.offlineBootstrap ? 'not-attempted' : 'attempted-failed'; store = await (hooks.bootstrap ?? createFirestoreG8V2ActivationAuditStore)(plan!); if (!hooks.offlineBootstrap) { result.firebase.initialization = 'succeeded'; result.firebase.bootstrap = 'succeeded'; } } catch (error) { return failG8V2StructuredAuditResult(result, 'firestore-bootstrap', error); }
   let selector: Json | null;
   try { await hooks.beforePhase?.('selector-read'); selector = await trackedRead(store!, 'selector', plan!.manifestPath, result, hooks); } catch (error) { return failG8V2StructuredAuditResult(result, 'selector-read', error); }
   const assessment = assessSelector(selector, plan!);

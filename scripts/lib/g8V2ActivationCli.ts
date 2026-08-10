@@ -137,6 +137,7 @@ export const G8_V2_STATE_AUDIT_FOCUSED_FILES = [
   'package.json',
   'scripts/audit-g8-4br0-state.ts',
   'scripts/run-g8-4br0-state-audit.ts',
+  'scripts/verify-g8-4br3a-offline-audit.ts',
   'scripts/lib/g8V2StateAudit.ts',
   'scripts/lib/g8V2StateAuditPreflight.ts',
   'scripts/lib/g8V2StateAuditEnvironment.ts',
