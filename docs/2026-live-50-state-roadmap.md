@@ -761,3 +761,30 @@ unknown/unverified rather than zero. The authorization is consumed, and no
 retry, follow-up read, verify-only command, activation, resume, smoke, rollback,
 deployment, deletion, write, push, or branch change occurred. Durable evidence:
 [G8.4BR2R production state audit](status/g8-4br2r-production-state-audit.md).
+
+## G8.4BR3A structured audit failure readiness
+
+G8.4BR3A is locally certified with no production authorization. BR2R remains
+immutable: its launcher and auditor child started/exited `1`, raw auditor
+stderr was not retained, and the exact auditor error plus selector/content
+state are unrecoverable/unknown from preserved evidence. The repair does not
+infer a historical cause or retry the consumed audit.
+
+The auditor now emits the versioned
+`g8-4br3a-state-audit-result/v1` contract for every handled exit, including
+argument, identity, environment, bootstrap, selector, exact-path, and
+completion phases. Results include stable sanitized error codes, secret-safe
+environment findings, selector-first read accounting, exact-path bounds, and
+explicit unknown/not-attempted outcomes. Fault-injection, sanitization,
+exact-argument offline replay, and alternate-port emulator coverage passed.
+
+The canonical semantic preflight receipt is
+`g8-4br3a-state-audit-preflight/v1`, digest
+`08b8c556993b69de7142b38c92b74877cea6d5bb789dcfeacb12949a53e80c8d`, tied to
+focused source identity `041c017e0483318354e44dd75a3866c9771fd763`, with 51
+arguments, 3,352 bounded paths, Firebase initialization false, and reads and
+writes both zero. Durable evidence:
+[G8.4BR3A structured audit failure readiness](status/g8-4br3a-structured-audit-failure-readiness.md).
+
+No production retry, selector operation, activation, resume, smoke, rollback,
+deployment, deletion, push, branch change, or G8.4BR3B authorization occurred.
