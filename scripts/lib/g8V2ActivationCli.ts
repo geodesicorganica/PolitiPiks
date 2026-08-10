@@ -12,6 +12,7 @@ export type G8V2ActivationArguments = {
   apply: boolean;
   verifyOnly: boolean;
   rollback: boolean;
+  audit?: boolean;
   bundleIn?: string;
   manifest?: string;
   projectId?: string;
@@ -36,7 +37,7 @@ export type G8V2ActivationArguments = {
   rollbackReceipt?: string;
 };
 
-type ValueKey = Exclude<keyof G8V2ActivationArguments, 'dryRun' | 'apply' | 'verifyOnly' | 'rollback'>;
+type ValueKey = Exclude<keyof G8V2ActivationArguments, 'dryRun' | 'apply' | 'verifyOnly' | 'rollback' | 'audit'>;
 const values: Record<string, ValueKey> = {
   '--bundle-in': 'bundleIn', '--manifest': 'manifest', '--project-id': 'projectId', '--database-id': 'databaseId', '--generation': 'generation', '--expected-shadow-source-commit': 'expectedShadowSourceCommit', '--expected-activation-implementation-commit': 'expectedActivationImplementationCommit',
   '--expected-input-digest': 'expectedInputDigest', '--expected-evidence-digest': 'expectedEvidenceDigest', '--expected-plan-digest': 'expectedPlanDigest', '--expected-bundle-digest': 'expectedBundleDigest', '--expected-namespace-digest': 'expectedNamespaceDigest',
@@ -45,13 +46,14 @@ const values: Record<string, ValueKey> = {
 };
 
 export function parseG8V2ActivationArguments(argv: string[]): G8V2ActivationArguments {
-  const result: G8V2ActivationArguments = { dryRun: false, apply: false, verifyOnly: false, rollback: false };
+  const result: G8V2ActivationArguments = { dryRun: false, apply: false, verifyOnly: false, rollback: false, audit: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--dry-run') { result.dryRun = true; continue; }
     if (argument === '--apply') { result.apply = true; continue; }
     if (argument === '--verify-only') { result.verifyOnly = true; continue; }
     if (argument === '--rollback') { result.rollback = true; continue; }
+    if (argument === '--audit') { result.audit = true; continue; }
     const key = values[argument];
     if (!key) throw new Error(`unsupported argument: ${argument}`);
     const value = argv[index + 1];
@@ -60,7 +62,7 @@ export function parseG8V2ActivationArguments(argv: string[]): G8V2ActivationArgu
     result[key] = value;
     index += 1;
   }
-  if (Number(result.dryRun) + Number(result.apply) + Number(result.verifyOnly) + Number(result.rollback) !== 1) throw new Error('use exactly one of --dry-run, --apply, --verify-only, or --rollback');
+  if (Number(result.dryRun) + Number(result.apply) + Number(result.verifyOnly) + Number(result.rollback) + Number(result.audit) !== 1) throw new Error('use exactly one of --dry-run, --apply, --verify-only, --rollback, or --audit');
   if (!result.bundleIn) throw new Error('supply --bundle-in <certified local product bundle>');
   return result;
 }
@@ -137,6 +139,9 @@ export const G8_V2_STATE_AUDIT_FOCUSED_FILES = [
   'scripts/run-g8-4br0-state-audit.ts',
   'scripts/lib/g8V2StateAudit.ts',
   'scripts/lib/g8V2StateAuditPreflight.ts',
+  'scripts/lib/g8V2StateAuditEnvironment.ts',
+  'scripts/lib/g8V2StateAuditResult.ts',
+  'scripts/lib/g8V2StructuredAuditRunner.ts',
   'scripts/firebase.g8-4br0-emulator.json',
 ] as const;
 

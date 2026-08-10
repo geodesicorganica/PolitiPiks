@@ -44,7 +44,7 @@ const values = [
 ] as const;
 
 const buildOutput = (): G8V2StateAuditPreflightOutput => ({
-  phase: 'g8-4br0-firebase-free-preflight',
+  phase: 'g8-4br3a-firebase-free-preflight',
   firebaseInitialization: false,
   reads: 0,
   writes: 0,

@@ -86,6 +86,7 @@
     "g8-4br0-state-audit-preflight": "tsx scripts/verify-g8-4br0-state-audit-preflight.ts",
     "g8-4br0-state-audit": "tsx scripts/run-g8-4br0-state-audit.ts",
     "test-g8-4br0-state-audit": "tsx scripts/lib/g8V2StateAudit.test.ts",
+    "test-g8-4br3a-structured-audit": "tsx scripts/lib/g8V2StateAuditResult.test.ts && tsx scripts/lib/g8V2StructuredAuditRunner.test.ts",
     "test-g8-4br0-state-audit-emulator": "firebase emulators:exec --config scripts/firebase.g8-4br0-emulator.json --only firestore \"tsx scripts/lib/g8V2StateAudit.emulator.test.ts\"",
     "test-g8-4br1-state-audit-launcher": "tsx scripts/lib/g8V2StateAuditLauncher.test.ts",
     "self-test-g8-4br1-state-audit-launcher": "tsx scripts/self-test-g8-4br1-state-audit-launcher.ts",

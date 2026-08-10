@@ -13,5 +13,9 @@ const generated = buildG8V2StateAuditProductionArguments({
 });
 const startedAt = new Date().toISOString();
 const launch = launchG8V2JsonChild(generated.audit);
-console.log(JSON.stringify({ phase: 'g8-4br0-production-read-only-audit', startedAt, finishedAt: new Date().toISOString(), launch: launch.evidence, result: launch.result }, null, 2));
+const childResult = launch.result && typeof launch.result === 'object' && !Array.isArray(launch.result) ? launch.result as Record<string, unknown> : null;
+const safeResultSummary = childResult && childResult.contract === 'g8-4br3a-state-audit-result/v1' && (childResult.status === 'completed' || childResult.status === 'failed') && typeof childResult.phase === 'string'
+  ? { schemaVersion: childResult.schemaVersion, contract: childResult.contract, status: childResult.status, phase: childResult.phase, failedPhase: childResult.failedPhase ?? null }
+  : null;
+console.log(JSON.stringify({ phase: 'g8-4br3a-state-audit-launch', startedAt, finishedAt: new Date().toISOString(), launch: launch.evidence, result: safeResultSummary }, null, 2));
 process.exit(launch.launcherExitStatus);

@@ -8,6 +8,7 @@ import { buildG8ProductShadowWritePlan } from './g8ProductShadowExecutor.js';
 import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, type G8V2AuthorizationReceipts } from './g8V2Activation.js';
 import { assertCommittedG8V2Implementation, assertCommittedG8V2StateAuditImplementation } from './g8V2ActivationCli.js';
 import { validateLocalProductBundle } from './localProductBundle.js';
+import { G8_V2_STATE_AUDIT_RESULT_CONTRACT } from './g8V2StateAuditResult.js';
 
 const require = createRequire(import.meta.url);
 const STATE_AUDIT_SCRIPT = 'scripts/audit-g8-4br0-state.ts';
@@ -58,7 +59,7 @@ type Spawn = (
 
 export type G8V2StateAuditProductionArguments = { audit: G8V2DirectNodeTsxInvocation; identity: { activationImplementationCommit: string; stateAuditImplementationCommit: string }; expectedCounts: ReturnType<typeof buildG8ProductShadowWritePlan>['expectedCounts']; planDigest: string; namespaceDigest: string };
 export type G8V2StateAuditPreflightOutput = {
-  phase: 'g8-4br0-firebase-free-preflight';
+  phase: 'g8-4br3a-firebase-free-preflight';
   firebaseInitialization: false;
   reads: 0;
   writes: 0;
@@ -73,6 +74,7 @@ export type G8V2StateAuditPreflightOutput = {
 export type G8V2StateAuditPreflightReceipt = {
   contract: typeof G8_V2_STATE_AUDIT_PREFLIGHT_CONTRACT;
   phase: G8V2StateAuditPreflightOutput['phase'];
+  resultContract: typeof G8_V2_STATE_AUDIT_RESULT_CONTRACT;
   target: { projectId: string; databaseId: string; generation: string };
   inputs: { bundlePath: string; manifestPath: string };
   launcher: {
@@ -94,7 +96,7 @@ export type G8V2StateAuditPreflightReceipt = {
   safety: { firebaseInitialization: false; reads: 0; writes: 0 };
 };
 
-export const G8_V2_STATE_AUDIT_PREFLIGHT_CONTRACT = 'g8-4br2-1-state-audit-preflight/v1' as const;
+export const G8_V2_STATE_AUDIT_PREFLIGHT_CONTRACT = 'g8-4br3a-state-audit-preflight/v1' as const;
 const STATE_AUDIT_ORDERED_VALUE_FLAGS = [
   '--bundle-in', '--manifest', '--project-id', '--database-id', '--generation',
   '--expected-shadow-source-commit', '--expected-activation-implementation-commit', '--expected-state-audit-implementation-commit',
@@ -124,7 +126,7 @@ function assertPreflightOutput(value: unknown): asserts value is G8V2StateAuditP
   const allowed = new Set(['phase', 'firebaseInitialization', 'reads', 'writes', 'identity', 'expectedCounts', 'planDigest', 'namespaceDigest', 'audit', 'canonicalReceipt', 'canonicalDigest']);
   const unexpected = Object.keys(value).filter((key) => !allowed.has(key));
   if (unexpected.length) throw new Error(`unexpected preflight output field: ${unexpected[0]}`);
-  if (value.phase !== 'g8-4br0-firebase-free-preflight') throw new Error('unexpected preflight phase');
+  if (value.phase !== 'g8-4br3a-firebase-free-preflight') throw new Error('unexpected preflight phase');
   if (value.firebaseInitialization !== false) throw new Error('canonical preflight requires Firebase initialization false');
   if (value.reads !== 0 || value.writes !== 0) throw new Error('canonical preflight requires zero reads and writes');
   if (!isRecord(value.identity) || typeof value.identity.activationImplementationCommit !== 'string' || typeof value.identity.stateAuditImplementationCommit !== 'string') throw new Error('missing preflight implementation identity');
@@ -201,6 +203,7 @@ export function buildG8V2StateAuditPreflightReceipt(outputValue: unknown) {
   const receipt: G8V2StateAuditPreflightReceipt = {
     contract: G8_V2_STATE_AUDIT_PREFLIGHT_CONTRACT,
     phase: output.phase,
+    resultContract: G8_V2_STATE_AUDIT_RESULT_CONTRACT,
     target: { projectId: values['--project-id'], databaseId: values['--database-id'], generation: values['--generation'] },
     inputs: { bundlePath: values['--bundle-in'], manifestPath: values['--manifest'] },
     launcher: {
