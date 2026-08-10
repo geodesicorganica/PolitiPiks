@@ -124,7 +124,7 @@ export function assertG8V2ActivationIdentity(identity: G8V2ActivationIdentity, o
 }
 
 export function getCurrentG8V2ActivationImplementationCommit() {
-  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['log', '-1', '--format=%H', '--', ...G8_V2_ACTIVATION_FOCUSED_FILES], { encoding: 'utf8' }).trim();
 }
 
 export function assertCommittedG8V2Implementation(identity: G8V2ActivationIdentity) {
@@ -135,6 +135,7 @@ export function assertCommittedG8V2Implementation(identity: G8V2ActivationIdenti
 
 export const G8_V2_STATE_AUDIT_FOCUSED_FILES = [
   'package.json',
+  'scripts/lib/g8V2ActivationCli.ts',
   'scripts/audit-g8-4br0-state.ts',
   'scripts/run-g8-4br0-state-audit.ts',
   'scripts/verify-g8-4br3a-offline-audit.ts',
