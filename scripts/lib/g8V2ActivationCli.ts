@@ -147,7 +147,7 @@ export const G8_V2_STATE_AUDIT_FOCUSED_FILES = [
 ] as const;
 
 export function getCurrentG8V2StateAuditImplementationCommit() {
-  return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['log', '-1', '--format=%H', '--', ...G8_V2_STATE_AUDIT_FOCUSED_FILES], { encoding: 'utf8' }).trim();
 }
 
 export function assertCommittedG8V2StateAuditImplementation(expectedCommit: string) {
