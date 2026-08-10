@@ -814,3 +814,39 @@ The authorization is consumed. No retry, second read, collection scan,
 verify-only command, activation, resume, smoke, rollback, deployment, deletion,
 write, push, or branch change occurred. Durable evidence:
 [G8.4BR3B production structured state audit](status/g8-4br3b-production-structured-state-audit.md).
+
+## G8.4BR4A structured activation-recovery readiness
+
+G8.4BR4A is locally certified at focused implementation identity
+`cfff2011ed72f560f531983ce4291237479fa642`. It preserves immutable shadow
+source identity `295466ccc52ccd4d6ad4f1dfb444d48410b92910`, the existing
+`g8-3a-v2-activation/v1` selector contract, selector-only rollback, all
+certified digests, and exactly 3,352 content documents.
+
+Apply, verify-only, and rollback now emit the sanitized structured
+`g8-4br4a-activation-result/v1` contract. Apply remains fail-closed: validate
+shadow → create compatible pending selector → create-only compatible promotion
+→ exact verification → active selector. Conflicts are never overwritten;
+known mid-batch failures retain auditable pending state and compatible content
+can resume only under a later separate authorization.
+
+The canonical `g8-4br4a-activation-preflight/v1` receipt digest is
+`e85147b793b07f7a3576091c482de6f8840f050d98cccf1dfb93e4297740db7e`.
+Two post-commit preflights emitted byte-identical output and derived direct
+`process.execPath` plus repository-resolved `tsx/cli` invocations with
+`shell:false`, 47 ordered arguments per mode, four distinct future G8.4BR4B
+receipt labels, Firebase initialization false, reads/writes `0/0`, namespace
+digest `ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`,
+and activation plan digest
+`9f8827ac20dd9acfdcb0c6dd7beff8df30b767b504bbbe0fb366711b0ba3ca49`.
+
+Focused unit, G8.3A compatibility, alternate-port activation emulator, BR3A
+structured audit/unit/emulator, BR1/BR2 launcher/receipt, G8.2 shadow
+unit/emulator, lint, build, and diff gates passed. Durable evidence:
+[G8.4BR4A structured activation-recovery readiness](status/g8-4br4a-activation-recovery-readiness.md).
+
+No G8.4BR4B authorization was created or used. No network call or production
+read, write, activation, verify-only, rollback, smoke, deployment, deletion,
+push, or branch change occurred. Every future production operation requires
+its own fresh exact authorization and is consumed by its first invocation
+regardless of outcome.
