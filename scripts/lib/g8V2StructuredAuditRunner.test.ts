@@ -20,7 +20,7 @@ const hooks = { loadDotenv: () => {}, validateEnvironment: () => safeEnvironment
 const phases = ['argument-parsing', 'bundle-manifest-validation', 'plan-guard-validation', 'implementation-identity', 'environment-validation', 'firestore-bootstrap', 'selector-read', 'exact-path-reads'] as const;
 for (const phase of phases) {
   const secret = `private-key=SECRET phase=${phase} token=SECRET`;
-  const failure = await runG8V2StructuredAudit(args, { ...hooks, beforePhase: (current) => { if (current === phase) throw Object.assign(new Error(secret), { auditCode: 'INJECTED_SECRET_FAILURE' }); }, bootstrap: async () => { throw Object.assign(new Error(secret), { auditCode: phase === 'firestore-bootstrap' ? 'PERMISSION_DENIED' : 'INJECTED_SECRET_FAILURE' }); } });
+  const failure = await runG8V2StructuredAudit(args, { ...hooks, beforePhase: (current) => { if (current === phase) throw Object.assign(new Error(secret), { auditCode: 'INJECTED_SECRET_FAILURE' }); }, bootstrap: async (plan) => { if (phase === 'firestore-bootstrap') throw Object.assign(new Error(secret), { auditCode: 'PERMISSION_DENIED' }); return { get: async (path) => path === plan.manifestPath ? plan.activeSelector : plan.documents[0].data }; } });
   assert.equal(failure.status, 'failed');
   assert.equal(failure.failedPhase, phase);
   assert.doesNotMatch(JSON.stringify(failure), /SECRET|private-key|token=/);
