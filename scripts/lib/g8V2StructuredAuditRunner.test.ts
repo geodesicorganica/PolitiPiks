@@ -41,8 +41,8 @@ const contentFailure = await runG8V2StructuredAudit(args, {
 });
 assert.ok(contentPlan);
 assert.equal(contentFailure.failedPhase, 'exact-path-reads');
-assert.equal(contentFailure.reads.exactPaths.attempted, 1);
-assert.equal(contentFailure.reads.exactPaths.unknown, 0);
+assert.equal(contentFailure.reads.exactPaths.attempted, 100);
+assert.equal(contentFailure.reads.exactPaths.failed, 100);
 assert.equal(contentFailure.error?.code, 'QUOTA_EXCEEDED');
 assert.equal(contentFailure.contentAudit?.exact, 0);
 assert.doesNotMatch(JSON.stringify(contentFailure), /SECRET|token=|path=/);

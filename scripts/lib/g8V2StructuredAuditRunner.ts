@@ -122,11 +122,20 @@ export async function runG8V2StructuredAudit(argv: readonly string[], hooks: G8V
   const content = { expected: plan!.documents.length, exact: 0, missing: 0, conflicting: 0 };
   try {
     await hooks.beforePhase?.('exact-path-reads');
-    for (const document of plan!.documents) {
-      const actual = await trackedRead(store!, 'exact-path', document.path, result, hooks);
-      if (!actual) content.missing += 1;
-      else if (sameG8V2ActivationData(actual, document.data)) content.exact += 1;
-      else content.conflicting += 1;
+    for (let start = 0; start < plan!.documents.length; start += 100) {
+      const batch = plan!.documents.slice(start, start + 100);
+      const outcomes = await Promise.all(batch.map(async (document) => {
+        try { return { document, actual: await trackedRead(store!, 'exact-path', document.path, result, hooks), error: null as unknown }; }
+        catch (error) { return { document, actual: null, error }; }
+      }));
+      const failed = outcomes.find((outcome) => outcome.error);
+      for (const outcome of outcomes) {
+        if (outcome.error) continue;
+        if (!outcome.actual) content.missing += 1;
+        else if (sameG8V2ActivationData(outcome.actual, outcome.document.data)) content.exact += 1;
+        else content.conflicting += 1;
+      }
+      if (failed?.error) throw failed.error;
     }
   } catch (error) {
     result.contentAudit = content;
