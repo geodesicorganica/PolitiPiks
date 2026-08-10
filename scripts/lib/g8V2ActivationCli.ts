@@ -110,7 +110,11 @@ export const G8_V2_ACTIVATION_FOCUSED_FILES = [
   'scripts/lib/g8V2Activation.ts',
   'scripts/lib/g8V2ActivationCli.ts',
   'scripts/lib/g8V2ActivationPreflight.ts',
+  'scripts/lib/g8V2ActivationResult.ts',
+  'scripts/lib/g8V2ActivationLauncher.ts',
+  'scripts/lib/g8V2StructuredActivationRunner.ts',
   'scripts/verify-g8-4a-activation-preflight.ts',
+  'scripts/verify-g8-4br4a-activation-preflight.ts',
 ] as const;
 
 export type G8V2ActivationIdentityObservation = { head: string; focusedStatus: string };

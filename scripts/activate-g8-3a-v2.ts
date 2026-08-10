@@ -1,52 +1,53 @@
 import { readFileSync } from 'node:fs';
-import { buildG8ProductShadowWritePlan, createFirestoreG8ProductShadowStore, verifyG8ProductShadowNamespace } from './lib/g8ProductShadowExecutor.js';
-import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT, createFirestoreG8V2ActivationStore, executeG8V2Activation, rollbackG8V2Activation, verifyG8V2Activation } from './lib/g8V2Activation.js';
-import { assertCommittedG8V2Implementation, assertG8V2ActivationGuards, getCurrentG8V2ActivationImplementationCommit, parseG8V2ActivationArguments, resolveG8V2Bundle } from './lib/g8V2ActivationCli.js';
+import { buildG8ProductShadowWritePlan } from './lib/g8ProductShadowExecutor.js';
+import { buildG8V2ActivationPlan, CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT } from './lib/g8V2Activation.js';
+import { getCurrentG8V2ActivationImplementationCommit, parseG8V2ActivationArguments, resolveG8V2Bundle } from './lib/g8V2ActivationCli.js';
+import { createG8V2StructuredActivationResult, failG8V2StructuredActivationResult } from './lib/g8V2ActivationResult.js';
+import { runG8V2StructuredActivation } from './lib/g8V2StructuredActivationRunner.js';
 import { validateLocalProductBundle } from './lib/localProductBundle.js';
 
-const arguments_ = parseG8V2ActivationArguments(process.argv.slice(2));
-const bundlePath = resolveG8V2Bundle(arguments_.bundleIn!);
-const bundle = validateLocalProductBundle(JSON.parse(readFileSync(bundlePath, 'utf8')));
-const shadowSourceCommit = arguments_.expectedShadowSourceCommit ?? CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT;
-const activationImplementationCommit = arguments_.expectedActivationImplementationCommit ?? getCurrentG8V2ActivationImplementationCommit();
-const shadowPlan = buildG8ProductShadowWritePlan(bundle, shadowSourceCommit);
-const plan = buildG8V2ActivationPlan(shadowPlan, {
-  shadowVerification: arguments_.shadowVerificationReceipt ?? 'g8-3a-shadow-offline',
-  promotion: arguments_.promotionReceipt ?? 'g8-3a-promotion-offline',
-  activation: arguments_.activationReceipt ?? 'g8-3a-activation-offline',
-  rollback: arguments_.rollbackReceipt ?? 'g8-3a-rollback-offline',
-}, { identitySchemaVersion: 2, shadowSourceCommit, activationImplementationCommit });
+const argv = process.argv.slice(2);
+const emit = (value: unknown) => process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 
-if (arguments_.dryRun) {
-  const manifest = JSON.parse(readFileSync(arguments_.manifest ?? 'docs/g8-catalog-beta-release-manifest.json', 'utf8')) as unknown;
-  if (arguments_.projectId) assertG8V2ActivationGuards(arguments_, plan, manifest);
-  console.log(JSON.stringify({
-    contract: plan.contract,
-    writes: 0,
-    promotedContentDocuments: plan.documents.length,
-    selectorManifestOperations: ['create-pending-selector', 'set-active-selector'],
-    totalFutureOperations: plan.documents.length + 2,
-    identitySchemaVersion: plan.identitySchemaVersion,
-    shadowSourceCommit: plan.shadowSourceCommit,
-    activationImplementationCommit: plan.activationImplementationCommit,
-    shadowNamespaceDigest: plan.certifiedDigests.namespace,
-    activationPlanDigest: plan.planDigest,
-    expectedCounts: plan.expectedCounts,
-    stateMachine: ['validate-shadow', 'pending-selector-manifest', 'bounded-active-document-promotion', 'exact-content-verification', 'final-active-selector'],
-  }, null, 2));
-  process.exit(0);
+if (!argv.includes('--dry-run')) {
+  try {
+    const result = await runG8V2StructuredActivation(argv);
+    emit(result);
+    process.exitCode = result.status === 'completed' ? 0 : 1;
+  } catch {
+    emit(failG8V2StructuredActivationResult(createG8V2StructuredActivationResult(), 'result-validation', { activationCode: 'MALFORMED_RESULT' }));
+    process.exitCode = 1;
+  }
+} else {
+  try {
+    const arguments_ = parseG8V2ActivationArguments(argv);
+    const bundlePath = resolveG8V2Bundle(arguments_.bundleIn!);
+    const bundle = validateLocalProductBundle(JSON.parse(readFileSync(bundlePath, 'utf8')));
+    const shadowSourceCommit = arguments_.expectedShadowSourceCommit ?? CERTIFIED_G8_V2_SHADOW_SOURCE_COMMIT;
+    const activationImplementationCommit = arguments_.expectedActivationImplementationCommit ?? getCurrentG8V2ActivationImplementationCommit();
+    const shadowPlan = buildG8ProductShadowWritePlan(bundle, shadowSourceCommit);
+    const plan = buildG8V2ActivationPlan(shadowPlan, {
+      shadowVerification: arguments_.shadowVerificationReceipt ?? 'g8-3a-shadow-offline',
+      promotion: arguments_.promotionReceipt ?? 'g8-3a-promotion-offline',
+      activation: arguments_.activationReceipt ?? 'g8-3a-activation-offline',
+      rollback: arguments_.rollbackReceipt ?? 'g8-3a-rollback-offline',
+    }, { identitySchemaVersion: 2, shadowSourceCommit, activationImplementationCommit });
+    emit({
+      contract: plan.contract,
+      writes: 0,
+      promotedContentDocuments: plan.documents.length,
+      selectorManifestOperations: ['create-pending-selector', 'set-active-selector'],
+      totalFutureOperations: plan.documents.length + 2,
+      identitySchemaVersion: plan.identitySchemaVersion,
+      shadowSourceCommit: plan.shadowSourceCommit,
+      activationImplementationCommit: plan.activationImplementationCommit,
+      shadowNamespaceDigest: plan.certifiedDigests.namespace,
+      activationPlanDigest: plan.planDigest,
+      expectedCounts: plan.expectedCounts,
+      stateMachine: ['validate-shadow', 'pending-selector-manifest', 'bounded-active-document-promotion', 'exact-content-verification', 'final-active-selector'],
+    });
+  } catch (error) {
+    emit(failG8V2StructuredActivationResult(createG8V2StructuredActivationResult(), 'argument-parsing', error));
+    process.exitCode = 1;
+  }
 }
-
-const manifest = JSON.parse(readFileSync(arguments_.manifest ?? 'docs/g8-catalog-beta-release-manifest.json', 'utf8')) as unknown;
-assertG8V2ActivationGuards(arguments_, plan, manifest);
-assertCommittedG8V2Implementation({ identitySchemaVersion: 2, shadowSourceCommit: plan.shadowSourceCommit, activationImplementationCommit: plan.activationImplementationCommit });
-
-const store = await createFirestoreG8V2ActivationStore(plan);
-if (arguments_.apply || arguments_.verifyOnly) {
-  const shadowStore = await createFirestoreG8ProductShadowStore(shadowPlan);
-  const shadowVerification = await verifyG8ProductShadowNamespace(shadowStore, shadowPlan);
-  if (shadowVerification.contentDigest !== plan.certifiedDigests.namespace) throw new Error('verified shadow namespace digest differs from activation plan');
-}
-if (arguments_.apply) console.log(JSON.stringify(await executeG8V2Activation(store, plan), null, 2));
-else if (arguments_.verifyOnly) console.log(JSON.stringify(await verifyG8V2Activation(store, plan), null, 2));
-else console.log(JSON.stringify(await rollbackG8V2Activation(store, plan), null, 2));
