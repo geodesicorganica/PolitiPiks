@@ -883,3 +883,28 @@ and its receipt remains absent. No retry, follow-up production read, state
 audit, smoke, rollback, deployment, deletion, push, or branch change occurred.
 Durable evidence:
 [G8.4BR4B guarded production activation recovery](status/g8-4br4b-production-activation-recovery.md).
+
+## G8.4BR5A conflict analysis readiness
+
+G8.4BR5A is locally certified at focused implementation identity
+`b9caf95ae47f856a1ed3282ab193c631bbe2ca85`, while activation identity
+`cfff2011ed72f560f531983ce4291237479fa642` and the certified content remain
+unchanged. It adds a strict private conflict-snapshot contract, Firebase-free
+offline comparison and classification, and unresolved per-path resolution
+planning for the 858 conflicts reported by the consumed G8.4BR4B apply.
+
+The future capture surface is fail-closed to one selector read plus exactly
+3,352 manifest-derived document reads, with zero writes, collection scans, or
+retries. Full actual conflict documents are retained privately as rollback
+evidence; production-only and protected values prevent automatic replacement,
+and every disposition remains unresolved until explicit approval. The final
+Firebase-free preflight ran twice with byte-identical 7,577-byte output and
+canonical digest
+`b220c4aeedf0d7ab3922dd73dd32afa7c4ea737706298f5393e74cdaba8a1b1f`.
+
+Focused tests, deterministic offline replays, the mixed-state emulator,
+BR4A/BR3A activation and audit regressions, G8.2 shadow/bundle regressions,
+TypeScript, lint, build, and diff gates passed. No production capture, network
+operation, read, write, replacement, deletion, activation, rollback, push, or
+branch change occurred, and no G8.4BR5B authorization was created. Durable
+evidence: [G8.4BR5A conflict analysis readiness](status/g8-4br5a-conflict-analysis-readiness.md).
