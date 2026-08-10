@@ -69,8 +69,8 @@ const injected = await run({ read: async (kind: string, path: string, defaultRea
   return defaultRead();
 } });
 assert.equal(injected.failedPhase, 'exact-path-reads');
-assert.equal(injected.reads.exactPaths.unknown, 1);
-assert.equal(injected.reads.exactPaths.attempted, 1);
+assert.equal(injected.reads.exactPaths.unknown, 100);
+assert.equal(injected.reads.exactPaths.attempted, 100);
 assert.equal(injected.selector.state, 'active');
 assert.doesNotMatch(JSON.stringify(injected), /SECRET|token=/);
 assert.equal((await db.doc(plan.manifestPath).get()).get('state'), 'active');
