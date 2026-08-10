@@ -788,3 +788,29 @@ writes both zero. Durable evidence:
 
 No production retry, selector operation, activation, resume, smoke, rollback,
 deployment, deletion, push, branch change, or G8.4BR3B authorization occurred.
+
+## G8.4BR3B production structured state audit
+
+G8.4BR3B consumed its one authorized read-only production auditor invocation on
+2026-08-10. The committed preflight ran once and passed the canonical
+`g8-4br3a-state-audit-preflight/v1` receipt gate with digest
+`08b8c556993b69de7142b38c92b74877cea6d5bb789dcfeacb12949a53e80c8d`,
+focused audit identity `041c017e0483318354e44dd75a3866c9771fd763`, activation
+plan digest `9adde6e0a909b0950d0930d74d2942847916736db40abc4afc8b6b76fdee35d5`,
+namespace digest `ada9574c279c159f9ec662f503164fc45b93d5c07644233e53dbbb6e67b93af0`,
+`shell:false`, 51 ordered arguments, 5/5 unique receipts, 3,352 bounded content
+paths, Firebase initialization false, and reads/writes `0/0`.
+
+The exact preflight-derived direct auditor attempted, started, and exited once
+with exit `0`. Its `g8-4br3a-state-audit-result/v1` result completed with
+Firebase initialization/bootstrap succeeded and one successful selector-first
+read. `catalogActivations/canonical-2026` was absent, with null contract and
+not-applicable metadata. Therefore no exact content paths were attempted: all
+3,352 are explicitly not attempted, and content exact/missing/conflicting
+counts are not applicable rather than zero. The structured safe next action is
+to separately authorize a fresh v2 activation recovery.
+
+The authorization is consumed. No retry, second read, collection scan,
+verify-only command, activation, resume, smoke, rollback, deployment, deletion,
+write, push, or branch change occurred. Durable evidence:
+[G8.4BR3B production structured state audit](status/g8-4br3b-production-structured-state-audit.md).
