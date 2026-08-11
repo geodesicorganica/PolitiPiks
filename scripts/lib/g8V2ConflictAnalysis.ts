@@ -383,7 +383,7 @@ export function validateG8V2ConflictSnapshot(value: unknown, plan: G8V2Activatio
 }
 
 function sourcePayloadMatch(actual: Json, source: Json) {
-  const differing = Object.keys(source).filter((key) => !sameG8V2ActivationData(actual[key], source[key]));
+  const differing = Object.keys(source).filter((key) => !(key in actual) || !sameG8V2ActivationData(actual[key], source[key]));
   return { matched: differing.length === 0, differingSourcePointers: differing.sort().map((key) => `/${pointerToken(key)}`), productionOnlyTopLevelPointers: Object.keys(actual).filter((key) => !(key in source)).sort().map((key) => `/${pointerToken(key)}`) };
 }
 

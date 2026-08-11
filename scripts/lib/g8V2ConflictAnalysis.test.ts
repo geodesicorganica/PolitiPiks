@@ -107,6 +107,27 @@ assert.throws(() => buildG8V2ConflictSnapshot({ plan, capture, selector: { actua
 
 const currentBundle = JSON.parse(readFileSync('.artifacts/private/canonical-migration/g7-1-local-product-bundle.json', 'utf8'));
 const historicalBundle = JSON.parse(readFileSync('.artifacts/private/canonical-migration/g8-1-prospective-product-bundle-2026-08-04.json', 'utf8'));
+
+// Regression: an older/redacted actual payload can legitimately omit a source
+// field. Offline comparison must classify that field as different instead of
+// passing `undefined` into the Firestore value encoder.
+const comparisonDocuments = new Map((currentBundle.documents as Array<{ path: string; data: Record<string, unknown> }>).map((document) => [document.path, document.data]));
+const asymmetricDocument = plan.documents.find((document) => {
+  const source = comparisonDocuments.get(document.path);
+  return source && Object.keys(source).some((key) => key in document.data);
+})!;
+const asymmetricSource = comparisonDocuments.get(asymmetricDocument.path)!;
+const omittedSourceKey = Object.keys(asymmetricSource).find((key) => key in asymmetricDocument.data)!;
+const asymmetricActual = structuredClone(asymmetricDocument.data);
+delete asymmetricActual[omittedSourceKey];
+const asymmetricObservations: G8V2ConflictObservation[] = plan.documents.map((document) => ({ path: document.path, actual: null }));
+asymmetricObservations[plan.documents.indexOf(asymmetricDocument)] = { path: asymmetricDocument.path, actual: asymmetricActual };
+const asymmetricSnapshot = buildG8V2ConflictSnapshot({ plan, capture, selector: { actual: null }, observations: asymmetricObservations });
+const asymmetricReport = buildG8V2ConflictAnalysisReport(asymmetricSnapshot, plan, [{ label: 'redacted', value: currentBundle }]);
+const asymmetricComparison = asymmetricReport.conflicts[0].localComparisons[0];
+assert.equal(asymmetricComparison.matched, false);
+assert.deepEqual(asymmetricComparison.differingSourcePointers, [`/${omittedSourceKey}`]);
+
 const report = buildG8V2ConflictAnalysisReport(snapshot, plan, [{ label: 'current', value: currentBundle }, { label: 'historical', value: historicalBundle }]);
 assert.equal(report.firebaseImported, false);
 assert.equal(report.credentialsLoaded, false);

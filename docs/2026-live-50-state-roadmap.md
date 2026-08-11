@@ -2,7 +2,7 @@
 
 Status: **authoritative**
 
-Last verified: **2026-08-07**
+Last verified: **2026-08-10**
 
 This document is the canonical roadmap for taking the 2026 election product from
 its locally certified federal catalog to a production system with live,
@@ -934,3 +934,25 @@ nonzero result; this local control-flow defect is recorded, but no second
 production operation occurred. The capture authorization is consumed and
 must never be retried. Durable evidence:
 [G8.4BR5B production conflict capture](status/g8-4br5b-production-conflict-capture.md).
+
+## G8.4BR5C offline conflict replay recovery
+
+G8.4BR5C is **locally certified on 2026-08-10; no production operation was
+performed**. The preserved BR5B snapshot remains byte-identical at 35,148,779
+bytes with SHA-256
+`425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3`.
+The fail-fast offline runner completed analysis and two verified replays with
+exits `0/0/0`; the verified report outputs are byte-identical at SHA-256
+`88fa9c80f01c6126ef5747e0e6f5c62e26aa6ad8099e69b2d8582567552f0a8d`,
+with Firebase import, credentials, network requests, and production operations
+all zero.
+
+The proxy-contaminated emulator stop was recovered by stripping HTTP, HTTPS,
+and ALL proxy variables only from emulator child environments and setting the
+loopback no-proxy allowlist, while leaving the offline runner's blackholed
+network proof unchanged. The mixed-conflict gate and four regression emulator
+gates all passed once on `demo-no-project`, followed by focused unit, lint,
+build, and diff gates. The state remains 0 exact, 2,494 missing, 858
+substantive unresolved conflicts, 0 unknown, and `safeToReplace=0`; no conflict
+disposition, snapshot body, selector, or production document changed. Durable
+evidence: [G8.4BR5C offline conflict replay recovery](status/g8-4br5c-offline-conflict-replay-recovery.md).

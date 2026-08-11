@@ -1,9 +1,10 @@
 # G8.4BR5B — Production conflict capture and offline analysis stop
 
 Status: **the one authorized production capture was consumed, exited `0`, and
-created a complete validated private snapshot; the required offline analysis
-processes all exited `1` without JSON, so replay/comparison certification is
-unknown and this batch stopped without any further production operation**.
+created a complete validated private snapshot; this BR5B batch stopped after
+its offline analysis processes exited `1` without JSON. BR5C later recovered
+and certified the offline replay plus local emulator gates without any further
+production operation**.
 
 ## Scope and starting state
 
@@ -199,3 +200,28 @@ change, disposition change, merge, archive write, deletion, activation,
 verify-only operation, rollback, smoke, deployment, push, or branch change
 occurred. Any next work must be a separately authorized offline-only diagnosis
 using the preserved snapshot; it must not repeat the production capture.
+
+## BR5C local recovery addendum
+
+G8.4BR5C fixed the missing-source-field comparison defect and the offline
+runner's fail-fast sequencing locally. The preserved offline receipt records
+analysis/replay exits `0/0/0`; the two independent verified reports are
+byte-identical with SHA-256
+`88fa9c80f01c6126ef5747e0e6f5c62e26aa6ad8099e69b2d8582567552f0a8d`.
+Firebase import, credential loading, network requests, and production
+operations are all certified as zero for those offline runs.
+
+The prior BR5C emulator stop was caused by localhost traffic inheriting the
+offline replay's deliberately blackholed proxy. The recovery removed
+`HTTP_PROXY`, `HTTPS_PROXY`, and `ALL_PROXY` case variants only from emulator
+child environments and set `NO_PROXY`/`no_proxy` to
+`127.0.0.1,localhost,::1`; the offline runner's blackholed network guard was
+not changed. The failed mixed-conflict emulator gate then passed on its one
+fresh attempt, and all four first-attempt regression emulator gates passed.
+
+The snapshot remained exactly 35,148,779 bytes with SHA-256
+`425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3`.
+The result remains 0 exact, 2,494 missing, 858 substantive unresolved
+conflicts, 0 unknown, and `safeToReplace=0`. No disposition or production
+state changed. Durable evidence:
+[G8.4BR5C offline conflict replay recovery](g8-4br5c-offline-conflict-replay-recovery.md).
