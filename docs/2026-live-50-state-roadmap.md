@@ -956,3 +956,35 @@ build, and diff gates. The state remains 0 exact, 2,494 missing, 858
 substantive unresolved conflicts, 0 unknown, and `safeToReplace=0`; no conflict
 disposition, snapshot body, selector, or production document changed. Durable
 evidence: [G8.4BR5C offline conflict replay recovery](status/g8-4br5c-offline-conflict-replay-recovery.md).
+
+## G8.4BR6A offline conflict disposition planning
+
+G8.4BR6A is **locally certified on 2026-08-12 and not ready for an
+executor; no production operation was performed**. A versioned offline-only
+planner validated eight local lineage artifacts, rebuilt the certified bundle
+at semantic digest
+`7b9f6a8dc89f7a86c8481aaf5fe46418fc47dbe5675846b63d5149b273e1c8a7`,
+and produced one complete draft plan entry for each of the 858 conflicts with
+no duplicates or omissions.
+
+The plan deterministically merges 429 metrics documents while leaving 429
+race documents unresolved. It records 55,032 pointer rules: 35,486
+current-certified authoritative values, 7,615 existing values backed by a
+validated source, 7,722 runtime metadata values, and 4,209 candidate-identity
+conflicts. Unsupported production-only, ambiguous, and conflicting-lineage
+counts are zero. Because 4,209 policy conflicts remain, `readyForExecutor` is
+`false`; 36 smallest digest-only evidence batches cover all 429 unresolved
+paths.
+
+Two independent builds and an isolated verified replay exited `0/0/0`. The
+62,232,012-byte private plans were byte-identical at SHA-256
+`bbb251ff0e30a4624c2e649baeda69d5b3c721ef46075ccb6a23e68c57fcccbd`;
+the 19,979-byte reports were byte-identical at SHA-256
+`8eeb876f30ebdd4189d3483115a918ba942cb461680c5dc0e22269c0306d640b`.
+The plan digest is
+`15f456e459c18fd0db51275b0c22de7b1fe5f9fb6b3dca841f111b9469c28cd9`.
+Firebase import, credential loads, network requests, and production operations
+were all zero, and the preserved snapshot remained byte-identical at its
+required 35,148,779 bytes and SHA-256. Focused, regression, TypeScript, lint,
+build, five alternate-port emulator, and diff gates all passed. Durable
+evidence: [G8.4BR6A offline conflict provenance and draft-disposition plan](status/g8-4br6a-offline-conflict-disposition-plan.md).
