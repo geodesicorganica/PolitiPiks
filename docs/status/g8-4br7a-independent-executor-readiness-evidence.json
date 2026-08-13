@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "contract": "g8-4br7a-sanitized-aggregate-evidence/v1",
+  "verdict": "PASS-safe-to-design-local-executor-not-production-authorization",
+  "reviewedCommitRange": {
+    "from": "17159857038b90a3659c2435d68806f7b515b0aa",
+    "through": "683b5180060b06bedbe3a5c684db563b321f9a8c"
+  },
+  "identities": {
+    "plan": { "bytes": 75926293, "sha256": "654349812a2d2806b75b58e0f57ba09713bb27d22f955c85a100cc70cf7a80ec" },
+    "snapshot": { "bytes": 35148779, "sha256": "425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3" },
+    "bundle": { "bytes": 23043218, "sha256": "8387a248be9cf08c3d4a380748be5dd6744c0d81b081d770804db1cf1edbf7b4" },
+    "br6bPlan": { "bytes": 81061814, "sha256": "1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e" },
+    "overrides": { "bytes": 2137, "sha256": "dae9946a70fb23d935a86f9affdcab97459d07a4024a84e4e0b6c3a5559a5b77" }
+  },
+  "counts": {
+    "paths": 858,
+    "races": 429,
+    "metrics": 429,
+    "fecEquivalentRaces": 425,
+    "acceptedFecPairs": 2097,
+    "exactOverrides": 8,
+    "replaceWithCertified": 4,
+    "deterministicMerges": 854,
+    "preservedProductionOnlyLeaves": 10177,
+    "discardedStaleRuntimeLeaves": 12,
+    "unresolvedProvenance": 0,
+    "policyConflicts": 0,
+    "p0Findings": 0,
+    "p1Findings": 0
+  },
+  "digests": {
+    "overridePolicy": "1167d651066fe8e0c130366e1981000d538b3d12405607cb8a5dfa1be1c64b3b",
+    "entries": "db946e81664318e666daf12ecfc1bdbcf600dea6b1cc109296f933a979d8cbfb",
+    "aggregate": "0ae00a719842cbfa58767dae12b280e35406ed72a3cf2501ad3518c8d7dbfc8c",
+    "outputs": "0ac958cd0dbcf43cba20ef1b64ab7957fa4255dc76a79efb71306146957f84e2",
+    "rollback": "80241286ec7cfb0e45844adbf2758883e0c8d8ec8d2b98c26b3db5f66986529d",
+    "plan": "ecc155e0e08a4ac599593f70041ee53d806b48a149ac375c7b2c901d4c76dd23"
+  },
+  "executorSafety": {
+    "forbiddenOperationFields": 0,
+    "writes": 0,
+    "deletes": 0,
+    "scans": 0,
+    "collectionWideOperations": 0,
+    "selectorChanges": 0,
+    "implicitActivations": 0
+  },
+  "finalCertification": {
+    "invocations": 1,
+    "sequence": ["independent-pass-1", "independent-pass-2", "isolated-replay"],
+    "exitStatus": [0, 0, 0],
+    "stderrBytesEach": 0,
+    "receiptsByteIdentical": true,
+    "receiptBytes": 2543,
+    "receiptSha256": "6b84d9fe141cd0c992ef8262a93cc0baaedc223d2ddf99011240eb61ec8ad491"
+  },
+  "safety": {
+    "firebaseImported": false,
+    "credentialsLoaded": false,
+    "networkRequests": 0,
+    "productionOperations": 0,
+    "dispositionsExecuted": 0
+  }
+}

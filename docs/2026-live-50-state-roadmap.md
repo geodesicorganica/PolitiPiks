@@ -1053,3 +1053,36 @@ zero. All 21 local gates passed once. The authorized final two independent
 builds and one `--verify-replay` exited `0/0/0`; every report and all four
 plans, including the isolated replay child, are byte-identical. Durable evidence:
 [G8.4BR6CR final identity resolution recovery](status/g8-4br6cr-final-identity-resolution-recovery.md).
+
+## G8.4BR7A independent executor-readiness review
+
+G8.4BR7A is **independently PASS on 2026-08-13 for use of the BR6CR plan only
+as input to future local-executor design; it is not production authorization**.
+A separate Firebase-free verifier treats the BR6 artifacts as hostile JSON and
+does not import or call any BR6 planner. The committed range from `1715985`
+through `683b518` was reviewed for weakened guards, hidden assumptions, stale
+runtime metadata, unsafe merges, and implicit operations; no P0/P1 finding
+remains.
+
+The verifier independently derived all 858 paths from the certified activation
+source bundle and immutable snapshot: 429 races and 429 metrics. It proved
+2,097 unique same-race FEC pairs across 425 regular races, all eight G2.1
+exception mappings, three one-to-one exception races, and NJ-08's sole
+two-alias many-to-one group. It reconstructed all 854 deterministic merges and
+four complete certified replacements, verified 858 rollback documents, and
+found zero unresolved provenance, policy conflicts, protected-field changes,
+unsafe timestamps, or executor-operation fields.
+
+Independent recomputation matched plan digest
+`ecc155e0e08a4ac599593f70041ee53d806b48a149ac375c7b2c901d4c76dd23`,
+outputs digest
+`0ac958cd0dbcf43cba20ef1b64ab7957fa4255dc76a79efb71306146957f84e2`,
+and rollback digest
+`80241286ec7cfb0e45844adbf2758883e0c8d8ec8d2b98c26b3db5f66986529d`.
+Focused tamper, strict codec, TypeScript, lint, build, and diff gates passed.
+The one final invocation ran two independent verifier passes and one isolated
+replay at `0/0/0`; all three 2,543-byte receipts are byte-identical at SHA-256
+`6b84d9fe141cd0c992ef8262a93cc0baaedc223d2ddf99011240eb61ec8ad491`.
+Firebase import, credentials, network requests, production operations, and
+executed dispositions remain zero. Durable evidence:
+[G8.4BR7A independent executor-readiness review](status/g8-4br7a-independent-executor-readiness-review.md).
