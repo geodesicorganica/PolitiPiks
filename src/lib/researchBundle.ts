@@ -1,5 +1,6 @@
 import { doc, getDoc, getDocs, collection, query, where } from 'firebase/firestore';
 import { db } from './firebase';
+import { hasCongressionalServiceRecord } from './congressionalServiceRecord';
 import {
   Race,
   BallotMeasure,
@@ -160,6 +161,7 @@ export function normalizeRaceBundle(
       name: c.name,
       party: c.party,
       incumbency: c.incumbent ? 'incumbent' : null,
+      hasCongressionalServiceRecord: hasCongressionalServiceRecord(c),
       identitySummary: cr?.buckets?.identity?.[0]?.body || c.summary,
       contestContext: cr?.buckets?.campaign?.[0]?.body,
       publicRecordBullets: cr?.buckets?.publicRecord?.flatMap(s => s.bullets || []) || [],
