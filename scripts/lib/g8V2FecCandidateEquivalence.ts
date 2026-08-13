@@ -140,7 +140,7 @@ export type G8V2RevisedDispositionPlan = {
   basePlan: { contract: typeof G8_V2_DISPOSITION_CONTRACT; planDigest: typeof G8_V2_BR6A_CERTIFIED_PLAN_DIGEST };
   equivalence: G8V2FecEquivalenceEvidence;
   entries: G8V2RevisedDispositionEntry[];
-  aggregate: ReturnType<typeof aggregateEntries>;
+  aggregate: ReturnType<typeof aggregateG8V2RevisedDispositionEntries>;
   readiness: {
     readyForExecutor: boolean;
     deterministicallyResolved: number;
@@ -616,7 +616,7 @@ function setPointer(target: Json, pointer: string, value: unknown) {
   else throw new Error('BR6B_INVALID_MERGE_POINTER');
 }
 
-function draftDisposition(conflict: G8V2ConflictDocument, rules: G8V2DispositionPointerRule[]) {
+export function draftG8V2RevisedDisposition(conflict: G8V2ConflictDocument, rules: G8V2DispositionPointerRule[]) {
   if (rules.some((rule) => rule.blockerClass !== 'none')) return { disposition: 'unresolved' as const, output: conflict.actual, basis: 'no-op-unresolved' as const, rationale: 'one or more FEC identity, lineage, or unsupported-production blockers remain; the draft proposes no change' };
   const productionPreserve = rules.filter((rule) => rule.kind === 'production-only' && ['existing-value-with-validated-source','runtime-metadata'].includes(rule.provenanceClass));
   const certifiedChanges = rules.some((rule) => rule.kind !== 'production-only' && ['current-certified-authoritative','runtime-metadata'].includes(rule.provenanceClass));
@@ -635,7 +635,7 @@ function pointerSignaturePointer(pointer: string) {
   return pointer.replace(/@(?:id|fec)-sha256:[a-f0-9]{64}/g, '@candidate-id');
 }
 
-function aggregateEntries(entries: G8V2RevisedDispositionEntry[]) {
+export function aggregateG8V2RevisedDispositionEntries(entries: G8V2RevisedDispositionEntry[]) {
   const rules = entries.flatMap((entry) => entry.pointerRules);
   return {
     plannedPaths: entries.length,
@@ -696,7 +696,7 @@ export function buildG8V2RevisedDispositionPlan(options: {
       }
       return rule;
     });
-    const drafted = draftDisposition(conflict, pointerRules);
+    const drafted = draftG8V2RevisedDisposition(conflict, pointerRules);
     const evidenceDigests = sortedUnique([lineage.catalog.catalogDigest, options.basePlan.snapshot.evidenceDigest, evidence.digests.evidence, ...pointerRules.flatMap((rule) => rule.evidenceDigests)]);
     const pointerSignature = digest(pointerRules.map((rule) => ({ pointer: pointerSignaturePointer(rule.pointer), kind: rule.kind, provenanceClass: rule.provenanceClass, blockerClass: rule.blockerClass })));
     return {
@@ -707,7 +707,7 @@ export function buildG8V2RevisedDispositionPlan(options: {
     };
   });
   expect(entries.length === 858 && new Set(entries.map((entry) => entry.path)).size === 858, 'BR6B_DUPLICATE_OR_OMITTED_PATH');
-  const aggregate = aggregateEntries(entries);
+  const aggregate = aggregateG8V2RevisedDispositionEntries(entries);
   expect(aggregate.plannedPaths === 858 && aggregate.duplicatePaths === 0 && aggregate.omittedPaths === 0, 'BR6B_AGGREGATE_PATH_COVERAGE_MISMATCH');
   const unresolved = entries.filter((entry) => entry.disposition === 'unresolved').length;
   const policyConflicts = entries.flatMap((entry) => entry.pointerRules).filter((rule) => rule.blockerClass !== 'none').length;

@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "contract": "g8-4br6cr-sanitized-aggregate-evidence/v1",
+  "status": "locally-certified-ready-for-executor-not-executed",
+  "startingState": {
+    "branch": "codex/politipiks-canonical-shadow-release",
+    "head": "724b4e76eda2ef56057b3d68c3ccf938bfdd5351",
+    "focusedPathsAtStart": 6,
+    "unrelatedPathsPreserved": 10
+  },
+  "immutableInputs": {
+    "snapshot": { "bytes": 35148779, "sha256": "425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3" },
+    "br6bPlan": { "bytes": 81061814, "sha256": "1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e" },
+    "overrides": { "bytes": 2137, "sha256": "dae9946a70fb23d935a86f9affdcab97459d07a4024a84e4e0b6c3a5559a5b77" },
+    "g2Status": { "bytes": 4627, "sha256": "281f0525ac101103ac623c6be5a432507787e6c47f5283fd1fe9c86cb8873077" },
+    "originalFailureReceipt": { "bytes": 635, "sha256": "165e87b4c6e395ca0d1691af559c39a9e321a7e213a1a91962fc28095c08fb1d" }
+  },
+  "originalFailure": {
+    "phase": "build",
+    "exitStatus": 1,
+    "stdoutBytes": 0,
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderrBytes": 1027,
+    "stderrSha256": "52144724a52dc7897c828d9c49829172b3c8918cbfb8a4c827a88e8f9afef010",
+    "sanitizedErrorCode": "BR6C_EXCEPTION_OUTPUT_NOT_CERTIFIED",
+    "planCreated": false
+  },
+  "diagnosis": {
+    "rankedHypotheses": 5,
+    "variablesChangedPerProbe": 1,
+    "affectedExceptionalRaces": 4,
+    "runtimeMetadataPointersPerRace": 3,
+    "candidatePreservationPointersPerRace": 0,
+    "rootCause": "validated exceptional replacements retained three stale updatedAt runtime pointers and therefore drafted hybrid outputs instead of complete certified outputs"
+  },
+  "redGreen": {
+    "red": {
+      "exitStatus": 1,
+      "stdoutBytes": 0,
+      "stderrBytes": 1613,
+      "stderrSha256": "d3bf53550dc0b5f4f32c573e9e2b5ea8d2134815db40389e7d2e5daa319f82b0",
+      "sanitizedErrorCode": "BR6C_EXCEPTION_OUTPUT_NOT_CERTIFIED"
+    },
+    "green": {
+      "exitStatus": 0,
+      "stdoutBytes": 504,
+      "stdoutSha256": "a812e650ee9ff27863e74f7b243e669540e65ab791ecb07840f11fac0061719b",
+      "stderrBytes": 0,
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "identityResolution": {
+    "resolvedRaces": 4,
+    "correctedOneToOneRaces": 3,
+    "consumedOverrides": 8,
+    "correctedOneToOneOverrides": 6,
+    "approvedManyToOneMergeGroups": 1,
+    "approvedManyToOneAliases": 2,
+    "resolvedIdentityBlockers": 7,
+    "remainingConflicts": 0
+  },
+  "dispositions": {
+    "plannedPaths": 858,
+    "duplicatePaths": 0,
+    "omittedPaths": 0,
+    "replaceWithCertified": 4,
+    "deterministicMerge": 854,
+    "unresolved": 0,
+    "policyConflicts": 0,
+    "readyForExecutor": true,
+    "reproducibleOutputs": true,
+    "rollbackEvidenceComplete": true
+  },
+  "diagnosticReplay": {
+    "exitStatus": 0,
+    "stdoutBytes": 9273,
+    "stdoutSha256": "58212a18bab09f359f80faa4f2b54aac1632c1d7742d13e0086c16aab2019b05",
+    "stderrBytes": 0,
+    "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "planBytes": 75926293,
+    "planSha256": "654349812a2d2806b75b58e0f57ba09713bb27d22f955c85a100cc70cf7a80ec",
+    "receiptBytes": 2401,
+    "receiptSha256": "fa2ca96a9e692e1d043a11d3a344438abab26839f2bdc57cd531e64b83b2e341",
+    "inputsByteIdentical": true
+  },
+  "digests": {
+    "overridePolicy": "1167d651066fe8e0c130366e1981000d538b3d12405607cb8a5dfa1be1c64b3b",
+    "entries": "db946e81664318e666daf12ecfc1bdbcf600dea6b1cc109296f933a979d8cbfb",
+    "aggregate": "0ae00a719842cbfa58767dae12b280e35406ed72a3cf2501ad3518c8d7dbfc8c",
+    "outputs": "0ac958cd0dbcf43cba20ef1b64ab7957fa4255dc76a79efb71306146957f84e2",
+    "rollback": "80241286ec7cfb0e45844adbf2758883e0c8d8ec8d2b98c26b3db5f66986529d",
+    "plan": "ecc155e0e08a4ac599593f70041ee53d806b48a149ac375c7b2c901d4c76dd23"
+  },
+  "localGates": {
+    "invocations": 1,
+    "gateCount": 21,
+    "allExitStatus": 0,
+    "labels": [
+      "br6c-focused",
+      "canonical-migration-overrides",
+      "br6b-equivalence-regression",
+      "br6a-disposition-regression",
+      "br5a-analysis-regression",
+      "br5c-runner-regression",
+      "br5a-preflight-regression",
+      "br4a-activation-recovery",
+      "g8-3a-activation",
+      "br3a-structured-audit",
+      "g8-2a-product-shadow",
+      "local-product-bundle",
+      "typescript",
+      "lint",
+      "build",
+      "git-diff-check",
+      "br5a-capture-emulator-18083",
+      "br4a-activation-emulator-18082",
+      "br3a-audit-emulator-18081",
+      "g8-3a-activation-emulator-8081",
+      "g8-2a-shadow-emulator-8081"
+    ],
+    "buildStderrBytes": 417,
+    "buildStderrSha256": "2d277c587f5a9bbf123365d5d740cb181c293e7cea4adc3df70b683c3476e0d9",
+    "receiptBytes": 11901,
+    "receiptSha256": "56edc34e37e730fe92f2607aba38fd57ba1b330a3fe5f959ae0cf320d4a23c96",
+    "inputsByteIdentical": true,
+    "emulatorPolicy": {
+      "projectId": "demo-no-project",
+      "proxyBypass": "127.0.0.1,localhost,::1",
+      "credentialVariables": 0,
+      "updateChecks": false,
+      "productionTargets": 0
+    }
+  },
+  "finalCertification": {
+    "invocations": 1,
+    "sequence": [
+      { "label": "independent-build-1", "exitStatus": 0 },
+      { "label": "independent-build-2", "exitStatus": 0 },
+      { "label": "verify-replay", "exitStatus": 0 }
+    ],
+    "reports": {
+      "byteIdentical": true,
+      "bytes": 9273,
+      "sha256": "58212a18bab09f359f80faa4f2b54aac1632c1d7742d13e0086c16aab2019b05",
+      "stderrBytesEach": 0
+    },
+    "plans": {
+      "countIncludingReplayChild": 4,
+      "byteIdentical": true,
+      "bytes": 75926293,
+      "sha256": "654349812a2d2806b75b58e0f57ba09713bb27d22f955c85a100cc70cf7a80ec"
+    },
+    "receiptBytes": 12892,
+    "receiptSha256": "dc91b43af657af5b0869c5544c50cdb2e60d1d0ed4f66c0e4ccbe0405c7da232",
+    "inputsByteIdentical": true
+  },
+  "safety": {
+    "firebaseImported": false,
+    "credentialsLoaded": false,
+    "networkRequests": 0,
+    "productionOperations": 0,
+    "dispositionsExecuted": 0
+  }
+}

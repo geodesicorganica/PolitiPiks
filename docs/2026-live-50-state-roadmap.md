@@ -1023,3 +1023,33 @@ passed once, the snapshot remained byte-identical, and Firebase import,
 credentials, network requests, production operations, and executed
 dispositions were all zero. Durable evidence:
 [G8.4BR6B offline FEC candidate identity equivalence](status/g8-4br6b-fec-candidate-identity-equivalence.md).
+
+## G8.4BR6CR final identity resolution recovery
+
+G8.4BR6CR is **locally certified on 2026-08-13 with the final plan ready for an
+executor; no executor, disposition, or production operation was authorized**.
+The original failed BR6C receipt was preserved byte-for-byte.
+Its failure was reproduced with the same zero stdout bytes and 1,027-byte
+stderr digest, then safely classified as
+`BR6C_EXCEPTION_OUTPUT_NOT_CERTIFIED` without exposing raw stderr or private
+candidate/document content.
+
+The root cause was limited to the four validated exceptional races: generic
+BR6B drafting retained three stale `/updatedAt/*` runtime pointers after the
+identity blockers were cleared, producing a hybrid output instead of a
+complete certified replacement. A public-seam regression test was observed
+RED before a fail-closed correction reclassified exactly those three pointers
+for exceptional replacements. GREEN and the full diagnostic build now resolve
+CA-40, FL-11, and TX-22 through validated one-to-one corrections and NJ-08
+through only its approved many-to-one alias merge.
+
+The resulting plan covers 858/858 paths with four certified replacements, 854
+deterministic merges, zero unresolved paths, zero policy conflicts, complete
+rollback evidence, reproducible outputs, and `readyForExecutor=true`. New
+`g8-4br6cr-*` no-clobber diagnostic/build/replay/final receipts retain only
+sanitized phase/code/hash/count evidence. Firebase import, credentials,
+network requests, production operations, and executed dispositions remain
+zero. All 21 local gates passed once. The authorized final two independent
+builds and one `--verify-replay` exited `0/0/0`; every report and all four
+plans, including the isolated replay child, are byte-identical. Durable evidence:
+[G8.4BR6CR final identity resolution recovery](status/g8-4br6cr-final-identity-resolution-recovery.md).
