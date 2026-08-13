@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "contract": "g8-4br6b-sanitized-aggregate-evidence/v1",
+  "status": "locally-certified-not-ready-for-executor",
+  "startingState": {
+    "branch": "codex/politipiks-canonical-shadow-release",
+    "head": "17159857038b90a3659c2435d68806f7b515b0aa",
+    "unrelatedPathsPreserved": 10
+  },
+  "contracts": {
+    "equivalence": "g8-4br6b-fec-candidate-equivalence/v1",
+    "revisedDisposition": "g8-4br6b-revised-disposition-plan/v1",
+    "pointerRules": "g8-4br6b-fec-equivalent-pointer-rules/v1",
+    "report": "g8-4br6b-revised-disposition-report/v1",
+    "basePlan": "g8-4br6a-conflict-disposition-plan/v1"
+  },
+  "snapshot": {
+    "bytesBefore": 35148779,
+    "bytesAfter": 35148779,
+    "sha256Before": "425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3",
+    "sha256After": "425a194c25432ba3fe4f91363f217bfe37adc5246ddf6e74b9aac89d587369c3",
+    "byteIdentical": true
+  },
+  "offlineBuilds": {
+    "runs": [
+      {
+        "label": "independent-build-1",
+        "exitStatus": 0,
+        "stdoutBytes": 10760,
+        "stdoutSha256": "7ca562ab508b29b22187975d5793f55f6ee7cbba56adaa5624d1c357882a28a5",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "planBytes": 81061814,
+        "planSha256": "1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e"
+      },
+      {
+        "label": "independent-build-2",
+        "exitStatus": 0,
+        "stdoutBytes": 10760,
+        "stdoutSha256": "7ca562ab508b29b22187975d5793f55f6ee7cbba56adaa5624d1c357882a28a5",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "planBytes": 81061814,
+        "planSha256": "1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e"
+      },
+      {
+        "label": "verify-replay",
+        "exitStatus": 0,
+        "stdoutBytes": 10760,
+        "stdoutSha256": "7ca562ab508b29b22187975d5793f55f6ee7cbba56adaa5624d1c357882a28a5",
+        "stderrBytes": 0,
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "planBytes": 81061814,
+        "planSha256": "1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e"
+      }
+    ],
+    "reportsByteIdentical": true,
+    "plansByteIdentical": true
+  },
+  "digests": {
+    "basePlan": "15f456e459c18fd0db51275b0c22de7b1fe5f9fb6b3dca841f111b9469c28cd9",
+    "equivalencePairs": "679d7ee0fd0da205a9ea497c4e9f4341724684af2a72a079be3244cc3266d0de",
+    "equivalenceRaces": "95b4829a9517dfee60ccf1b6bfb47957ce0f85de322a757628297f2cdda3b2b6",
+    "equivalenceEvidence": "026c18f9f1b4f12cb60e15121486bb5f01886b3aa21f96ecae13781dd0e38947",
+    "revisedEntries": "460c7181f0be81873d9b2da47f294709eef8308d713b8406402d04eeaa6b8855",
+    "revisedAggregate": "ca9800b40738f9062a10debc748ab9a8e1cf3f7bc0a29134cb8deb357c432127",
+    "revisedPlan": "7b5da128cad3ee688949209643ab63626e2a70a18b6765f8a57b9956f162ab48"
+  },
+  "equivalence": {
+    "raceConflicts": 429,
+    "actualCandidates": 2105,
+    "certifiedCandidates": 2104,
+    "acceptedFecPairs": 2097,
+    "rejectedFecPairs": 7,
+    "fullyResolvedRaces": 425,
+    "remainingRaces": 4,
+    "invalidFecCandidates": 0,
+    "duplicateFecIds": 4,
+    "duplicateActualFecIds": 4,
+    "duplicateCertifiedFecIds": 0,
+    "reusedFecIds": 0,
+    "seatMismatches": 0,
+    "contradictoryEvidence": 0,
+    "financeMatchedPairs": 2087,
+    "financeNotPresentPairs": 10,
+    "byRejectClass": {
+      "invalid-fec-id": 0,
+      "missing-actual-candidate": 3,
+      "missing-certified-candidate": 0,
+      "duplicate-actual-fec-id": 4,
+      "duplicate-certified-fec-id": 0,
+      "cross-race-reused-fec-id": 0,
+      "office-mismatch": 0,
+      "state-mismatch": 0,
+      "seat-mismatch": 0,
+      "cycle-mismatch": 0,
+      "canonical-contest-mismatch": 0,
+      "certified-candidate-mismatch": 0,
+      "official-fec-baseline-mismatch": 0,
+      "contradictory-finance-evidence": 0
+    }
+  },
+  "revisedDispositions": {
+    "plannedPaths": 858,
+    "duplicatePaths": 0,
+    "omittedPaths": 0,
+    "byFamily": {
+      "races": 429,
+      "measures": 0,
+      "candidateResearch": 0,
+      "measureResearch": 0,
+      "metrics": 429
+    },
+    "byDisposition": {
+      "preserve-current": 0,
+      "replace-with-certified": 0,
+      "deterministic-merge": 854,
+      "unresolved": 4
+    },
+    "byProvenanceClass": {
+      "current-certified-authoritative": 50498,
+      "existing-value-with-validated-source": 7615,
+      "runtime-metadata": 7722,
+      "identity-conflict": 7,
+      "unsupported-production-only-value": 0,
+      "ambiguous-unresolved": 0
+    },
+    "byDifferenceKind": {
+      "reorder": 333,
+      "identity": 7,
+      "value": 2097,
+      "expected-only": 53216,
+      "production-only": 10189
+    },
+    "byBlockerClass": {
+      "none": 65835,
+      "identity-conflict": 7,
+      "unsupported-production-only": 0,
+      "conflicting-lineage": 0,
+      "ambiguous-lineage": 0
+    },
+    "pointerRules": 65842
+  },
+  "readiness": {
+    "readyForExecutor": false,
+    "deterministicallyResolved": 854,
+    "unresolved": 4,
+    "reproducibleOutputs": true,
+    "rollbackEvidenceComplete": true,
+    "policyConflicts": 7,
+    "nextEvidenceBatches": [
+      {
+        "batchId": "4e82f06a222dc104",
+        "racePathDigest": "358ba3216781b88218872382c7ff573b0e1d13cd746a5e830bb5eb3b3e2ba15d",
+        "rejectedFecPairs": 2,
+        "exceptionClasses": [
+          "duplicate-actual-fec-id",
+          "missing-actual-candidate"
+        ]
+      },
+      {
+        "batchId": "46a05a678bf80dbc",
+        "racePathDigest": "3b87652ffcf7ba07782593cee70b81bae8bfa1df6708de2b0c775436f7387d93",
+        "rejectedFecPairs": 2,
+        "exceptionClasses": [
+          "duplicate-actual-fec-id",
+          "missing-actual-candidate"
+        ]
+      },
+      {
+        "batchId": "0854a0af88e0adf1",
+        "racePathDigest": "b8bc47aebb6f9344119e622508a65a2c529634016e525de40f665718d220c229",
+        "rejectedFecPairs": 2,
+        "exceptionClasses": [
+          "duplicate-actual-fec-id",
+          "missing-actual-candidate"
+        ]
+      },
+      {
+        "batchId": "6641d41fcb68f4a4",
+        "racePathDigest": "f9275a4e52230e269d1d2522960a7e807ec03b72b57e1cae719cdfa5ff448843",
+        "rejectedFecPairs": 1,
+        "exceptionClasses": [
+          "duplicate-actual-fec-id"
+        ]
+      }
+    ]
+  },
+  "localGates": [
+    { "label": "br6b-focused", "exitStatus": 0, "stdoutSha256": "34e01d2de207ba6167c515eb338e7e71326c0fe6c196e9f6b80c5db8dfa1b5c9", "stderrBytes": 0 },
+    { "label": "br6a-disposition-regression", "exitStatus": 0, "stdoutSha256": "4b7c10d9b0498c068f0fd2c4c99b29893ee576cfd0d9b522618c51f61a82daca", "stderrBytes": 0 },
+    { "label": "br5a-analysis-regression", "exitStatus": 0, "stdoutSha256": "232ae3ce41e821cee1e8fb6ed6b83c40590fad89780e3a3583f42e512f46ff14", "stderrBytes": 0 },
+    { "label": "br5c-runner-regression", "exitStatus": 0, "stdoutSha256": "adcd199952061902ec20754923e42186ad728362d7c5382e5f63b56b650bffa2", "stderrBytes": 0 },
+    { "label": "br5a-preflight-regression", "exitStatus": 0, "stdoutSha256": "922623d8811da160b85f2d11391cba58eaedd1c71192f219dc83fb5fb8cc1269", "stderrBytes": 0 },
+    { "label": "br4a-activation-recovery", "exitStatus": 0, "stdoutSha256": "fc2b6e0f6fae8012b802aa0cb7b6f3463261d4cc47aa69d41c648979693d6013", "stderrBytes": 0 },
+    { "label": "g8-3a-activation", "exitStatus": 0, "stdoutSha256": "eb428ef3a412760799836c45f2de916b24e7c97f7d9d3868c7955cd85b9e202e", "stderrBytes": 0 },
+    { "label": "br3a-structured-audit", "exitStatus": 0, "stdoutSha256": "1839488007d7ebec317520376f73d8b2d981e9fc533afde97ceb12dd588f6b4b", "stderrBytes": 0 },
+    { "label": "g8-2a-product-shadow", "exitStatus": 0, "stdoutSha256": "c0d898d2dfad53ffc16d09b1e5789cee34451ae8273a7769fa9303a3de1b87e8", "stderrBytes": 0 },
+    { "label": "local-product-bundle", "exitStatus": 0, "stdoutSha256": "2cdae6224b3f6a95ccc1928c8f2728503350f9f1fe24898f725417bedecd1d85", "stderrBytes": 0 },
+    { "label": "typescript", "exitStatus": 0, "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stderrBytes": 0 },
+    { "label": "lint", "exitStatus": 0, "stdoutSha256": "a6b21efd55cdba93c857a8b986c6aa67f41a33d644c5aa05f06a0a0ec4bcb73d", "stderrBytes": 0 },
+    { "label": "build", "exitStatus": 0, "stdoutSha256": "854e7d685978856dcd70f9bddd643a8e7a61cad1d4a1fc1fda6567e6ff102f55", "stderrBytes": 417, "stderrSha256": "bb4c3a9c449877a8184763f9595d15520030fa61162f09c3441ea9c949d694c8" },
+    { "label": "br5a-capture-emulator-18083", "exitStatus": 0, "stdoutSha256": "4fad29392a0820653936ef49d591a5b587e66340b0509ea47495272051c7172a", "stderrBytes": 0 },
+    { "label": "br4a-activation-emulator-18082", "exitStatus": 0, "stdoutSha256": "aa9b5c4260dc64570708b7f3c8272ba21d4ddcb349f8630986bbd78503f9dfa1", "stderrBytes": 0 },
+    { "label": "br3a-audit-emulator-18081", "exitStatus": 0, "stdoutSha256": "ce6309d7de0e741218a950786fb388f3f8434799fe1b5f626567bfa0e4cc50cc", "stderrBytes": 0 },
+    { "label": "g8-3a-activation-emulator-8081", "exitStatus": 0, "stdoutSha256": "aa9b5c4260dc64570708b7f3c8272ba21d4ddcb349f8630986bbd78503f9dfa1", "stderrBytes": 0 },
+    { "label": "g8-2a-shadow-emulator-8081", "exitStatus": 0, "stdoutSha256": "6ea00b3dd8e70f901d11ef53f00f99484d48ae802f5c385be4d9597e5e0b6107", "stderrBytes": 0 },
+    { "label": "git-diff-check", "exitStatus": 0, "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "stderrBytes": 0 }
+  ],
+  "emulatorPolicy": {
+    "projectId": "demo-no-project",
+    "proxyBypass": "127.0.0.1,localhost,::1",
+    "credentialVariables": 0,
+    "updateChecks": false,
+    "productionTargets": 0
+  },
+  "safety": {
+    "firebaseImported": false,
+    "credentialsLoaded": false,
+    "networkRequests": 0,
+    "productionOperations": 0,
+    "dispositionsExecuted": 0
+  }
+}

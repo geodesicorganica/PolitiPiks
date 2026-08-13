@@ -988,3 +988,38 @@ were all zero, and the preserved snapshot remained byte-identical at its
 required 35,148,779 bytes and SHA-256. Focused, regression, TypeScript, lint,
 build, five alternate-port emulator, and diff gates all passed. Durable
 evidence: [G8.4BR6A offline conflict provenance and draft-disposition plan](status/g8-4br6a-offline-conflict-disposition-plan.md).
+
+## G8.4BR6B offline FEC candidate identity equivalence
+
+G8.4BR6B is **locally certified on 2026-08-12 and remains not ready for an
+executor; no disposition or production operation was performed**. A new
+versioned offline-only equivalence contract derives candidate identity from the
+same valid, nonempty FEC candidate ID only when it is unique on both sides of a
+canonical race. It cross-checks the certified current bundle, approved
+publication mapping, canonical seat/cycle/contest, official-FEC research
+baseline, and normalized finance evidence where present. Candidate order,
+name, party, incumbent flag, and Bioguide ID remain diagnostic-only.
+
+The planner derived, rather than hard-coded, 2,097 accepted FEC pairs across
+425 fully resolved races. Seven pairs were rejected across four remaining
+races: four duplicate actual FEC IDs and three certified candidates without a
+unique actual counterpart. Invalid IDs, reused IDs, seat mismatches, and
+contradictory evidence are all zero. Exact next evidence batches identify the
+four races by digest only.
+
+All 858 dispositions were rebuilt. The revised plan deterministically merges
+854 paths and leaves four race paths unresolved/no-op. Seven identity-policy
+conflicts remain; unsupported production-only, conflicting-lineage, and
+ambiguous-lineage blockers remain zero. Reproducible output and complete
+rollback evidence are present, but `readyForExecutor` remains `false`.
+
+Two independent builds and `--verify-replay` exited `0/0/0`. The private plans
+are byte-identical at 81,061,814 bytes and SHA-256
+`1f0b71444b2958ab012a03fde3b74f8603df4035f843a2363361d584a7b6752e`;
+the revised plan digest is
+`7b5da128cad3ee688949209643ab63626e2a70a18b6765f8a57b9956f162ab48`.
+The complete focused/regression/TypeScript/lint/build/emulator/diff ledger
+passed once, the snapshot remained byte-identical, and Firebase import,
+credentials, network requests, production operations, and executed
+dispositions were all zero. Durable evidence:
+[G8.4BR6B offline FEC candidate identity equivalence](status/g8-4br6b-fec-candidate-identity-equivalence.md).
