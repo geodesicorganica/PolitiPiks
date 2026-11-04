@@ -1,0 +1,1509 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "2026-ea-2026-09-21",
+  "asOf": "2026-09-21T16:20:43.163Z",
+  "sources": [],
+  "coverage": [
+    {
+      "state": "AK",
+      "authorityUrl": "https://www.elections.alaska.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "AL",
+      "authorityUrl": "https://www.sos.alabama.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "AR",
+      "authorityUrl": "https://www.sos.arkansas.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "AZ",
+      "authorityUrl": "https://azsos.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "CA",
+      "authorityUrl": "https://www.sos.ca.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "CO",
+      "authorityUrl": "https://www.sos.state.co.us/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "CT",
+      "authorityUrl": "https://portal.ct.gov/sots/election-services",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "DE",
+      "authorityUrl": "https://elections.delaware.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "FL",
+      "authorityUrl": "https://dos.fl.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "GA",
+      "authorityUrl": "https://sos.ga.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "HI",
+      "authorityUrl": "https://elections.hawaii.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "IA",
+      "authorityUrl": "https://sos.iowa.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "ID",
+      "authorityUrl": "https://sos.idaho.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "IL",
+      "authorityUrl": "https://www.elections.il.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "IN",
+      "authorityUrl": "https://www.in.gov/sos/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "KS",
+      "authorityUrl": "https://www.sos.ks.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "KY",
+      "authorityUrl": "https://elect.ky.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "LA",
+      "authorityUrl": "https://www.sos.la.gov/elections-and-voting/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MA",
+      "authorityUrl": "https://www.sec.state.ma.us/divisions/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MD",
+      "authorityUrl": "https://elections.maryland.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "ME",
+      "authorityUrl": "https://www.maine.gov/sos/cec/elec/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MI",
+      "authorityUrl": "https://www.michigan.gov/sos/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MN",
+      "authorityUrl": "https://www.sos.mn.gov/elections-voting/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MO",
+      "authorityUrl": "https://www.sos.mo.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MS",
+      "authorityUrl": "https://www.sos.ms.gov/elections-voting",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "MT",
+      "authorityUrl": "https://sosmt.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NC",
+      "authorityUrl": "https://www.ncsbe.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "ND",
+      "authorityUrl": "https://www.vote.nd.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NE",
+      "authorityUrl": "https://sos.nebraska.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NH",
+      "authorityUrl": "https://www.sos.nh.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NJ",
+      "authorityUrl": "https://www.nj.gov/state/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NM",
+      "authorityUrl": "https://www.sos.nm.gov/voting-and-elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NV",
+      "authorityUrl": "https://www.nvsos.gov/sos/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "NY",
+      "authorityUrl": "https://elections.ny.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "OH",
+      "authorityUrl": "https://www.ohiosos.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "OK",
+      "authorityUrl": "https://oklahoma.gov/elections.html",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "OR",
+      "authorityUrl": "https://sos.oregon.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "PA",
+      "authorityUrl": "https://www.pa.gov/agencies/dos/programs/voting-and-elections.html",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "RI",
+      "authorityUrl": "https://vote.sos.ri.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "SC",
+      "authorityUrl": "https://scvotes.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "SD",
+      "authorityUrl": "https://sdsos.gov/elections-voting/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "TN",
+      "authorityUrl": "https://sos.tn.gov/elections",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "TX",
+      "authorityUrl": "https://www.sos.state.tx.us/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "UT",
+      "authorityUrl": "https://vote.utah.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "VA",
+      "authorityUrl": "https://www.elections.virginia.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "VT",
+      "authorityUrl": "https://sos.vermont.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "WA",
+      "authorityUrl": "https://www.sos.wa.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "WI",
+      "authorityUrl": "https://elections.wi.gov/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "WV",
+      "authorityUrl": "https://sos.wv.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    },
+    {
+      "state": "WY",
+      "authorityUrl": "https://sos.wyo.gov/elections/",
+      "scopes": {
+        "House": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Senate": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Governor": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        },
+        "Measure": {
+          "status": "unreviewed",
+          "expectedContestIds": [],
+          "sourceIds": [],
+          "reason": "Current official inventory and ballot sources have not been reviewed for this release."
+        }
+      }
+    }
+  ],
+  "contests": []
+}

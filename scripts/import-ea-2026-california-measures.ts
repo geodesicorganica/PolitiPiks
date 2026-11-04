@@ -1,0 +1,38 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { CaptureQueue, sha256 } from './lib/ea2026Capture.js';
+import { assessRelease, type ReleaseInput } from './lib/ea2026Release.js';
+import { verifyEaSourceCaptures } from './lib/ea2026SourceEvidence.js';
+const args = process.argv.slice(2);
+const option = (key: string) => args.includes(key) ? args[args.indexOf(key) + 1] : undefined;
+const inputPath = option('--input'), extraction = option('--extraction'), captures = option('--captures'), out = option('--out');
+if (!inputPath || !extraction || !captures || !out || !args.includes('--reviewed-summaries')) throw new Error('input, extraction, captures, out and explicit --reviewed-summaries required');
+const input: ReleaseInput = JSON.parse(readFileSync(resolve(inputPath), 'utf8'));
+if (input.contests.some(c => c.state === 'CA' && c.office === 'Measure')) throw new Error('California measures already present');
+const queue = new CaptureQueue(resolve(captures), resolve('.artifacts/private/canonical-migration/ea-2026-execution/requests.jsonl'));
+const records = JSON.parse(readFileSync(resolve(extraction), 'utf8'));
+const inventory = queue.state.entries[sha256('https://voterguide.sos.ca.gov/propositions/')];
+if (!inventory?.receipt) throw new Error('independent official inventory required');
+const html = queue.body(inventory.receipt).toString('utf8');
+const expectedNumbers = [...new Set([...html.matchAll(/href=["']\/propositions\/(\d+)\//g)].map(x => x[1]))].sort();
+if (JSON.stringify(records.map((x: any) => x.number).sort()) !== JSON.stringify(expectedNumbers)) throw new Error('measure inventory mismatch');
+const now = new Date().toISOString();
+const sourceIds: string[] = [];
+for (const r of records) {
+  const entry = queue.state.entries[sha256(r.url)];
+  if (!entry?.receipt || entry.receipt.sha256 !== r.sourceDigest || entry.receipt.retrievedAt !== r.retrievedAt) throw new Error('extraction source identity changed');
+  queue.body(entry.receipt);
+  if (!r.text.includes(r.title) || !r.text.includes(r.description) || !r.text.includes(r.fiscal) || !r.text.includes('A YES vote') || !r.text.includes('A NO vote')) throw new Error('measure extraction requires review');
+  const id = `ca-guide-2026-proposition-${r.number}`;
+  sourceIds.push(id);
+  input.sources.push({ id, url: r.url, sha256: r.sourceDigest, retrievedAt: r.retrievedAt, reviewedAt: now, reviewer: 'codex-source-review', kind: 'election_authority', authority: 'California Secretary of State', locator: 'Official November 3, 2026 voter guide: proposition title, summary, fiscal impact and YES/NO meanings. Full law linked; publication identity reconciliation remains outstanding.' });
+  queue.extract(r.url, r.text, 'lxml/mainCont-itertext/v1');
+  input.contests.push({ id: `2026-CA-proposition-${r.number}`, state: 'CA', office: 'Measure', electionDate: '2026-11-03', seatKind: 'regular', sourceIds: [id], candidates: [], title: r.title, description: r.description, fullTextUrl: r.fullTextUrl, eligibleOptions: ['yes', 'no'], fiscalAnalysis: { status: 'present', value: r.fiscal, sourceIds: [id], attribution: 'government_record' }, metrics: {} as any });
+}
+const ca = input.coverage.find(c => c.state === 'CA')!;
+ca.scopes.Measure = { status: 'blocked', expectedContestIds: records.map((r: any) => `2026-CA-proposition-${r.number}`), sourceIds, reason: 'Current official inventory and summaries reviewed; older local registry assigns conflicting meanings to some proposition IDs. Resolve stable identities and league/pick compatibility before publication.' };
+input.asOf = now;
+verifyEaSourceCaptures(input.sources, resolve(captures));
+const assessment = assessRelease(input);
+writeFileSync(resolve(out), JSON.stringify(input, null, 2) + '\n', { flag: 'wx' });
+console.log(JSON.stringify({ importedMeasures: records.length, importedContests: assessment.importedContests, reviewedStates: assessment.reviewedStates, profilesReviewed: assessment.profilesReviewed, releaseReady: assessment.releaseReady }));

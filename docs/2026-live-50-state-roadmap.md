@@ -1086,3 +1086,27 @@ replay at `0/0/0`; all three 2,543-byte receipts are byte-identical at SHA-256
 Firebase import, credentials, network requests, production operations, and
 executed dispositions remain zero. Durable evidence:
 [G8.4BR7A independent executor-readiness review](status/g8-4br7a-independent-executor-readiness-review.md).
+
+## G8.4BR7B local conflict-reconciliation executor
+
+G8.4BR7B has a **complete local implementation awaiting its one-shot final
+certification**. The versioned Firebase-free planner binds every BR6CR/BR7A
+input identity and reconstructs exactly 858 ordered operations: 429 races and
+429 metrics, comprising four complete certified replacements and 854
+deterministic merges. It binds plan digest
+`ecc155e0e08a4ac599593f70041ee53d806b48a149ac375c7b2c901d4c76dd23`,
+outputs digest
+`0ac958cd0dbcf43cba20ef1b64ab7957fa4255dc76a79efb71306146957f84e2`,
+and rollback digest
+`80241286ec7cfb0e45844adbf2758883e0c8d8ec8d2b98c26b3db5f66986529d`.
+
+The executor preclassifies all exact paths before writes, fails closed on any
+missing/malformed/third/read-error value, uses guarded batches of at most 100,
+persists deterministic progress, resumes from certified document state, is
+idempotent, and restores all 858 complete rollback documents. Dry-run plans
+eligible work with zero writes. There are no queries, collection scans,
+selectors, deletes, or historically missing-document creations. Emulator code
+requires `demo-no-project` and an explicit loopback endpoint; offline runners
+import no Firebase/Firestore package. New versioned no-clobber receipts preserve
+the earlier BR7B development artifacts. Durable design and final-gate contract:
+[G8.4BR7B local conflict-reconciliation executor](status/g8-4br7b-local-reconciliation-executor.md).
