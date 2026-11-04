@@ -8,3 +8,6 @@ test-results/
 *.log
 .env*
 !.env.example
+
+# Local Firebase deployment cache
+.firebase/
