@@ -1,0 +1,7 @@
+{
+  "emulators": {
+    "firestore": { "port": 18086 },
+    "ui": { "enabled": false },
+    "singleProjectMode": false
+  }
+}

@@ -153,7 +153,7 @@ service cloud.firestore {
 
     function isFederalRaceId(targetId) {
       return targetId is string &&
-        targetId.matches('^2026-[A-Z]{2}-(senate(-(special-)?class-[123])?|house-[0-9]{3})$');
+        targetId.matches('^2026-[A-Z]{2}-(senate(-(special-)?class-[123])?|house-([0-9]{3}|al)(-special-[a-z0-9-]+)?)$');
     }
 
     function catalogSelectorExists() {
@@ -190,45 +190,62 @@ service cloud.firestore {
 
     function activeCanonicalMeasureTarget(targetId) {
       return exists(/databases/$(database)/documents/ballotMeasures/$(targetId)) &&
-        catalogSelectorIsUsable() && activeFederalGeneration() == 'canonical-2026-shadow-v2' &&
+        catalogSelectorIsUsable() &&
+        get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.get('activeMeasureGeneration', '') is string &&
+        get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.get('activeMeasureGeneration', '').matches('^canonical-[a-z0-9-]+$') &&
         get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('catalogScope', null) == 'canonical-2026-measures' &&
-        get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('registryGeneration', null) == activeFederalGeneration();
+        get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('registryGeneration', null) ==
+        get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.get('activeMeasureGeneration', '');
+    }
+
+    function allScopeRelease() {
+      return catalogSelectorExists() &&
+        get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.get('activeGubernatorialGeneration', null) != null;
+    }
+
+    function activeRaceTarget(targetId) {
+      let race = get(/databases/$(database)/documents/races/$(targetId)).data;
+      let governor = race.get('office', '') == 'Governor' || race.get('catalogScope', '') == 'gubernatorial';
+      return (isFederalRaceId(targetId) || race.get('catalogScope', '') == 'federal')
+        ? activeFederalRaceTarget(targetId)
+        : governor && allScopeRelease()
+          ? catalogSelectorIsUsable() && race.get('catalogScope', '') == 'gubernatorial' &&
+            race.get('registryGeneration', null) == get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.activeGubernatorialGeneration &&
+            get(/databases/$(database)/documents/catalogActivations/canonical-2026).data.activeGubernatorialGeneration.matches('^canonical-[a-z0-9-]+$')
+          : !allScopeRelease() && race.get('registryGeneration', null) == null;
     }
 
     function activeMeasureTarget(targetId) {
       return exists(/databases/$(database)/documents/ballotMeasures/$(targetId)) &&
-        (!isCanonical2026Measure(targetId) || activeCanonicalMeasureTarget(targetId));
+        ((!allScopeRelease() && !isCanonical2026Measure(targetId) &&
+           get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('catalogScope', '') != 'canonical-2026-measures' &&
+           get(/databases/$(database)/documents/ballotMeasures/$(targetId)).data.get('registryGeneration', null) == null) || activeCanonicalMeasureTarget(targetId));
     }
 
     function liveTargetIsOpen(data) {
-      return (data.type == 'race' &&
-              exists(/databases/$(database)/documents/races/$(data.targetId)) &&
-              get(/databases/$(database)/documents/races/$(data.targetId)).data.electionYear == 2026 &&
-              get(/databases/$(database)/documents/races/$(data.targetId)).data.mode == 'live' &&
-              get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt is timestamp &&
-              (!isFederalRaceId(data.targetId) || activeFederalRaceTarget(data.targetId)) &&
-              request.time < get(/databases/$(database)/documents/races/$(data.targetId)).data.closeAt) ||
-              (data.type == 'measure' &&
-               activeMeasureTarget(data.targetId) &&
-              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.electionYear == 2026 &&
-              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.mode == 'live' &&
-              get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt is timestamp &&
-              request.time < get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.closeAt);
+      let target = data.type == 'race'
+        ? get(/databases/$(database)/documents/races/$(data.targetId)).data
+        : get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data;
+      return data.type in ['race', 'measure'] && target.electionYear == 2026 && target.mode == 'live' &&
+        target.closeAt is timestamp && request.time < target.closeAt &&
+        (data.type == 'race' ? activeRaceTarget(data.targetId) : activeMeasureTarget(data.targetId));
     }
 
     function racePickIsEligible(data) {
       return data.type != 'race' ||
         (exists(/databases/$(database)/documents/races/$(data.targetId)) &&
-         (get(/databases/$(database)/documents/races/$(data.targetId)).data.get('predictionReady', null) == true ||
-          (get(/databases/$(database)/documents/races/$(data.targetId)).data.get('predictionReady', null) == null &&
-           get(/databases/$(database)/documents/races/$(data.targetId)).data.get('catalogScope', null) != 'federal')) &&
-         get(/databases/$(database)/documents/races/$(data.targetId)).data.get('eligibleCandidateIds', null) is list &&
-         data.pick in get(/databases/$(database)/documents/races/$(data.targetId)).data.eligibleCandidateIds);
+         eligibleRaceData(get(/databases/$(database)/documents/races/$(data.targetId)).data, data.pick));
+    }
+
+    function eligibleRaceData(race, pick) {
+      return (race.get('predictionReady', null) == true ||
+        (race.get('predictionReady', null) == null && !(race.get('catalogScope', null) in ['federal', 'gubernatorial']))) &&
+        race.get('eligibleCandidateIds', null) is list && pick in race.eligibleCandidateIds;
     }
 
     function measurePickIsEligible(data) {
       return data.type != 'measure' ||
-        (activeMeasureTarget(data.targetId) &&
+        (exists(/databases/$(database)/documents/ballotMeasures/$(data.targetId)) &&
          get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('predictionReady', false) == true &&
          get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.get('eligibleOptions', null) is list &&
          data.pick in get(/databases/$(database)/documents/ballotMeasures/$(data.targetId)).data.eligibleOptions);

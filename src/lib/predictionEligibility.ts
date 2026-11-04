@@ -14,7 +14,7 @@ const candidateHasNegativeStatus = (candidate: Candidate) =>
 export function candidatePickIsEligible(race: Race, candidate: Candidate) {
   if (!raceReady(race) || candidateHasNegativeStatus(candidate)) return false;
   if (!race.eligibleCandidateIds?.includes(candidate.id)) return false;
-  if (race.catalogScope !== 'federal') return true;
+  if (race.catalogScope !== 'federal' && race.catalogScope !== 'gubernatorial') return true;
   return candidate.pickEligibility === 'eligible' &&
     (candidate.qualificationStatus === 'qualified' || candidate.qualificationStatus === 'on_ballot');
 }

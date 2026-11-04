@@ -16,7 +16,7 @@ function stateMatches(state: string, filter: CatalogFilters) {
 }
 
 export function raceReady(race: Race) {
-  const readinessAllowsPicks = race.catalogScope === 'federal'
+  const readinessAllowsPicks = race.catalogScope === 'federal' || race.catalogScope === 'gubernatorial'
     ? race.predictionReady === true
     : race.predictionReady !== false;
   return readinessAllowsPicks && (race.eligibleCandidateIds?.length ?? 0) > 0;

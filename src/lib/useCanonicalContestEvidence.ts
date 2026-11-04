@@ -11,6 +11,8 @@ export function useCanonicalContestEvidence(raceId: string, candidateId: string)
   const [loaded, setLoaded] = useState({ research: false, metrics: false });
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    setResearch(null);
+    setMetrics(null);
     setLoaded({ research: false, metrics: false });
     setError(null);
     const unsubscribeResearch = onSnapshot(doc(db, 'races', raceId, 'candidateResearch', candidateId), (snapshot) => {

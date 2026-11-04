@@ -189,7 +189,7 @@ export interface Race extends SourceMetadata {
   electionYear: number;
   mode: 'live' | 'sandbox';
   /** Canonical-catalog metadata; absent records are legacy or non-federal compatibility records. */
-  catalogScope?: 'federal' | 'nonfederal';
+  catalogScope?: 'federal' | 'nonfederal' | 'gubernatorial';
   registryGeneration?: string;
   catalogReady?: boolean;
   researchReady?: boolean;

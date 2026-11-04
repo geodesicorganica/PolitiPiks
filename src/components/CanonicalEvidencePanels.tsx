@@ -1,4 +1,5 @@
 import { ExternalLink } from 'lucide-react';
+import { ReviewedProfile } from './ReviewedProfile';
 import { formatEvidenceCurrency, formatEvidenceNumber, parseCanonicalEvidence, partisanMarginLabel, type EvidenceAvailability, type EvidenceSource } from '../lib/canonicalEvidence';
 
 const stateLabel: Record<EvidenceAvailability, string> = { present: 'Available', partial: 'Partial', unavailable: 'Unavailable', not_applicable: 'Not applicable', stale: 'Stale', source_error: 'Source error' };
@@ -10,6 +11,10 @@ export function CanonicalEvidencePanels({ research, metrics, loading = false, er
   if (loading) return <p className="text-sm text-slate-500" data-testid="evidence-loading">Loading sourced evidence…</p>;
   if (error) return <p role="alert" className="text-sm text-brand-red">{error}</p>;
   if (!research && !metrics) return <p className="text-sm text-slate-500">No canonical evidence is available yet.</p>;
+  if (research && typeof research === 'object' && 'profile' in research) {
+    const context = metrics && typeof metrics === 'object' && 'reviewedContext' in metrics ? metrics.reviewedContext : null;
+    return <div className="space-y-6"><ReviewedProfile value={research.profile} /><ReviewedProfile value={context} labels={{ historical: 'Historical context', turnout: 'Turnout context', demographics: 'Electorate context' }} /></div>;
+  }
   const evidence = parseCanonicalEvidence(research, metrics); const finance = evidence.finance; const congress = evidence.congress;
   const identityValue = evidence.identity.value && typeof evidence.identity.value === 'object' && 'fecCandidateId' in evidence.identity.value ? String((evidence.identity.value as { fecCandidateId: unknown }).fecCandidateId) : undefined;
   return <div className="grid grid-cols-1 xl:grid-cols-3 gap-6" data-testid="canonical-evidence">
